@@ -88,7 +88,6 @@ if production == False:
 
 # In[2]:
 
-
 if production == False:
 ##### section for debugging only (development mode). Choose 0 for jupyter, 1 for production (.sh)
     fps = ''    # leave blank to let the script calculate. Has no effect in production.
@@ -102,14 +101,13 @@ if production == False:
     well_number = "WE00046"         # 15, 16 or 24 to test    
     crop = False
     threads = 1
-    slow_mode = False    
+    slow_mode = False
     
     # out_dir needs to be absolut path to be portable
     out_dir = "C:/Users/marci/Documents/Medaka_project/analyses/" + frame_folder + '/' + loop + "/" + well_number   
     
 ####################################################### 
 #python3 segment_heart.py -i $in_dir -l $loops -o $out_dir -t $frame_type $crop -i $index 
-
 
 else:
     parser = argparse.ArgumentParser(description='Read in medaka heart video frames')
@@ -138,9 +136,6 @@ else:
     index = args.index
     crop = args.crop
     average_values = args.average
-    
-
-  
 
     if not args.average:
         average_values=0
@@ -151,7 +146,6 @@ else:
         crop=False
     else:
         crop = args.crop
-
 
     #slow_mode = True
     #threads = 96
@@ -175,9 +169,6 @@ num_cores = multiprocessing.cpu_count()
 if (num_cores > threads):
     print('the number of virtual processors in your machine is:', num_cores, "but hou have requested to run on only", threads)
     print("You can have faster results (or less errors of the type \"broken pipe\") using the a ideal number of threads in the argument -p in your bash command (E.g.: -p 8). default is 1")
-
-exit
-
 
 loops_names = loop.split(".")
 loops_number = len(loops_names)
@@ -208,12 +199,6 @@ print("Running....please wait...")
 ##########################
 ##  Functions   ##
 ##########################
-#Detect embryo in image based on Hough Circle Detection
-
-
-
-
-
 #############################################################################
 # start of fast mode
 
@@ -309,18 +294,11 @@ def run_a_well(indir, out_dir, frame_format, well_number, loop, blur_par=11, low
 ###############################################################
 
 
-
-
-
-
-
-
-
-
+#Detect embryo in image based on Hough Circle Detection
 def detectEmbryo(frame):
 
     #Find circle i.e. the embryo in the yolk sac 
-    img_grey = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    img_grey = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
 
     #Blur
     img_grey = cv2.GaussianBlur(img_grey, (9, 9), 0)
@@ -783,7 +761,9 @@ def rolling_diff(index, frames, win_size = 5, direction = "forward", min_area = 
 
     #Filter mask by area
     #Opening to remove noise
-    #thresh = cv2.morphologyEx(abs_diffs, cv2.MORPH_OPEN, kernel)
+    #thresh = cv2.morphologyEx(abs_diffs, cv2.MORPH_OPEN, kernel) 
+
+    # # TODO: Is necessary? Romoves a lot of data potentially
     thresh = cv2.erode(abs_diffs,(7,7), iterations = 3)
 
     #Filter based on their area
@@ -842,7 +822,7 @@ def heartQC_plot(ax, f0_grey, heart_roi,heart_roi_clean,label_maxima, figsize=(1
 
 
 
-def new_qc_mask_contours(heart_roi):
+def new_qc_mask_contours(heart_roi, maxima):
 
  #Find contours based on thresholded, summed absolute differences
     contours, _ = cv2.findContours(heart_roi, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -882,9 +862,6 @@ def new_qc_mask_contours(heart_roi):
         pRatio.append(pixel_ratio)
         
         iList.append(i)
-        
-       
-
 
         #Take all regions that overlap with 80%+ of the 250 most changeable pixels or 
         #those in which these pixels comprise at least 5% of the pixels in the contoured region
@@ -893,14 +870,11 @@ def new_qc_mask_contours(heart_roi):
             #final_mask = cv2.add(final_mask, contour_mask)
             #regions += 1
     
-    
     max_value_rate = max(pRatio)
     max_value_pixels = max(pOverlap)    
     indexOfMaximum_r = [pRatio.index(max_value_rate)]
     indexOfMaximum_p = [pOverlap.index(max_value_pixels)]
 
-
-    
     if indexOfMaximum_r != indexOfMaximum_p:
         final_list = indexOfMaximum_r + indexOfMaximum_p
         regions = 2   
@@ -908,27 +882,17 @@ def new_qc_mask_contours(heart_roi):
         final_list = indexOfMaximum_r
         regions = 1
   
-    
     new_countours = [contours[i] for i in final_list]
     
     contour_mask = np.zeros(shape=[rows, cols], dtype=np.uint8)
     
     cv2.drawContours(contour_mask, new_countours, -1, (255), thickness = -1)
     
-    final_mask = cv2.add(final_mask, contour_mask)
-   
+    final_mask = cv2.add(final_mask, contour_mask)  
     
     return(final_mask, regions)
 
-
-
-
-
-
-
-
-
-def qc_mask_contours(heart_roi):
+def qc_mask_contours(heart_roi, maxima, top_pixels):
 
     #Find contours based on thresholded, summed absolute differences
     contours, _ = cv2.findContours(heart_roi, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -965,24 +929,12 @@ def qc_mask_contours(heart_roi):
         #those in which these pixels comprise at least 5% of the pixels in the contoured region
         if (overlap_pixels >= (top_pixels * 0.8)) or (pixel_ratio >= 0.05):
             final_mask = cv2.add(final_mask, contour_mask)
-
-
-
-
-
-
-
             regions += 1
 
     return(final_mask, regions)
-
-
-
 #print('ok')
 
-
 # ## Function qc_mask_contours(heart_roi)
-
 # In[14]:
 
 def new2_qc_mask_contours(heart_roi):
@@ -1015,7 +967,6 @@ def new2_qc_mask_contours(heart_roi):
     return(final_mask, regions)
 
 #print('ok')
-
 
 #Detect extreme outliers and filter them out
 #Outliers due to e.g. sudden movement of whole embryo or flickering light 
@@ -1322,16 +1273,9 @@ def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211):
 
     return(ax)
 
-
-
-
-#print('ok')
-
-
 # ## Function def PixelSignal(grey_frames)
 
 # In[21]:
-
 
 def PixelSignal(grey_frames):
 
@@ -1454,21 +1398,16 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, pixel_num = No
 
     #Run all pixels without plotting them individually
     else:
-        highest_freqs = Parallel(n_jobs=threads, prefer="threads")(delayed(PixelNorm)(pixel, pixel_signals, times, empty_frames, heart_range) for pixel in selected_pixels)
+        highest_freqs = Parallel(n_jobs=threads, prefer="threads")(delayed(PixelNorm)(pixel, pixel_signals, times, empty_frames, heart_range, td) for pixel in selected_pixels)
 
         return(highest_freqs)
-
-    
-    
-#print('ok')
-
 
 # ## Function PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
 
 # In[23]:
 
 
-def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
+def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot = False):
     
     pixel_signal = pixel_signals[pixel]
 
@@ -1504,16 +1443,9 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = Fal
 
     return(highest_freq)
 
-
-
-
-#print('ok')
-
-
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
 
 # In[24]:
-
 
 def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True):
 
@@ -1521,24 +1453,24 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
     ax = plt.subplot()
     
     peak_variance = np.var(frequencies)
-    #Deal with very homogeneous array of Fourier Peaks,
-    #otherwise variance will be too small for KDE.
-    #Needs to be greater than 0
+    # Deal with very homogeneous array of Fourier Peaks,
+    # otherwise variance will be too small for KDE.
+    # Needs to be greater than 0
     if peak_variance < 0.0001:
 
         error_message = "low variance"
 
-        #Take mode of (homogeneous) array to be the heart rate
+        # Take mode of (homogeneous) array to be the heart rate
         median_peaks = np.median(frequencies)
         bpm = median_peaks * 60
         bpm = np.around(bpm, decimals=2)
 
-        #Prepare label for plot
+        # Prepare label for plot
         bpm_label = str(int(bpm)) + " bpm"
 
         hist_height = max([h.get_height() for h in sns.histplot(frequencies, stat = 'density', bins = 500).patches])
 
-                #Plot Histogram
+        # Plot Histogram
         _ = sns.histplot(frequencies, ax = ax, fill=True, stat = 'density',bins = 500)
 
         _ = ax.set_title("Pixel Fourier Transform Maxima")
@@ -1574,19 +1506,14 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
         max_x = xs[max_index]
         max_y = ys[max_index]
 
-    
-
         #Peak Calling 
         #prominence filters out 'flat' KDEs, 
         #these result from a noisy signal 
         if peak_filter is True:
             peaks, _ = find_peaks(ys, prominence = 0.5)
-
         else:
             peaks, _ = find_peaks(ys, prominence=0.1)
-
-          
-
+            
         if len(peaks) == 1:
             error_message = "found 1 peak"           
             bpm = max_x * 60
@@ -1598,8 +1525,6 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
             #Label plot with bpm
             _ = ax.plot(max_x,max_y, 'bo', ms=10)
             _ = ax.annotate(bpm_label, xy=(max_x, max_y), xytext=(max_x + (max_x * 0.1), max_y + (max_y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-        
         
         elif len(peaks) > 1:
             #verify if user has inserted a average argument -a. 0 means No parameters inserted
@@ -1616,13 +1541,9 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
                 _ = ax.annotate(bpm_label, xy=(max_x, max_y), xytext=(max_x + (max_x * 0.1), max_y + (max_y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
             else:
-
                 #the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average                
-
                 
-                list_from_array = xs.tolist()                
-                
-               
+                #list_from_array = xs.tolist()                
                 #list_from_array_y_index = [x for x in range(len(ys)) if ys[x] in list_from_array_y]
 
                 x_values = [xs[i] for i in peaks]
@@ -1630,16 +1551,9 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
                 absolute_difference_function = lambda list_value : abs(list_value - average_values/60)
                 closest_value = min(x_values, key=absolute_difference_function)
                 
-             
                 x_list = xs.tolist()              
                 
                 index_for_plotting = x_list.index(closest_value)
-                
-                
-
-
-
-                
 
                 bpm = closest_value * 60
                 bpm = np.around(bpm, decimals=2)
@@ -1652,10 +1566,6 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
                 error_message = "found " + str(len(peaks)) + " peak(s), and selected the closest to " + str(average_values) + ', as requested in the argument -a'
                 print("found " + str(len(peaks)) + " peak(s), and selected the closest to " + str(average_values) + ', as requested in the argument -a')
 
-
-
-
-
         else:
             bpm = "NA"
             error_message = 'No peaks detected, as prominence is < 0.1'
@@ -1663,13 +1573,9 @@ def PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filte
 
     return(ax, bpm, error_message)
 
-#print('ok')
-
-
 # ## Function output_report(well_number, well, bpm_fourier = "NA", error_message = "No message"):
 
 # In[25]:
-
 
 #create an final report or append tbpm result to an existent one
 def output_report(well_number, well, bpm_fourier = "NA", error_message = "No message"):
@@ -1684,36 +1590,25 @@ def output_report(well_number, well, bpm_fourier = "NA", error_message = "No mes
             final_file.writerow([well_number, well, bpm_fourier, error_message])
 
     except IOError:
-       
         with open(output_dir, 'a') as results:
             final_file = csv.writer(results, delimiter=',', quotechar='"', lineterminator = '\n')
             final_file.writerow(['well', 'twell_id', 'tbpm', 'message if any'])
             final_file.writerow([well_number, well, bpm_fourier, error_message])
+
     return
-            
-
-
-
-
- 
-
 
 # ## Function final_dist_graph(bpm_fourier)
 
 # In[44]:
 
-
-#create an graph and plot averages from final report (overwrite and update if alreadye exists)
-
+# Create an graph and plot averages from final report (overwrite and update if alreadye exists)
 def final_dist_graph(bpm_fourier):
     data_file = out_base + "/general_report.csv"   
     output_dir = out_base + "/data_dist_plot.jpg"
     
     try:        
-        
         data = pd.read_csv(data_file, usecols=[2]) 
         #data = data.dropna()
-        
         #data = pd.read_csv(resulting_reports + loop + '/' + frame_format + "_general_report.csv"", usecols=[2]) 
 
         #calculate total rows and valid rows so we can calculate error index an others indicators
@@ -1738,9 +1633,6 @@ def final_dist_graph(bpm_fourier):
         #log10 = np.log10(list)
         #log10_round_to = [round(num, 2) for num in log10]
 
-        
-        
-
         final_text = ("total_rows: " + str(number_total_of_rows) + ";  " + "Error rows: " + str(rows_with_error) + ";  " +                          "error index: " + str(round(error_index,2)) +                          " %;  " + "average: " + str(mean_data) + ";  std deviation: " + str(std_dev) +                          ";  variation coeficient: " + str(cv))
         sns.set(font_scale = 1.2)
         fig, axs = plt.subplots(ncols=2, figsize=(15,10))
@@ -1756,26 +1648,16 @@ def final_dist_graph(bpm_fourier):
         fig.suptitle(final_text, fontsize=12)       
         fig = double_plot.get_figure()
         fig.savefig(output_dir)
-      
         
     except:
         pass
-        
-            
+
 #final_dist_graph(bpm_fourier)    ## debug    
 
-#print('ok')
-
-
 # ## Detect the files in the folder 
-
 # In[27]:
 
-
-
-
-
-#Check that enough cores for parallelisation
+# Check that enough cores for parallelisation
 if num_cores > 1:
     if threads > num_cores:
         threads = num_cores
@@ -1784,7 +1666,6 @@ else:
     
 #All images in subdirs, one level below if tiff, 2 below if jpeg
 #If multiple loops
-
 
 #this is for debbugging purposes######################################################
 #print('loop again')
@@ -1860,15 +1741,10 @@ clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
 #Kernel for image smoothing
 kernel = np.ones((5,5),np.uint8)
 
-
-
-
-
 if production == False:
     print(well_frames)
 
 #print('ok')
-
 
 # ## create the circle coordinates
 
@@ -1968,10 +1844,6 @@ for frame in well_frames:
         plt.show()    
         #print(type(img))
         #print(img.shape)
-    
-      
-    
-
 
     if img is not None:
         #print('image is not none, detect embryo')
@@ -2031,7 +1903,6 @@ for frame in well_frames:
                 imgs_meta['frame_number'].append(frame_number) 
                 imgs_meta['time'].append(time)
 
-
             except:
                 imgs_meta['frame'] = [frame]
                 imgs_meta['well'] = [plate_pos] 
@@ -2050,8 +1921,7 @@ for frame in well_frames:
             #print("image probably without focus")
             index_error_images.append(n_image)
             
-            n_image +=1
-            
+            n_image +=1   
             
             #create a dataframe even if image was out of focus, just to debug when creating a video
             try:
@@ -2061,7 +1931,6 @@ for frame in well_frames:
                 imgs_meta['frame_number'].append(frame_number) 
                 imgs_meta['time'].append(time)
 
-
             except:
                 imgs_meta['frame'] = [frame]
                 imgs_meta['well'] = [plate_pos] 
@@ -2069,18 +1938,14 @@ for frame in well_frames:
                 imgs_meta['frame_number'] = [frame_number] 
                 imgs_meta['time'] = [time]
             
-      
-            
             imgs[name] = img
-            
-          
+               
     else:
         #print("ERROR: blank image")
         index_error_images.append(n_image) 
         
         n_image +=1
-        
-        
+               
 if production == False:
     #print('index of images with error:')       
     #print(index_error_images)
@@ -2099,22 +1964,13 @@ try:
 except OSError as e:
     if e.errno != errno.EEXIST:
         raise
-
     
-   
-#print('ok')
-
-
 # ## just show circle coordinates
 # 
 
 # In[29]:
 
-
-#print(len(index_error_images))
-#if more than 10% of images present error, exit the code and save a error folder
-
-      
+#if more than 10% of images present error, exit the code and save a error folder      
 if len(index_error_images) > (len(well_frames)*0.7): #if more than 30% of frames have problem
     #print(out_dir)
     img_out = cv2.imread(well_frames[index_error_images[0]],1) # load the first frame from list of problematic frames    
@@ -2131,17 +1987,13 @@ if len(index_error_images) > (len(well_frames)*0.7): #if more than 30% of frames
     with open(out_file, 'w') as output:   
         output.write('Sorry, but more than ' + str(len(index_error_images)) + ' out of ' + str(len(well_frames)) +                      ' images contains unrecoverably errors, probably out of focus images.')
                
-                
-    
     #calls the function to save the general report
     output_report(well_number, well, error_message = "error code 1 - " + str(len(index_error_images)))
 
     #raise error to stop if in production
     error=throw_error_to_estop  #just to rise a error, this variable does not exist 
     
-    
 else:
-    
     #Save a frame image with the embryo highlighted with a circle    
     first = next(x for x, frame in enumerate(raw_frames) if frame is not None and x not in index_error_images)
     #print('first image')
@@ -2174,35 +2026,25 @@ else:
     circle[1] = embryo_y
     circle[2] = embryo_rad
 
-
-
     # Draw the center of the circle
     cv2.circle(img_out,(circle[0],circle[1]),2,(255,225,0),20)
     # Draw the circle
     cv2.circle(img_out,(circle[0],circle[1]),circle[2],(0,255,0),3)
 
-
-    
-
-
 # creating a dataframe from a dictionary 
 imgs_meta = pd.DataFrame(imgs_meta)
 
-
 #Sort by well, loop and frame 
 imgs_meta = imgs_meta.sort_values(by=['well','loop','frame_number'], ascending=[True,True,True])
+
 #Reindex pandas df
 imgs_meta = imgs_meta.reset_index(drop=True)
-
-
 
 sorted_frames = []
 frame_dict = {}
 sorted_times = []
 
 for index,row in imgs_meta.iterrows():
-    
-   
     #tiff = row['tiff']
     well = row['well']
     loop = row['loop']
@@ -2215,14 +2057,10 @@ for index,row in imgs_meta.iterrows():
 
     well_id = (well, loop)
     
-    
     if img is not None:
-
         #Crop if necessary based on detection of embryo with Hough Circle Method
         #Use cropping parameters to uniformly crop frames
-        if crop is True:
-
-         
+        if crop is True:         
             frame_dict[time] = img[embryo_x-embryo_rad*2:embryo_x+embryo_rad*2, embryo_y-embryo_rad*2:embryo_y+embryo_rad*2]
             height, width, layers = frame_dict[time].shape
             
@@ -2233,11 +2071,7 @@ for index,row in imgs_meta.iterrows():
         size = (width,height)
 
     else:
-        frame_dict[time] = None
-
-        
-        
-        
+        frame_dict[time] = None        
         
 #Determine frame rate from time-stamps if unspecified 
 if production == False:
@@ -2261,21 +2095,12 @@ else:
         #fps = int(len(sorted_times) / round(total_time))
         fps = len(sorted_times) / total_time
         
-        
-        
 #Remove duplicate time stamps, 
 #same frame can have been saved more than once
 sorted_times = list(OrderedDict.fromkeys(sorted_times)) 
 sorted_frames = [frame_dict[time] for time in sorted_times]
 
-
-
-
-
-
-
 # In[31]:
-
 
 #Normalise intensities across frames by max pixel if tiff images
 if frame_format == "tiff":
@@ -2298,10 +2123,7 @@ except IndexError:
 size = (width,height)
 out_vid = out_dir + "/embryo.mp4"
 
-
-
 out = cv2.VideoWriter(out_vid,fourcc, fps, size)
-
 
 for i in range(len(vid_frames)):
     out.write(vid_frames[i])
@@ -2309,19 +2131,12 @@ out.release()
 
 #Only process if less than 5% frames are empty
 if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
-
-
     ### era aqui
-
     embryo = []
     
     #Start from first non-empty frame
     start_frame = next(x for x, frame in enumerate(norm_frames) if frame is not None)
-
-
-
-
-    
+  
     #new feature to filter mask
     hsvz = cv2.cvtColor(norm_frames[start_frame], cv2.COLOR_RGB2HSV)
     lower_green = np.array([0, 0, 0])
@@ -2331,10 +2146,7 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
     opened_maskz = cv2.morphologyEx(maskx, cv2.MORPH_OPEN, kernelz)
     plt.imshow(norm_frames[start_frame])
     plt.imshow(opened_maskz)
-    
-    
-    
-    
+        
     #Add None if first few frames are empty
     empty_frames = range(start_frame)
     for i in empty_frames:
@@ -2378,15 +2190,12 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
             
             im = cv2.imwrite('color_img.jpg', heart_roi)
             
-
         else:
             embryo.append(None)
         j += 1
     
-    
     heart_roi = cv2.bitwise_and(heart_roi, heart_roi, mask=opened_maskz)   
 
-    
     #Get indices of 250 most changeable pixels
     top_pixels = 250
     changeable_pixels = np.unravel_index(np.argsort(heart_roi.ravel())[-top_pixels:], heart_roi.shape)
@@ -2411,12 +2220,11 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
     #Filter mask based on area of contours
     heart_roi_clean = filterMask(mask = heart_roi_clean, min_area = 100)
 
-    final_mask, regions = new_qc_mask_contours(heart_roi_clean)
-    #final_mask, regions = qc_mask_contours(heart_roi_clean)
+    final_mask, regions = new_qc_mask_contours(heart_roi_clean, maxima)
+    #final_mask, regions = qc_mask_contours(heart_roi_clean, maxima, top_pixels)
    
         #output_report(well_number, well, error_message = "no masks")
     #print(nothing_here_just_to_throw_an_error)
-
 
     overlay = color.label2rgb(label_maxima, image = final_mask, alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
 
@@ -2447,21 +2255,14 @@ else:
         out.write(img)
 
     out.release()
-
-    
     
 #print('ok')
-
-
 # ## process frames if less yhan 5% empty
-
 # In[32]:
-
 
 #Only process if less than 5% frames are empty   #####  just continuation
 if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
 
-   
     #Check if heart region was detected, i.e. if sum(masked) > 0
     #and limit number of possible heart regions to 3 or fewer
     #if (final_mask.sum() > 0) and (regions <= 3):  
@@ -2483,10 +2284,8 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
             frame = embryo[i]
 
             if frame is not None:
-                
-
                 masked_data = cv2.bitwise_and(frame, frame, mask=mask)
-                masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)
+                masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)  # TODO: Suspected source of errors. Check and inspect this for frames after the first.
                 
                 #print('masked_grey')
                 #print('Embryo number: ' + str(i))
@@ -2544,8 +2343,6 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
                     #Save first frame with the ROI highlighted
                     out_fig =  out_dir + "/masked_frame.png"
                     cv2.imwrite(out_fig,masked_frame)
-                    
-                    
 
             #Time frame i = (frame i - frame i-1) / 1000
             #Total Time frame i = (frame i - frame 0) / 1000
@@ -2573,10 +2370,6 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
         #Quality control heart rate estimate
         ############################
         # Min and max bpm from Jakob paper
-        #Only consider bpms (i.e. frequencies) less than 300 and greater than 60
-        minBPM = 60 # 1 hz
-        maxBPM = 300 # 5 hz
-
         y = np.asarray(list(cvs.values()), dtype=float)
 
         #Get indices of na values
@@ -2585,9 +2378,7 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
 
         #Calculate fresh time domain if fps parameter was specified
         #To overcome any issues with the timestamp generation
-        
-        
-        
+     
         ################ This is for debugging only
         
         if production == False:
@@ -2617,7 +2408,6 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
                 frame2frame = np.mean(np.diff(times))
                 
         ##############################################
-            
 
         #Time domain for interpolation
         increment = frame2frame / 6
@@ -2628,18 +2418,13 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
         #print(times)
         #print(y)
         #print(empty_frames)
+        
+        #TODO: This is unused atm
         times_final, y_final, cs = interpolate_signal(times, y, empty_frames)
         meanY = np.mean(cs(td))
 
         #Signal per pixel
         pixel_signals = PixelSignal(masked_frames)
-
-        #All pixels
-        norm_frames_grey = greyFrames(norm_frames)
-        #Resize frames to make faster
-        norm_frames_grey = resizeFrames(norm_frames_grey, scale = 50)
-        #Signal for every pixel
-        all_pixel_sigs = PixelSignal(norm_frames_grey)
 
         #Run normally, Fourier in segemented area
         if slow_mode is not True:
@@ -2668,14 +2453,19 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
         #Run in slow mode, Fourier on every pixel
         #must be removed from here and sent to the end, as if the script does not find any mask, it still runs the slow method
         else:
+            #All pixels
+            norm_frames_grey = greyFrames(norm_frames)
+            #Resize frames to make faster
+            norm_frames_grey = resizeFrames(norm_frames_grey, scale = 50)
+            #Signal for every pixel
+            all_pixel_sigs = PixelSignal(norm_frames_grey)
+            
             #Perform Fourier Transform on every pixel
             highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame, plot = True)
 
             #print(highest_freqs2)
             #print(erro)
             
-   
-    
             #Plot the density of fourier transform global maxima across pixels
             out_kde2 = out_dir + "/pixel_rate_all.png"
             fig2, ax2 = plt.subplots(1,1,figsize=(10, 7))
@@ -2685,7 +2475,6 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
             
             error_message = error_message + " in slow mode"
 
-            
             #print('error_message=')
             #print(error_message)
 
@@ -2738,17 +2527,11 @@ if sum(frame is None for frame in sorted_frames) < len(sorted_frames) * 0.05:
 
     else:
         pass
-        #print('sem mascara')
+        #print('without mask')
         
-#print('ok')        
-        
-
-
 # ## run the report and graphs functions
 
 # In[45]:
-
-
 #check heartrate was calculated
 #otherwise create variable and set to NA
 if "bpm_fourier" not in locals():
@@ -2757,9 +2540,7 @@ if "bpm_fourier" not in locals():
     error_message = 'bpm_fourier not in locals()'
     
 
-#bpm_fourier = "NA"    
-
-
+#bpm_fourier = "NA"
     
 #Try to use fast method
 '''if bpm_fourier == 'NA':
@@ -2772,14 +2553,11 @@ if "bpm_fourier" not in locals():
         error_message = error_message + ' using the fast method'
     except:
         error_message="ERROR in fast method"'''
-        
-     
     
 # try to use slow method
 if bpm_fourier == 'NA':
     threads = 96
     try:
-        
         #All pixels
         if "stop_frame" in locals():            
             norm_frames_grey = greyFrames(norm_frames, stop_frame)
@@ -2789,7 +2567,6 @@ if bpm_fourier == 'NA':
         norm_frames_grey = resizeFrames(norm_frames_grey, scale = 50)
         #Signal for every pixel
         all_pixel_sigs = PixelSignal(norm_frames_grey)
-        
         
         highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame, plot = False)   
         #Plot the density of fourier transform global maxima across pixels
@@ -2801,11 +2578,7 @@ if bpm_fourier == 'NA':
         #print(bpm_fourier)
         error_message = error_message + " then slow mode"
     except:
-        error_message="ERROR in slow method"
-        
- 
-    
-    
+        error_message="ERROR in slow method"    
 
 #Write bpm estimate to file inside the specific well´s folder
 out_file = out_dir + "/heart_rate.txt"
@@ -2813,34 +2586,22 @@ with open(out_file, 'w') as output:
     
     output.write("well\twell_id\tbpm\n")
     output.write(well_number + "\t" + well + "\t" +  str(bpm_fourier) + "\n")
-
-
- 
     
     #print("well: " + str(well_number))
     #print("well_id: " + str(well))
     print("tbpm: " + str(bpm_fourier))
          
-            
-
 #calls the function to save the general report. 
 output_report(well_number, well, bpm_fourier, error_message)    
 
 #Create or sobrescribe the histogram and distgraphs
 if bpm_fourier != "NA":
     #print('call graph function')
-    final_dist_graph(bpm_fourier)
-         
+    final_dist_graph(bpm_fourier)      
 
 #Welch’s method [R145] computes an estimate of the power spectral density by dividing the data into overlapping segments, computing a modified periodogram for each segment and averaging the periodograms.
 #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.signal.welch.html
 
-
 #Issues 
 #Heart obscured and picks up blood vessels
 #differences in illumination between frames (flickering)
-
-
-
-
-
