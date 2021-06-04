@@ -41,6 +41,7 @@ while getopts ":i:o:l:f:c:m:a:e:w:p:b:" opt; do
         esac
 done
 
+
 shift "$(( OPTIND - 1 ))"
 
 if [ -z "$loops" ] ; then
@@ -107,8 +108,8 @@ fi
 
 
 # verify if path have image folders
-files_tif=( ${indir}/*".tif" )
-files_jpg=( ${indir}/*".jpg" )
+files_tif=( "${indir}"/*".tif" )
+files_jpg=( "${indir}"/*".jpg" )
 files_tif_number=${#files_tif[@]}
 files_jpg_number=${#files_jpg[@]}
 sum=$(( $files_tif_number + $files_jpg_number ))
@@ -131,7 +132,7 @@ fi
 for val in "${strarr_l[@]}";
 do
   #printf "$val\n"
-  files_loop=( ${indir}/*"$val"* )
+  files_loop=( "${indir}"/*"$val"* )
   files_loop_number=${#files_loop[@]}
   
   if [ ${files_loop_number} -gt 1 ]; then
@@ -156,12 +157,12 @@ echo "loops quantity: $loops_quantity"
 
 # verify if output path exists and create date folder for output
 
-if [[ -d $out_dir ]] ; then
+if [[ -d "$out_dir" ]] ; then
 	if [ -z "$supress_dtf" ] || [ "$supress_dtf" != True ] ; then		
 		#append date and time to the output directory
 		date_and_time=$(date '+%Y-%m-%d_%H%M%S')
-		out_dir=${out_dir}/MDK_${date_and_time}
-		mkdir -p ${out_dir}
+		out_dir="${out_dir}"/MDK_${date_and_time}
+		mkdir -p "${out_dir}"
 	fi
 else
  	echo "-------"
@@ -206,7 +207,7 @@ else
 fi
 
 
-echo "Results will be saved at: $out_dir" >&2
+echo 'Results will be saved at: ' "$out_dir" >&2
 
 echo "-------"
 
@@ -262,12 +263,12 @@ if [ "$farm" == "True" ] ; then
      
 	for j in ${strarr_l[@]}; do
 		#Create a job array for each well and each loop
-		bsub -J "heartRate${reads}${maxjobs}" -M20000 -R rusage[mem=8000] $email bash analyse_plate_array_run.sh $indir $j $out_dir $crop $average $process # -o /dev/null depois do ] -o log_array.txt or -o /dev/null
+		bsub -J "heartRate${reads}${maxjobs}" -M20000 -R rusage[mem=8000] $email bash analyse_plate_array_run.sh "$indir" $j "$out_dir" $crop $average $process # -o /dev/null depois do ] -o log_array.txt or -o /dev/null
 
 	done
 
 	#Create a dependent job for final report
-	bsub -J "consolidated" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i $out_dir -o $out_dir #-o log_consolidated.txt
+	bsub -J "consolidated" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
 
 else
 	farm=False
@@ -327,7 +328,7 @@ else
 				for j in ${strarr_l[@]}; do
 
 
-					python3 segment_heart.py -i $indir -l $j $crop -o $out_dir -ix $i -a $average -p $process
+					python3 segment_heart.py -i "$indir" -l $j $crop -o "$out_dir" -ix $i -a $average -p $process
 		       
 				done
 
@@ -365,7 +366,7 @@ else
 				for j in ${strarr_l[@]}; do
 
 
-					python3 segment_heart.py -i $indir -l $j $crop -o $out_dir -ix $i -a $average -p $process
+					python3 segment_heart.py -i "$indir" -l $j $crop -o "$out_dir" -ix $i -a $average -p $process
 		       
 				done
 
@@ -374,7 +375,7 @@ else
 		else
 			wells="${wells:1:-1}"
 			for j in ${strarr_l[@]}; do
-					python3 segment_heart.py -i $indir -l $j $crop -o $out_dir -ix $wells -a $average -p $process		       
+					python3 segment_heart.py -i "$indir" -l $j $crop -o "$out_dir" -ix $wells -a $average -p $process		       
 			done
 			
 
@@ -388,7 +389,7 @@ else
 		for i in 0{1..9} {10..96}; do
 
 			for j in ${strarr_l[@]}; do				
-				python3 segment_heart.py -i $indir -l $j $crop -o $out_dir -ix $i -a $average -p $process
+				python3 segment_heart.py -i "$indir" -l $j $crop -o "$out_dir" -ix $i -a $average -p $process
 		       
 			done
 
