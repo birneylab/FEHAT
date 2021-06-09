@@ -5,8 +5,20 @@ from multiprocessing import cpu_count
 
 LOGGER = logging.getLogger(__name__)
 
+def config_logger(logfile_path, logfile_name):
+    os.makedirs(logfile_path, exist_ok=True)
+    
+    # Global logger settings
+    logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s] %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO,
+                        handlers=[
+                            logging.StreamHandler(),
+                            logging.FileHandler(os.path.join(logfile_path, logfile_name))
+                        ])
+
 #TODO write extended help messages, store as string and pass to add_argument() help parameter
-def parse():
+def parse_arguments():
     parser = argparse.ArgumentParser(description='Automated heart rate analysis of Medaka embryo videos')
     parser.add_argument('-i','--indir',     action="store",         dest='indir',       help='Input directory',                 default=False,  required = True)
     parser.add_argument('-o','--outdir',    action="store",         dest='outdir',      help='Output directory',                default=False,  required = True)
@@ -31,7 +43,7 @@ def parse():
     return args
 
 # Processing, done after the logger in the main file has been set up
-def process(args):
+def process_arguments(args):
 
     num_cores = cpu_count()
     if (num_cores > args.threads):
