@@ -26,8 +26,7 @@ def parse():
     args.indir  = os.path.join(args.indir, '')
     args.outdir = os.path.join(args.outdir, '')
 
-    if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
+    os.makedirs(args.outdir, exist_ok=True)
 
     return args
 

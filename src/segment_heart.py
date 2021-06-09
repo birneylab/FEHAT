@@ -1429,9 +1429,8 @@ def run(video, args, video_metadata):
 
     #Add well position to output directory path
     out_dir = os.path.join(args['outdir'], video_metadata['channel'], video_metadata['loop'] + '-' + video_metadata['well_id'])
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    
+    os.makedirs(out_dir, exist_ok=True)
 
     sorted_frames = video
     frame_dict = {}
