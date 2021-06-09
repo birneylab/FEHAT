@@ -1,28 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-production = True   # choose if production (True)(uses parameters from .sh script) or development in jupyter (false)
 import operator
 import statistics
 import pandas as pd
 import os
 import glob2
-import errno
-from IPython.display import Video
 import random
-import csv  
 import logging
 
-import warnings
-
-from pandas.core.base import DataError
-warnings.filterwarnings('ignore')
-
 import numpy as np
-
-from datetime import datetime
-
-#import numpy as np
 import cv2
 
 #import skimage
@@ -32,20 +18,16 @@ from skimage.measure import label
 #from skimage.metrics import structural_similarity
 from skimage import color, feature
 
-import scipy
-from scipy import stats
+#import scipy
 from scipy.stats import gaussian_kde
 from scipy import signal
-from scipy.signal import find_peaks, peak_prominences, welch, savgol_filter
+from scipy.signal import find_peaks, savgol_filter #, peak_prominences, welch
 from scipy.interpolate import CubicSpline
 
 import matplotlib
 matplotlib.use('Agg')
 
 from matplotlib import pyplot as plt
-if production == False:    
-    get_ipython().run_line_magic('matplotlib', 'inline')
-    
 import seaborn as sns
 
 #Parallelisation
@@ -55,40 +37,13 @@ import multiprocessing
 from collections import Counter,OrderedDict
 
 import warnings
+warnings.filterwarnings('ignore')
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
-#np.set_printoptions(threshold=1000) #np.inf
-
-#Go through frames in stack to determine changes between seqeuential frames (i.e. the heart beat)
-#Determine absolute differences between current and previous frame
-#Use this to determine range of movement (i.e. the heart region)
-
-#print('ok') 
 ################################################################################
 ##########################
 ##  Globals   ##
 ##########################
-
-if production == False:
-##### section for debugging only (development mode). Choose 0 for jupyter, 1 for production (.sh)
-    args = {'fps': 0.0} # leave at 0.0 to let the script calculate. Has no effect in production.  
-    fps = ''    # leave blank to let the script calculate. Has no effect in production.
-    loop = 'LO001'   # leave blank to let script calculate. Has no effect in production.
-    indir = "/nfs/research/birney/users/marcio/medaka_images/0028"
-    well_number = "WE00046"         # 15, 16 or 24 to test    
-    crop = False
-    threads = 1
-    slow_mode = False 
-    # out_dir needs to be absolut path to be portable
-    out_dir = "C:/Users/marci/Documents/Medaka_project/analyses/" + frame_folder + '/' + loop + "/" + well_number   
-           
-    # Set logger
-    logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s] %(message)s',
-                        datefmt='%H:%M:%S',
-                        level=logging.info,
-                        handlers=[
-                            logging.StreamHandler()
-                        ])
 
 # Improve contrast with CLAHE (Contrast Limited Adaptive Histogram Equalization)
 #https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html#histogram-equalization
@@ -293,9 +248,6 @@ def detectEmbryo(frame):
     return(circle, x1, y1, x2, y2)
 
 # ## Function greyFrames(frames)
-
-# In[4]:
-
 #Convert all frames in a list into greyscale 
 def greyFrames(frames, stop_frame = 0):
     
@@ -323,9 +275,6 @@ def greyFrames(frames, stop_frame = 0):
     return(grey_frames)
     
 # ## Function resizeFrames(frames, scale = 50)
-
-# In[5]:
-
 #Uniformly resize frames based on common scaling factor e.g. 50, will halve size
 def resizeFrames(frames, scale = 50):
 
@@ -355,9 +304,6 @@ def resizeFrames(frames, scale = 50):
     return(resized_frames)
 
 # ## Function normVideo(frames)
-
-# In[6]:
-
 #Normalise across frames to harmonise intensities (& possibly remove flickering)
 
 #TODO: Streching should be done from the bottom as well.
@@ -411,9 +357,6 @@ def normVideo(frames):
     return(norm_frames)
 
 # ## Function processFrame(frame)
-
-# In[7]:
-
 #Pre-process frame
 def processFrame(frame):
     """Image pre-processing and illumination normalisation"""
@@ -447,9 +390,6 @@ def processFrame(frame):
     return out_frame, frame_grey, blurred_frame
 
 # ## Function maskFrame(frame, mask)
-
-# In[8]:
-
 def maskFrame(frame, mask):
 
     """Add constant value in green channel to region of frame from the mask.""" 
@@ -464,9 +404,6 @@ def maskFrame(frame, mask):
     return masked_frame
 
 # ## Function filterMask(mask, min_area = 300):
-
-# In[9]:
-
 def filterMask(mask, min_area = 300):
 
     #Contour mask 
@@ -493,9 +430,6 @@ def filterMask(mask, min_area = 300):
     return filtered_mask
 
 # ## Function diffFrame(frame, frame2_blur, frame1_blur, min_area = 300):
-
-# In[10]:
-
 #Differences between two frames
 def diffFrame(frame, frame2_blur, frame1_blur, min_area = 300):
     """Calculate the abs diff between 2 frames and returns frame2 masked with the filtered differences."""
@@ -536,9 +470,6 @@ def diffFrame(frame, frame2_blur, frame1_blur, min_area = 300):
     return masked_frame, thresh
 
 # ## Function rolling_diff(index, frames, win_size = 5, direction = "forward", min_area = 300):
-
-# In[11]:
-
 # Forward or reverse rolling window of width w with step size ws
 def rolling_diff(index, frames, win_size = 5, direction = "forward", min_area = 300):
     """
@@ -632,9 +563,6 @@ def rolling_diff(index, frames, win_size = 5, direction = "forward", min_area = 
     return(masked_frame, abs_diffs, thresh, movement)
 
 # ## Function heartQC_plot(ax, f0_grey, heart_roi,heart_roi_clean,label_maxima, figsize=(15, 15))
-
-# In[12]:
-
 #Generate figure highlighting the probable heart region
 def heartQC_plot(ax, f0_grey, heart_roi,heart_roi_clean, overlay):
 
@@ -665,9 +593,6 @@ def heartQC_plot(ax, f0_grey, heart_roi,heart_roi_clean, overlay):
     return(ax)
 
 # ## Function qc_mask_contours(heart_roi)
-
-# In[13]:
-
 def new_qc_mask_contours(heart_roi, maxima):
 
  #Find contours based on thresholded, summed absolute differences
@@ -780,8 +705,6 @@ def qc_mask_contours(heart_roi, maxima, top_pixels):
     return(final_mask, regions)
 
 # ## Function qc_mask_contours(heart_roi)
-# In[14]:
-
 def new2_qc_mask_contours(heart_roi):
     area_count = []
     rows, cols = heart_roi.shape
@@ -830,9 +753,6 @@ def iqrFilter(times, signal):
     return(filtered_times, filtered_signal)
 
 # ## Function iqrFilter(times, signal)
-
-# In[15]:
-
 #Interpolate pixel or regional signal, filtering if necessary
 def interpolate_signal(times, y, empty_frames):
 
@@ -870,9 +790,6 @@ def interpolate_signal(times, y, empty_frames):
     return(times_final, y_final, cs)
 
 # ## Function interpolate_signal(times, y, empty_frames)
-
-# In[16]:
-
 #Detrend heart signal and smoothe
 def detrendSignal(interpolated_signal, time_domain, window_size = 15):
     
@@ -901,9 +818,6 @@ def detrendSignal(interpolated_signal, time_domain, window_size = 15):
     return(norm_cs)
 
 # ## Function MAD(numeric_vector)
-
-# In[17]:
-
 #Calculate Median Absolute Deviation 
 #for a given numeric vector
 def MAD(numeric_vector):
@@ -915,9 +829,6 @@ def MAD(numeric_vector):
     return med_abs_deviation
 
 # ## Function def rolling_window(signal, win_size = 20, win_step = 5, direction = "forward")
-
-# In[18]:
-
 # Forward or reverse rolling window W with step size Ws
 def rolling_window(signal, win_size = 20, win_step = 5, direction = "forward"):
     """
@@ -958,9 +869,6 @@ def rolling_window(signal, win_size = 20, win_step = 5, direction = "forward"):
     return(windows, window_indices)
 
 # ## Function fourierHR(interpolated_signal, time_domain, heart_range = (0.5, 5))
-
-# In[19]:
-
 #Perform a Fourier Transform on interpolated signal from heart region
 def fourierHR(interpolated_signal, time_domain, heart_range = (0.5, 5)):
 
@@ -1041,9 +949,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range = (0.5, 5)):
     return(psd, freqs, peak_coord, bpm)
 
 # ## Function plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211)
-
-# In[20]:
-
 #Plot Fourier Transform
 def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211):
 
@@ -1080,9 +985,6 @@ def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211):
     return(ax)
 
 # ## Function def PixelSignal(grey_frames)
-
-# In[21]:
-
 def PixelSignal(grey_frames):
 
     """
@@ -1205,9 +1107,6 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         return(highest_freqs)
 
 # ## Function PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
-
-# In[23]:
-
 def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot = False):
     
     pixel_signal = pixel_signals[pixel]
@@ -1245,9 +1144,6 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot =
     return(highest_freq)
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
-
-# In[24]:
-
 def PixelFreqs(frequencies, average_values, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True):
 
     sns.set_style('white')
@@ -1331,8 +1227,7 @@ def PixelFreqs(frequencies, average_values, figsize = (10,7), heart_range = (0.5
             #verify if user has inserted a average argument -a. 0 means No parameters inserted
             if not average_values:
                 LOGGER.info("found " + str(len(peaks)) + " peak(s), selected the highest one")
-                print("found " + str(len(peaks)) + " peak(s), selected the highest one")
-                print("in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+                LOGGER.info("in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
                 bpm = max_x * 60
                 bpm = np.around(bpm, decimals=2)
 
@@ -1566,7 +1461,6 @@ def run(video, args, video_metadata):
     sorted_frames = [frame_dict[time] for time in sorted_times]
 
     LOGGER.info("Normalizing frames")
-    # In[31]:
     # Normalize frames
     norm_frames = normVideo(sorted_frames)
 
@@ -1701,7 +1595,6 @@ def run(video, args, video_metadata):
     plt.show()
     plt.close()
 
-    # In[32]:
     #Check if heart region was detected, i.e. if sum(masked) > 0
     #and limit number of possible heart regions to 3 or fewer
     #if (final_mask.sum() > 0) and (regions <= 3):  
@@ -1817,6 +1710,7 @@ def run(video, args, video_metadata):
     empty_frames = [i for i, x in enumerate(na_values) if x]
     
     ##############################################
+    #TODO: if fps is given, calculate differently
     frame2frame = times[-1] / len(times) #1 / fps 
     final_time = frame2frame * len(times)
     times = np.arange(start=0, stop=final_time, step=frame2frame)
@@ -1860,10 +1754,6 @@ def run(video, args, video_metadata):
         fig, ax = plt.subplots(1,1,figsize=(10, 7))
         ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter = True)
         plt.savefig(out_kde)
-        
-        if production == False:
-            plt.show()            
-            plt.close()
 
     #Run in slow mode, Fourier on every pixel
     #must be removed from here and sent to the end, as if the script does not find any mask, it still runs the slow method
@@ -1938,7 +1828,6 @@ def run(video, args, video_metadata):
         
 # ## run the report and graphs functions
 
-    # In[45]:
     #check heartrate was calculated
     #otherwise create variable and set to None
     if "bpm_fourier" not in locals():
