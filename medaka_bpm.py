@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 bsub_cmd = ['busb', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
                 if args.email:
-                    bsub_cmd += args.email
+                    bsub_cmd += list(args.email)
 
                 cmd = bsub_cmd + python_cmd
 
