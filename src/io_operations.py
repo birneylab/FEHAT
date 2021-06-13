@@ -47,6 +47,7 @@ def well_video_generator(indir, channels, loops):
 
 # TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
 def load_well_video(frame_paths_sorted, color_mode = cv2.IMREAD_COLOR):
+    LOGGER.info("Loading video")
     video = []
     for path in frame_paths_sorted:
         frame = cv2.imread(path, flags=color_mode)

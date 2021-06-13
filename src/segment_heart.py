@@ -1291,7 +1291,6 @@ def PixelFreqs(frequencies, average_values, figsize = (10,7), heart_range = (0.5
 #     return
 
 # ## Function final_dist_graph(bpm_fourier)
-
 # Create an graph and plot averages from final report (overwrite and update if alreadye exists)
 def final_dist_graph(bpm_fourier,  out_dir):
     data_file = os.path.join(out_dir, "general_report.csv")
@@ -1319,7 +1318,7 @@ def final_dist_graph(bpm_fourier,  out_dir):
         cv = lambda x: np.std(x, ddof=1) / np.mean(x) * 100
         cv = round(cv(list),2)
         mean_data = round(statistics.mean(list),2)
-        
+
         std_dev = round(np.std(list),2)
         #log10 = np.log10(list)
         #log10_round_to = [round(num, 2) for num in log10]
@@ -1373,7 +1372,7 @@ def crop(video):
     #Embryo Circle
     if len(circle_x) > 0:
         for x, y, r in zip(circle_x, circle_y, circle_radii):
-        
+
             x_coord = x
             y_coord = y
             radius  = r
@@ -1393,7 +1392,6 @@ def crop(video):
         embryo_x = None
         embryo_y = None
         embryo_rad = None
-
 
     if embryo_x and embryo_y and embryo_rad:
         y1 = embryo_y - embryo_rad - 50
