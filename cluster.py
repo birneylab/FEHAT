@@ -15,7 +15,8 @@ from medaka_bpm import run_algorithm
 args = setup.parse_arguments()
 
 tmp_dir = os.path.join(args.outdir, 'tmp')
-analysis_id = args.channels + '-' + args.loops + '-' + args.lsf_index
+well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
+analysis_id = args.channels + '-' + args.loops + '-' + well_id
 
 setup.config_logger(tmp_dir, (analysis_id + ".log"))
 arg_channels, arg_loops = setup.process_arguments(args)
@@ -31,7 +32,6 @@ if arg_loops:
     loops       = list(arg_loops.intersection(loops))
     loops.sort()
 
-
 # Run analysis
 results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 try:
@@ -39,7 +39,7 @@ try:
     bpm = None
 
     for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-        if (video_metadata['well_id'] != ('WE00' + '{:03d}'.format(int(args.lsf_index)))):
+        if (video_metadata['well_id'] != well_id):
             continue
 
         LOGGER.info("The analyse for each well can take about 10-15 minutes")

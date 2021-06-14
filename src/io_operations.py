@@ -93,6 +93,7 @@ def frameIdx(path):
 
 # Results:
 #   Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+#TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
 def write_to_spreadsheet(outdir, results):
     LOGGER.info("Saving acquired data to spreadsheet")
     outpath = os.path.join(outdir, "results.csv")

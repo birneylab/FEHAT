@@ -41,7 +41,6 @@ while getopts ":i:o:l:f:c:m:a:e:w:p:b:" opt; do
         esac
 done
 
-
 shift "$(( OPTIND - 1 ))"
 
 if [ -z "$loops" ] ; then
@@ -54,7 +53,6 @@ if [ -z "$loops" ] ; then
         exit 1
 fi
 
-
 if [ -z "$out_dir" ] ; then
         echo " " >&2
         echo "Error: Missing -o mandatory argument. Specify a foldfer to where the script will create a date folder and save results"
@@ -65,8 +63,6 @@ if [ -z "$out_dir" ] ; then
 
 fi
 
-
-
 if [ -z "$indir" ] ; then
         echo " " >&2
         echo 'Error: Missing -i mandatory argument. Please specify the absoluthe path for where the images are' >&2
@@ -75,15 +71,13 @@ if [ -z "$indir" ] ; then
         exit 1
 fi
 
-
-
-echo ""
-echo ""
-echo ""
-echo "#####################################################################"
-echo "MEDAKA HEART RATE DETECTION SCRIPT"
-echo  "Visit https://github.com/marciosferreira/medaka_embryo_heartRate_modified for instructions and troubleshooting!" >&2
-echo "#####################################################################"
+# echo ""
+# echo ""
+# echo ""
+# echo "#####################################################################"
+# echo "MEDAKA HEART RATE DETECTION SCRIPT"
+# echo  "Visit https://github.com/marciosferreira/medaka_embryo_heartRate_modified for instructions and troubleshooting!" >&2
+# echo "#####################################################################"
 
 
 #split and count loops and wells list

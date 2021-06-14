@@ -5,7 +5,7 @@ from multiprocessing import cpu_count
 
 LOGGER = logging.getLogger(__name__)
 
-def config_logger(logfile_path, logfile_name):
+def config_logger(logfile_path, logfile_name="medaka_outdir.log"):
     os.makedirs(logfile_path, exist_ok=True)
     
     # Global logger settings
