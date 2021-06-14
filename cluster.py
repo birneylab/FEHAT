@@ -7,8 +7,7 @@ import src.setup            as setup
 
 from medaka_bpm import run_algorithm
 
-
-#print(sys.argv)
+LOGGER = logging.getLogger(__name__)
 
 ################################## STARTUP SETUP ##################################
 # Parse input arguments
@@ -18,19 +17,15 @@ tmp_dir = os.path.join(args.outdir, 'tmp')
 well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
 analysis_id = args.channels + '-' + args.loops + '-' + well_id
 
+# Check if video for well id exists before producting data.
+if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
+    sys.exit()
+
 setup.config_logger(tmp_dir, (analysis_id + ".log"))
-arg_channels, arg_loops = setup.process_arguments(args)
 
-LOGGER = logging.getLogger(__name__)
-
-nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
-
-if arg_channels:
-    channels    = list(arg_channels.intersection(channels))
-    channels.sort()
-if arg_loops:
-    loops       = list(arg_loops.intersection(loops))
-    loops.sort()
+channels, loops = setup.process_arguments(args)
+channels    = list(channels)
+loops       = list(loops)
 
 # Run analysis
 results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}

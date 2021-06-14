@@ -91,6 +91,15 @@ def frameIdx(path):
     idx = int(idx)
     return idx
 
+def well_video_exists(indir, channel, loop, well_id):
+    all_frames = glob2.glob(indir + '*.tif') + glob2.glob(indir + '*.tiff')
+    video_frames = [frame for frame in all_frames if (channel in frame and loop in frame and well_id in frame)]
+
+    if video_frames:
+        return True
+    else:
+        return False
+
 # Results:
 #   Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 #TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
