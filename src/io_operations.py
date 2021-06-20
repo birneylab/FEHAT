@@ -28,7 +28,7 @@ def well_video_generator(indir, channels, loops):
             loop_videos = [frame for frame in channel_videos if loop in frame]
 
             #Well
-            for well_id in range(1,97):
+            for well_id in range(1,97):  
                 well_id = ('WE00' + '{:03d}'.format(well_id))
 
                 well_frames = [frame for frame in loop_videos if well_id in frame]
