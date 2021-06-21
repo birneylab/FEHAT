@@ -606,7 +606,7 @@ def new_qc_mask_contours(heart_roi, maxima):
     pRatio = []
     pOverlap = []
     iList = []
-    
+
     for i in range(len(contours)):
 
         #Contour to test
@@ -626,10 +626,12 @@ def new_qc_mask_contours(heart_roi, maxima):
         overlap_pixels = overlap.sum()
         
         pOverlap.append(overlap_pixels)
-
+        #print(overlap_pixels)
+        #print(contour_pixels)
         #Calculate ratio between area of intersection and contour area 
         pixel_ratio = overlap_pixels / contour_pixels
-        
+
+               
         pRatio.append(pixel_ratio)
         
         iList.append(i)
@@ -640,7 +642,7 @@ def new_qc_mask_contours(heart_roi, maxima):
 
             #final_mask = cv2.add(final_mask, contour_mask)
             #regions += 1
-    
+
     max_value_rate = max(pRatio)
     max_value_pixels = max(pOverlap)    
     indexOfMaximum_r = [pRatio.index(max_value_rate)]
@@ -1572,6 +1574,7 @@ def run(video, args, video_metadata):
     yen = threshold_yen(heart_roi_open)
     heart_roi_clean = heart_roi_open > yen
     heart_roi_clean = heart_roi_clean.astype(np.uint8)
+  
 
     #Filter mask based on area of contours
     heart_roi_clean = filterMask(mask = heart_roi_clean, min_area = 100)

@@ -84,31 +84,55 @@ if __name__ == '__main__':
 
                     arguments = sum(arguments, [])
 
+                   
+
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
                     python_cmd = ['python3', 'cluster.py'] + arguments + ['-x', '\$LSB_JOBINDEX']
 
-                    jobname = '"heartRate' + args.wells + str(args.maxjobs) + '"'
-                    bsub_cmd = ['busb', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
+                   
+                    
+                    jobname = 'heartRate' + args.wells + str(args.maxjobs) 
 
-                    if args.email:
-                        bsub_cmd.append(args.email)
+
+                   
+                    
+                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
+
+                   
+
+                    if args.email == False:
+                        
+                        bsub_cmd.append( '-o /dev/null')       
+
+                  
 
                     cmd = bsub_cmd + python_cmd
 
+                   
+
                     #Create a job array for each well
-                    result = subprocess.run(bsub_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+
+                    # error here instead of bsub_cmd should be cmd
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+                    
+
                     LOGGER.info("\n"+ result.stdout.decode('utf-8'))
 
             #Create a dependent job for final report
             # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
-            consolidate_cmd = ['busb', '-J', 'consolidateHeartRate', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
-            if args.email:
-                consolidate_cmd += args.email
+
+            #error here
+            consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
+
+            if args.email == False:
+                consolidate_cmd.append('-o /dev/null')
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
             python_cmd = ['python3', 'src/cluster_consolidate.py', '-i', tmp_dir, '-o', args.outdir]
 
-            consolidate_cmd += python_cmd
+            consolidate_cmd += python_cmd            
 
             subprocess.run(consolidate_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -122,7 +146,7 @@ if __name__ == '__main__':
             LOGGER.info("##### Analysis #####")
 
             for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-                LOGGER.info("The analyse for each well can take about 10-15 minutes\n")
+                LOGGER.info("The analyse for each well can take about from one to several minutes\n")
                 LOGGER.info("Running....please wait...")
 
                 bpm = None
