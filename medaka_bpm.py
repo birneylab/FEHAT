@@ -37,12 +37,9 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 
     return bpm;
 
-################################## STARTUP SETUP ##################################
-# TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
-if __name__ == '__main__':
-    # Parse input arguments
-    args = setup.parse_arguments()
+def main(args):
 
+    ################################## STARTUP SETUP ##################################
     setup.config_logger(args.outdir)
     arg_channels, arg_loops = setup.process_arguments(args)
 
@@ -156,4 +153,14 @@ if __name__ == '__main__':
         if (nr_of_videos != nr_of_results):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) + ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
-        io_operations.write_to_spreadsheet(args.outdir, results)
+            io_operations.write_to_spreadsheet(args.outdir, results)
+
+# TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
+if __name__ == '__main__':
+    # Parse input arguments.
+    args = setup.parse_arguments()
+
+    # TODO: Handle different directory structures here. 
+    # Should be simple to change the indir and outdir in 'args' and pass for each detected directory respectively.
+    # Avoid cluttering this file and write functions to detect and return all input/output directories in /src/io_operations.py
+    main(args)
