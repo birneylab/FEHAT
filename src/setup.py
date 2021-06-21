@@ -32,6 +32,7 @@ def parse_arguments():
 
     # Cluster arguments. Index is hidden argument that is set through bash script to assign wells to cluster instances.
     parser.add_argument('--crop',           action="store_true",    dest='crop',        help='Should crop images',                              required = False)
+    parser.add_argument('--slowmode',       action="store_true",    dest='slowmode',    help='Should run analysis in slowmode',                 required = False)
     parser.add_argument('--cluster',        action="store_true",    dest='cluster',     help='Run analysis on a cluster',                       required = False)
     parser.add_argument('--email',          action="store_true",    dest='email',       help='Receive email for cluster notification',          required = False)
     parser.add_argument('-m','--maxjobs',   action="store",         dest='maxjobs',     help='maxjobs on the cluster',          default=None,   required = False)

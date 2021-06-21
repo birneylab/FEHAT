@@ -79,44 +79,24 @@ if __name__ == '__main__':
                     args.channels   = channel
                     args.loops      = loop
 
-                    arguments = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True] #is not None and value is not False and value is not True and value is not 0 and value is not ]
-                    #arguments = arguments + [['--' + key]for key, value in vars(args).items() if value is True]
-
-                    arguments = sum(arguments, [])
-
-                   
+                    arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+                    arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
+                    arguments = sum(arguments_variable, arguments_bool)
 
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
                     python_cmd = ['python3', 'cluster.py'] + arguments + ['-x', '\$LSB_JOBINDEX']
 
-                   
-                    
-                    jobname = 'heartRate' + args.wells + str(args.maxjobs) 
+                    jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
+                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']                   
 
-                   
-                    
-                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
-
-                   
-
-                    if args.email == False:
-                        
-                        bsub_cmd.append( '-o /dev/null')       
-
-                  
+                    if args.email == False:                        
+                        bsub_cmd.append( '-o /dev/null')                  
 
                     cmd = bsub_cmd + python_cmd
 
-                   
-
                     #Create a job array for each well
-
-
-                    # error here instead of bsub_cmd should be cmd
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-                    
 
                     LOGGER.info("\n"+ result.stdout.decode('utf-8'))
 
