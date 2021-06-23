@@ -1345,6 +1345,7 @@ def final_dist_graph(bpm_fourier,  out_dir):
         fig.suptitle(final_text, fontsize=12)       
         fig = double_plot.get_figure()
         fig.savefig(output_dir)
+        plt.close(fig)
         
     except:
         pass
@@ -1754,6 +1755,7 @@ def run(video, args, video_metadata):
         fig, ax = plt.subplots(1,1,figsize=(10, 7))
         ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter = True)
         plt.savefig(out_kde)
+        plt.close()
 
     #Run in slow mode, Fourier on every pixel
     #must be removed from here and sent to the end, as if the script does not find any mask, it still runs the slow method
@@ -1875,4 +1877,5 @@ def run(video, args, video_metadata):
     #     #print('call graph function')
     #     final_dist_graph(bpm_fourier)
 
+    plt.close('all')
     return bpm_fourier

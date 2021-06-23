@@ -7,6 +7,8 @@
 ### Main program file.
 ### 
 ############################################################################################################
+import gc
+
 import logging
 import os
 import subprocess
@@ -142,6 +144,8 @@ def main(args):
                     results['loop'].append(video_metadata['loop'])
                     results['well'].append(video_metadata['well_id'])
                     results['heartbeat'].append(bpm)
+
+                    gc.collect()
 
         except Exception as e:
             LOGGER.exception("Couldn't finish analysis")
