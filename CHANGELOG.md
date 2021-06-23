@@ -1,7 +1,6 @@
-In this version of the script, some improvements were made to the original one, developed by Jack in https://github.com/monahanj/medaka_embryo_heartRate. 
-The improvements are listed below, by date:
-
 Date: May 14, 2021
+
+In this version of the script, some improvements were made to the original one, developed by Jack in https://github.com/monahanj/medaka_embryo_heartRate. 
 
 - The wrappers (sh files) create one subjob for each well and each loop in a plate simultaneously. This new method makes the results quicker.
 After running the sh file, some helpful information is presented in the terminal regarding your analyses.
@@ -18,5 +17,12 @@ The changes below are regarding the heart detection accuracy:
 
 Date: May 19, 2021
 
-
 - Added option to run in a single server (not in a farm of servers)
+
+Date: June 23, 2021
+
+- General restructuring of the code into a more modular architecture. Removed unused legacy code.
+- Integrated logging capeability and exception handling
+- Cross platform support through python by removing dependencies with .sh files
+- Providing the loops as arguments is no longer a necessity
+- Noticable increase in analysis speed.
