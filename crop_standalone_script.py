@@ -145,7 +145,7 @@ for loop in loops:
     fig=plt.figure(figsize=(10,28))
     suptitle = plt.suptitle('General view of every cropped well, loop: ' + loop, y=1.01, fontsize=14, color='blue')            
     
-    for well_number in range(1,2):
+    for well_number in range(1,97):
         real_number = well_number  #this will be used to plot every subplot
         
         if well_number < 10:
