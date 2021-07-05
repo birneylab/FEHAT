@@ -32,7 +32,11 @@ args.outdir = os.path.join(args.outdir, '')
 out_dir = args.outdir
 indir = args.indir
 
-setup.config_logger(out_dir)
+# Number code for logfile and outfile respectively
+experiment_name = os.path.basename(os.path.normpath(out_dir))
+experiment_id = experiment_name = experiment_name.split('_')
+
+setup.config_logger(out_dir, ("logfile_" + experiment_id + ".log"))
 
 LOGGER.info("Consolidating cluster results")
 
@@ -73,7 +77,7 @@ LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
 results = results.to_dict(orient='list')
 
 #  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-io_operations.write_to_spreadsheet(out_dir, results)
+io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
 
 #TODO: Dangerous as it removes all conents of directory. Assert that in fact, only log and txt files are inside
 #TODO: and that folder is named tmp/

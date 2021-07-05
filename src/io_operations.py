@@ -45,6 +45,26 @@ def well_video_generator(indir, channels, loops):
                 metadata = {'well_id': well_id, 'loop': loop, 'channel': channel}
                 yield well_frames_sorted, metadata
 
+def detect_experiment_directories(indir):
+    subdirs = set()
+    subdir_list = {os.path.join(os.path.dirname(p), '') for p in glob2.glob(indir + '/*/')} # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
+    
+    # Condition: Tiffs inside or croppedRAWTifffolder
+    for path in subdir_list:
+        if os.path.basename(os.path.normpath(path)) == 'croppedRAWTiff':
+            continue
+
+        cond_1 = os.path.isdir(os.path.join(path, "croppedRAWTiff"))
+        cond_2 = glob2.glob(path + '*.tif') + glob2.glob(path + '*.tiff')
+        if cond_1 or cond_2:
+            subdirs.add(path)
+
+    # No subdirectories. Add indir as only folder
+    if not subdirs:
+        subdirs.add(indir)
+        
+    return subdirs
+
 # TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
 def load_well_video(frame_paths_sorted, color_mode = cv2.IMREAD_COLOR):
     LOGGER.info("Loading video")
@@ -103,9 +123,10 @@ def well_video_exists(indir, channel, loop, well_id):
 # Results:
 #   Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 #TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
-def write_to_spreadsheet(outdir, results):
+def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
-    outpath = os.path.join(outdir, "results.csv")
+    outfile_name = "results_" + experiment_id + ".csv"
+    outpath = os.path.join(outdir, outfile_name)
 
     # Don't erase previous results by accident
     if os.path.isfile(outpath):
