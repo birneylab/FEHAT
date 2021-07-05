@@ -11,6 +11,7 @@ import logging
 import os
 import subprocess
 import sys
+import glob
 
 import src.io_operations    as io_operations
 import src.setup            as setup
@@ -46,110 +47,156 @@ if __name__ == '__main__':
     setup.config_logger(args.outdir)
     arg_channels, arg_loops = setup.process_arguments(args)
 
-    ################################## MAIN PROGRAM START ##################################
-    LOGGER.info("##### MedakaBPM #####")
 
-    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
-    if arg_channels:
-        channels    = list(arg_channels.intersection(channels))
-        channels.sort() 
-    if arg_loops:
-        loops       = list(arg_loops.intersection(loops))
-        loops.sort()
 
-    if not loops or not channels:
-        LOGGER.error("No loops or channels were found!")
-        sys.exit()
 
-    # Extract Video metadata
-    LOGGER.info("Deduced number of videos: " + str(nr_of_videos))
-    LOGGER.info("Deduced Channels: " + ', '.join(channels))
-    LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
+    ################# MULTI FOLDER DETECTION ######################
 
-    ################################## ANALYSIS ##################################
-    if args.cluster:
-        #Run cluster analysis
-        LOGGER.info("Running on cluster")
-        try:
-            for channel in channels:
-                for loop in loops:
-                    LOGGER.info("Dispatching wells from " + channel + " " + loop + " to cluster")
+    # Try to detect subfolder in indir
+    subdir_list = set([os.path.dirname(p) for p in glob.glob(args.indir + '/*/*')])
+    
+    if len(subdir_list) > 1:
+        # There are more than one folder in indir
+        LOGGER.info("There are " + str(len(subdir_list)) + " folders in your indir. Trying to read each one as a separated experiment...")
+    
+    #just store the original outdir parh
+    temp_outdir = vars(args)['outdir'] 
 
-                    # Prepae arguments to pass to bsub job
-                    args.channels   = channel
-                    args.loops      = loop
+    for path in subdir_list:   # loop throw the folders
+        
+        # get the indir and outdir arguments on the fly
+        vars(args)['indir'] = path
 
-                    arguments = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True] #is not None and value is not False and value is not True and value is not 0 and value is not ]
-                    #arguments = arguments + [['--' + key]for key, value in vars(args).items() if value is True]
+        # and concatenate the specific subfolder name to the outdir momentarily
+        vars(args)['outdir'] = temp_outdir + '/' + os.path.basename(os.path.normpath(vars(args)['indir']))        
+        temp_indir = vars(args)['indir']
 
-                    arguments = sum(arguments, [])
+        #verify if tiff files are still in another subfolder, as fopr example, "CroppedTiff" or whatever
+        for fname in os.listdir(vars(args)['indir']):
+            if fname.endswith('.tif') or fname.endswith('.tiff'):  # If not, do nothing  and goes to the run script            
+                break
+            else:                
+                vars(args)['indir'] = temp_indir + '/' + str(next(os.walk(vars(args)['indir']))[1][0]) + '/'  # if yes, access this folder and look for tiff images
+            
+        
 
-                    # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
-                    python_cmd = ['python3', 'cluster.py'] + arguments + ['-x', '\$LSB_JOBINDEX']
 
-                    jobname = '"heartRate' + args.wells + str(args.maxjobs) + '"'
-                    bsub_cmd = ['busb', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
-                    if args.email:
-                        bsub_cmd.append(args.email)
 
-                    cmd = bsub_cmd + python_cmd
 
-                    #Create a job array for each well
-                    result = subprocess.run(bsub_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    LOGGER.info("\n"+ result.stdout.decode('utf-8'))
 
-            #Create a dependent job for final report
-            # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
-            consolidate_cmd = ['busb', '-J', 'consolidateHeartRate', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
-            if args.email:
-                consolidate_cmd += args.email
+        ################################## MAIN PROGRAM START ##################################
+        LOGGER.info("\n")
+        LOGGER.info("\n")
+        LOGGER.info("\n")
+        LOGGER.info("##### MedakaBPM #####")
+        LOGGER.info("Running folder in path: " + vars(args)['indir'])
 
-            tmp_dir = os.path.join(args.outdir, 'tmp')
-            python_cmd = ['python3', 'src/cluster_consolidate.py', '-i', tmp_dir, '-o', args.outdir]
+        nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
+        if arg_channels:
+            channels    = list(arg_channels.intersection(channels))
+            channels.sort() 
+        if arg_loops:
+            loops       = list(arg_loops.intersection(loops))
+            loops.sort()
 
-            consolidate_cmd += python_cmd
+        if not loops or not channels:
+            LOGGER.error("No loops or channels were found!")
+            sys.exit()
 
-            subprocess.run(consolidate_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        # Extract Video metadata
+        LOGGER.info("Deduced number of videos: " + str(nr_of_videos))
+        LOGGER.info("Deduced Channels: " + ', '.join(channels))
+        LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
 
-        except Exception as e:
-            LOGGER.exception("During dispatching of jobs onto the cluster")
+        ################################## ANALYSIS ##################################
+        if args.cluster:
+            #Run cluster analysis
+            LOGGER.info("Running on cluster")
+            try:
+                for channel in channels:
+                    for loop in loops:
+                        LOGGER.info("Dispatching wells from " + channel + " " + loop + " to cluster")
 
-    else:
-        LOGGER.info("Running on a single machine")
-        results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-        try:
-            LOGGER.info("##### Analysis #####")
+                        # Prepae arguments to pass to bsub job
+                        args.channels   = channel
+                        args.loops      = loop
 
-            for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-                LOGGER.info("The analyse for each well can take about 10-15 minutes\n")
-                LOGGER.info("Running....please wait...")
+                        arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+                        arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
+                        arguments = sum(arguments_variable, arguments_bool)
 
-                bpm = None
+                        # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
+                        python_cmd = ['python3', 'cluster.py'] + arguments + ['-x', '\$LSB_JOBINDEX']
 
-                try:
-                    bpm = run_algorithm(well_frame_paths, video_metadata, args)
-                    LOGGER.info("Reported BPM: " + str(bpm))
-                
-                except Exception as e:
-                    LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id']) 
-                                        + " in loop " + str(video_metadata['loop']) 
-                                        + " with channel " + str(video_metadata['channel']))
-                finally:
-                    # Save results
-                    results['channel'].append(video_metadata['channel'])
-                    results['loop'].append(video_metadata['loop'])
-                    results['well'].append(video_metadata['well_id'])
-                    results['heartbeat'].append(bpm)
+                        jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
-        except Exception as e:
-            LOGGER.exception("Couldn't finish analysis")
+                        bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']                   
 
-        ################################## OUTPUT ##################################
-        LOGGER.info("#######################")
-        LOGGER.info("Finished analysis")
-        nr_of_results = len(results['heartbeat'])
-        if (nr_of_videos != nr_of_results):
-            LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) + ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+                        if args.email == False:                        
+                            bsub_cmd.append( '-o /dev/null')                  
 
-        io_operations.write_to_spreadsheet(args.outdir, results)
+                        cmd = bsub_cmd + python_cmd
+
+                        #Create a job array for each well
+                        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+                        LOGGER.info("\n"+ result.stdout.decode('utf-8'))
+
+                #Create a dependent job for final report
+                # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
+
+                #error here
+                consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
+
+                if args.email == False:
+                    consolidate_cmd.append('-o /dev/null')
+
+                tmp_dir = os.path.join(args.outdir, 'tmp')
+                python_cmd = ['python3', 'src/cluster_consolidate.py', '-i', tmp_dir, '-o', args.outdir]
+
+                consolidate_cmd += python_cmd            
+
+                subprocess.run(consolidate_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            except Exception as e:
+                LOGGER.exception("During dispatching of jobs onto the cluster")
+
+        else:
+            LOGGER.info("Running on a single machine")
+            results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+            try:
+                LOGGER.info("##### Analysis #####")
+
+                for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+                    LOGGER.info("The analyse for each well can take about from one to several minutes\n")
+                    LOGGER.info("Running....please wait...")
+
+                    bpm = None
+
+                    try:
+                        bpm = run_algorithm(well_frame_paths, video_metadata, args)
+                        LOGGER.info("Reported BPM: " + str(bpm))
+                    
+                    except Exception as e:
+                        LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id']) 
+                                            + " in loop " + str(video_metadata['loop']) 
+                                            + " with channel " + str(video_metadata['channel']))
+                    finally:
+                        # Save results
+                        results['channel'].append(video_metadata['channel'])
+                        results['loop'].append(video_metadata['loop'])
+                        results['well'].append(video_metadata['well_id'])
+                        results['heartbeat'].append(bpm)
+
+            except Exception as e:
+                LOGGER.exception("Couldn't finish analysis")
+
+            ################################## OUTPUT ##################################
+            LOGGER.info("#######################")
+            LOGGER.info("Finished analysis")
+            nr_of_results = len(results['heartbeat'])
+            if (nr_of_videos != nr_of_results):
+                LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) + ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+
+            io_operations.write_to_spreadsheet(args.outdir, results)
