@@ -76,8 +76,8 @@ def run_multifolder(args, dirs):
         arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
         arguments = sum(arguments_variable, arguments_bool)
 
-        # 
-        python_cmd = ['python3', 'medaka_bpm.py'] + arguments
+        filename = os.path.abspath(__file__)
+        python_cmd = ['python3', filename] + arguments
         cmd_list.append(python_cmd)
     
     if args.cluster:
