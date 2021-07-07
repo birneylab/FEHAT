@@ -76,8 +76,9 @@ def run_multifolder(args, dirs):
         arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
         arguments = sum(arguments_variable, arguments_bool)
 
+        # absolute filepath and sys.executeable for windows compatibility
         filename = os.path.abspath(__file__)
-        python_cmd = ['python3', filename] + arguments
+        python_cmd = [sys.executable, filename] + arguments
         cmd_list.append(python_cmd)
     
     if args.cluster:
@@ -108,21 +109,8 @@ def run_multifolder(args, dirs):
 
 def main(args):
     ################################## STARTUP SETUP ##################################
-    # experiment_id: Number code for logfile and outfile respectively
-    experiment_name = os.path.basename(os.path.normpath(args.indir))
-    args.outdir = os.path.join(args.outdir, experiment_name, '')
-
-    os.makedirs(args.outdir, exist_ok=True)
-    experiment_id = experiment_name = experiment_name.split('_')[0]
-
-    # Folder structure
-    # croppedRAWTiff folder?
-    if os.path.isdir(os.path.join(args.indir, "croppedRAWTiff")):
-        args.indir = os.path.join(args.indir, "croppedRAWTiff", '')
-
-
+    arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
     setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"))
-    arg_channels, arg_loops = setup.process_arguments(args)
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
