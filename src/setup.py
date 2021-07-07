@@ -40,6 +40,10 @@ def parse_arguments():
     parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False)
     args = parser.parse_args()
 
+    # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
+    if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
+        args.indir = os.path.dirname(os.path.normpath(args.indir))
+
     # Adds a trailing slash if it is missing.
     args.indir  = os.path.join(args.indir, '')
     if args.outdir:
