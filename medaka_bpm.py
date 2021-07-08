@@ -83,13 +83,13 @@ def run_multifolder(args, dirs):
     
     if args.cluster:
         for cmd in cmd_list:
-            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         max_subprocesses = 2
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)
 
             experiment_name = cmd[cmd.index("--indir")+1]
@@ -162,7 +162,7 @@ def main(args):
                     cmd = bsub_cmd + python_cmd
 
                     #Create a job array for each well
-                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
                     LOGGER.info("\n"+ result.stdout.decode('utf-8'))
 
@@ -180,7 +180,7 @@ def main(args):
 
             consolidate_cmd += python_cmd            
 
-            subprocess.run(consolidate_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            subprocess.run(consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
             LOGGER.exception("During dispatching of jobs onto the cluster")
