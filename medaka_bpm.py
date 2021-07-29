@@ -13,6 +13,7 @@ import logging
 import os
 import subprocess
 import sys
+import glob2
 
 import src.io_operations as io_operations
 import src.setup as setup
@@ -38,7 +39,8 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 
     # Crop and analyse
     if args.crop:
-        video = segment_heart.crop(video)
+        video = segment_heart.crop_2(video)
+
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
     return bpm
@@ -54,7 +56,7 @@ def main(args):
 
     # Try to detect subfolder in indir
     subdir_list = set([os.path.dirname(p)
-                      for p in glob.glob(args.indir + '/*/*')])
+                      for p in glob2.glob(args.indir + '/*/*')])
 
     if len(subdir_list) > 1:
         # There are more than one folder in indir
