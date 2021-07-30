@@ -1441,6 +1441,8 @@ def crop_2(video, window_size=100):
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
     # and can be passed as argument in command line (100 is default)
+
+    # get the minimum size of the first frame
     maximum_dimension = min(video[0].shape[0:1])
     print(maximum_dimension)
     print("mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -1546,10 +1548,12 @@ def crop_2(video, window_size=100):
         video_cropped.append(img[XY_average[0]-window_size: XY_average[0] +
                              window_size, XY_average[1]-window_size: XY_average[1]+window_size])
 
-    return True
+    return video_cropped
 
 
 ############################################################################################################
+
+#substituted by crop_2 (above)
 def crop(video):
     LOGGER.info("Cropping video")
     circle_x = []

@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import glob2
+import cv2
 
 import src.io_operations as io_operations
 import src.setup as setup
@@ -39,7 +40,7 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 
     # Crop and analyse
     if args.crop:
-        video = segment_heart.crop_2(video)
+        video = segment_heart.crop_2(video, vars(args)['window_size'])
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
@@ -107,7 +108,7 @@ def main(args):
     LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
 
     ################################## ANALYSIS ##################################
-    if args.cluster:
+    if args.cluster == True and args.onlycrop == False:
         # Run cluster analysis
         LOGGER.info("Running on cluster")
         try:
@@ -169,7 +170,7 @@ def main(args):
         except Exception as e:
             LOGGER.exception("During dispatching of jobs onto the cluster")
 
-    else:
+    elif args.cluster == False and args.onlycrop == False:
         LOGGER.info("Running on a single machine")
         results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
         try:
@@ -212,6 +213,20 @@ def main(args):
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
         io_operations.write_to_spreadsheet(args.outdir, results)
+
+    elif args.onlycrop == True:
+        LOGGER.info("Only cropping, script will not run BPM analyses")
+        well_frame_paths, _ = io_operations.well_video_generator(
+            args.indir, channels, loops)
+        video = io_operations.load_well_video(well_frame_paths)
+        cut_images_list = segment_heart.crop_2(
+            video, vars(args)['window_size'])
+        for cut_image in cut_images_list:
+            # TODO: needs to define what is file_name
+            cv2.imwrite(args.out + "/" + file_name, cut_image)
+    else:
+        LOGGER.exception("Script did not understand what to do")
+        sys.exit()
 
 
 # TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
