@@ -66,7 +66,7 @@ def run_multifolder(args, dirs):
     procs_list = []
 
     # loop throw the folders
-    for path in dir_list:   
+    for path in dirs:   
     
         # get the indir and outdir arguments on the fly
         args.indir = path
