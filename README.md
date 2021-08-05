@@ -92,6 +92,14 @@ It is useful if you have not previously cropped the images so that the script wi
 Note that nothing new will be created; the script will discard cropped files after analyses. 
 If you try to run the script without cropping, the script will probably fail after a long time analyzing each well, as analyzing full dimensions images is memory consuming.
 
+--onlycrop
+
+Only crop images (not run bpm script) based on indir and save croped images and a resulting panel report in outdir. If it is a multiple folder experiment, the script will crop images in every folder and save in different paths.
+
+-s
+
+Only useful when using the parameter --onlycrop above. It is the size of the window to be cropped based on embryo center of mass. The default value is 300 px
+
 
 # What happens after a job is submitted?
 
