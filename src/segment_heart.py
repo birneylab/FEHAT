@@ -1545,15 +1545,15 @@ def crop_2(video, window_size=100):
 
     video_cropped = []
     for img in video:
-        video_cropped.append(img[XY_average[0]-window_size: XY_average[0] +
-                             window_size, XY_average[1]-window_size: XY_average[1]+window_size])
+        video_cropped.append(img[int(XY_average[0])-window_size: int(XY_average[0]) +
+                             window_size, int(XY_average[1])-window_size: int(XY_average[1])+window_size])
 
     return video_cropped
 
 
 ############################################################################################################
 
-#substituted by crop_2 (above)
+# substituted by crop_2 (above)
 def crop(video):
     LOGGER.info("Cropping video")
     circle_x = []
