@@ -228,6 +228,9 @@ def main(args):
             # args.indir, channels, loops))
 
             video = io_operations.load_well_video(well_frame_paths)
+            print("sssssssssssssssssiiiiiiiiiiizzzzzzzzzze")
+            res = sys.getsizeof(video)
+            print(res)
             cut_images_list = segment_heart.crop_2(
                 video, vars(args)['window_size'])
 
@@ -261,6 +264,9 @@ def main(args):
 
                 incremental_number += 1  # avoid plot more than the first frame
 
+        print("sssssssssssssssssiiiiiiiiiiizzzzzzzzzze        rrrrrrrrrrrrrrrrrr")
+        res1 = sys.getsizeof(resulting_dict)
+        print(res1)
         for item in resulting_dict.items():
             if "positions_" not in item[0]:
                 axes = []  # will be used to plot the first image for each well bellow
