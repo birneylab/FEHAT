@@ -219,20 +219,10 @@ def main(args):
         io_operations.write_to_spreadsheet(args.outdir, results)
 
     elif args.only_crop == True:
+        resulting_dict = {}
         LOGGER.info("Only cropping, script will not run BPM analyses")
 
-        panel_position = 1  # only an sequential number to make the subplot to work
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-
-            print(
-                "meta dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-            print(well_frame_paths)
-            print(video_metadata)
-
-            axes = []  # will be used to plot the first image for each well bellow
-            rows = 8
-            cols = 12
-            fig = plt.figure(figsize=(10, 28))
 
             # well_frame_paths, _ = list(io_operations.well_video_generator(
             # args.indir, channels, loops))
@@ -250,15 +240,40 @@ def main(args):
                             final_part_path, cut_image)
             # plot each first image of each well for an overview crop panel
                 if incremental_number == 1:
+                    # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
+                    # it is necessary because we want to replot after each well, that is, to be able to skip the crop script but have the partial results plotted
+
+                    if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict:
+                        resulting_dict[video_metadata['channel'] +
+                                       '_' + video_metadata['loop']] = [cut_image]
+                        resulting_dict['positions_' + video_metadata['channel'] +
+                                       '_' + video_metadata['loop']] = [video_metadata['well_id']]
+                    else:
+
+                        resulting_dict[video_metadata['channel'] +
+                                       '_' + video_metadata['loop']].append(cut_image)
+                        resulting_dict['positions_' + video_metadata['channel'] +
+                                       '_' + video_metadata['loop']].append(video_metadata['well_id'])
 
                     #plt.figure(figsize=(1, 1))
                     # create a subplot for the first frame.
                     # these will be used to build the main plot, in which we will subplot the last cropped frame of each well
 
-                    suptitle = plt.suptitle('General view of every cropped well, channel: ' +
-                                            video_metadata['channel'] + ' and loop ' + video_metadata['loop'], y=1.01, fontsize=14, color='blue')
-                    axes.append(fig.add_subplot(rows, cols, panel_position))
-                    subplot_title = ("well: " + video_metadata['well_id'])
+                incremental_number += 1  # avoid plot more than the first frame
+
+        for item in resulting_dict.items():
+            if "positions_" not in item[0]:
+                axes = []  # will be used to plot the first image for each well bellow
+                rows = 8
+                cols = 12
+                fig = plt.figure(figsize=(10, 28))
+                suptitle = plt.suptitle(
+                    'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
+                counter = 1
+                for cut_image, position in zip(item[1], resulting_dict['positions_' + item[0]]):
+                    axes.append(fig.add_subplot(rows, cols, counter))
+                    counter += 1
+                    subplot_title = (position)
                     axes[-1].set_title(subplot_title,
                                        fontsize=11, color='blue')
                     plt.xticks([], [])
@@ -266,10 +281,9 @@ def main(args):
                     plt.tight_layout()
                     # plot in panel the last cropped image from the loop above
                     plt.imshow(cut_image)
-                    plt.savefig(args.outdir + "/" + video_metadata['channel'] + "_" + video_metadata['loop'] +
-                                '_panel.png', bbox_extra_artists=(suptitle,), bbox_inches="tight")
-                incremental_number += 1  # avoid plot more than the first frame
-            panel_position += 1  # just for subplot incremental poisitioning
+                    plt.savefig(
+                        args.outdir + "/" + item[0] + '_panel.png', bbox_extra_artists=(suptitle,), bbox_inches="tight")
+
     else:
         LOGGER.exception("Script did not understand what to do")
         sys.exit()

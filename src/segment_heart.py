@@ -1444,8 +1444,6 @@ def crop_2(video, window_size=100):
 
     # get the minimum size of the first frame
     maximum_dimension = min(video[0].shape[0:1])
-    print(maximum_dimension)
-    print("mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
     if window_size < 50:
         window_size = 50
@@ -1491,7 +1489,8 @@ def crop_2(video, window_size=100):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
+                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1500,30 +1499,16 @@ def crop_2(video, window_size=100):
 
         # after thresholding
         outpath = otdr + str(i) + '_4_thresh.tif'
-        cv2.imwrite(outpath, thresh_img_final)
-        print("1111111111")
-        print(thresh_img_final)
 
         # Transform 0/255 image to 0/1 image
         thresh_img_final[thresh_img_final > 0] = 1
 
-        print("222222..555555555555")
-        print(thresh_img_final)
-
         # invert image
         image_inverted = np.logical_not(thresh_img_final).astype(int)
-        print("22222222222222")
-        print(image_inverted)
 
         # after inverted
         outpath = otdr + str(i) + '_5_inverted.tif'
         cv2.imwrite(outpath, image_inverted)
-
-        print("image inverteeeed")
-        print(image_inverted.shape)
-
-        print("cleared")
-        print(image_inverted)
 
         # calculate the center of mass of inverted image
         count = (image_inverted == 1).sum()
@@ -1539,9 +1524,6 @@ def crop_2(video, window_size=100):
 
     XY_average = (mean([i[0] for i in center_of_embryo_list]), mean(
         [i[1] for i in center_of_embryo_list]))
-    print("averrrrrrrrrr")
-    print(XY_average)
-    print(center_of_embryo_list)
 
     video_cropped = []
     for img in video:
