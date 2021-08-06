@@ -94,7 +94,7 @@ If you try to run the script without cropping, the script will probably fail aft
 
 --onlycrop
 
-Only crop images (not run bpm script) based on indir and save croped images and a resulting panel report in outdir. If it is a multiple folder experiment, the script will crop images in every folder and save in different paths.
+Only crop images (not run bpm script) based on indir and save croped images and a resulting panel report (a ".png" file) in outdir. If there are multiple folders in indir, the script will try to crop images in every folder.
 
 -s
 
