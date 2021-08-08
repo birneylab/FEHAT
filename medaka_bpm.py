@@ -54,47 +54,15 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 def main(args):
 
     ################################## STARTUP SETUP ##################################
-    setup.config_logger(args.outdir)
+    
     arg_channels, arg_loops = setup.process_arguments(args)
 
-    ################# MULTI FOLDER DETECTION ######################
-
-    # Try to detect subfolder in indir
-    subdir_list = set([os.path.dirname(p)
-                      for p in glob2.glob(args.indir + '/*/*')])
-
-    if len(subdir_list) > 1:
-        # There are more than one folder in indir
-        LOGGER.info("There are " + str(len(subdir_list)) +
-                    " folders in your indir. Trying to read each one as a separated experiment...")
-
-    # just store the original outdir parh
-    temp_outdir = vars(args)['outdir']
-
-    for path in subdir_list:   # loop throw the folders
-
-        # get the indir and outdir arguments on the fly
-        vars(args)['indir'] = path
-
-        # and concatenate the specific subfolder name to the outdir momentarily
-        vars(args)['outdir'] = temp_outdir + '/' + \
-            os.path.basename(os.path.normpath(vars(args)['indir']))
-        temp_indir = vars(args)['indir']
-
-        # verify if tiff files are still in another subfolder, as fopr example, "CroppedTiff" or whatever
-        for fname in os.listdir(vars(args)['indir']):
-            # If not, do nothing  and goes to the run script
-            if fname.endswith('.tif') or fname.endswith('.tiff'):
-                break
-            else:
-                # if yes, access this folder and look for tiff images
-                vars(args)['indir'] = temp_indir + '/' + \
-                    str(next(os.walk(vars(args)['indir']))[1][0]) + '/'
-
+    
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
 
-    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
+    nr_of_videos, channels, loops = io_operations.extract_data(
+        args.indir)
     if arg_channels:
         channels = list(arg_channels.intersection(channels))
         channels.sort()
@@ -128,14 +96,15 @@ def main(args):
                     arguments_variable = [
                         ['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
                     arguments_bool = ['--' + key for key,
-                                      value in vars(args).items() if value is True]
+                                        value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
                     python_cmd = ['python3', 'cluster.py'] + \
                         arguments + ['-x', '\$LSB_JOBINDEX']
 
-                    jobname = 'heartRate' + args.wells + str(args.maxjobs)
+                    jobname = 'heartRate' + \
+                        args.wells + str(args.maxjobs)
 
                     bsub_cmd = ['bsub', '-J', jobname,
                                 '-M20000', '-R', 'rusage[mem=8000]']
@@ -157,26 +126,28 @@ def main(args):
             # error here
             # changed the job name so it can be seen in list of jobs
             consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w',
-                               'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
+                                'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
 
             if args.email == False:
                 consolidate_cmd.append('-o /dev/null')
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
             python_cmd = ['python3', 'src/cluster_consolidate.py',
-                          '-i', tmp_dir, '-o', args.outdir]
+                            '-i', tmp_dir, '-o', args.outdir]
 
             consolidate_cmd += python_cmd
 
             subprocess.run(consolidate_cmd, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT)
 
         except Exception as e:
-            LOGGER.exception("During dispatching of jobs onto the cluster")
+            LOGGER.exception(
+                "During dispatching of jobs onto the cluster")
 
     elif args.cluster == False and args.only_crop == False:
         LOGGER.info("Running on a single machine")
-        results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+        results = {'channel': [], 'loop': [],
+                    'well': [], 'heartbeat': []}
         try:
             LOGGER.info("##### Analysis #####")
 
@@ -188,17 +159,19 @@ def main(args):
                 bpm = None
 
                 try:
-                    bpm = run_algorithm(well_frame_paths, video_metadata, args)
+                    bpm = run_algorithm(
+                        well_frame_paths, video_metadata, args)
                     LOGGER.info("Reported BPM: " + str(bpm))
 
                 except Exception as e:
                     LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
-                                     + " in loop " +
-                                     str(video_metadata['loop'])
-                                     + " with channel " + str(video_metadata['channel']))
+                                        + " in loop " +
+                                        str(video_metadata['loop'])
+                                        + " with channel " + str(video_metadata['channel']))
                 finally:
                     # Save results
-                    results['channel'].append(video_metadata['channel'])
+                    results['channel'].append(
+                        video_metadata['channel'])
                     results['loop'].append(video_metadata['loop'])
                     results['well'].append(video_metadata['well_id'])
                     results['heartbeat'].append(bpm)
@@ -214,7 +187,7 @@ def main(args):
         nr_of_results = len(results['heartbeat'])
         if (nr_of_videos != nr_of_results):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
-                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
         io_operations.write_to_spreadsheet(args.outdir, results)
 
@@ -224,23 +197,25 @@ def main(args):
 
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
 
-            # well_frame_paths, _ = list(io_operations.well_video_generator(
-            # args.indir, channels, loops))
-
             video = io_operations.load_well_video(well_frame_paths)
-            print("sssssssssssssssssiiiiiiiiiiizzzzzzzzzze")
-            res = sys.getsizeof(video)
-            print(res)
+
             cut_images_list = segment_heart.crop_2(
                 video, vars(args)['window_size'])
 
             incremental_number = 1
+            # will be used for ploting a unique image for all the experiment, just for offset verifying
+            first_image_for_offset = 0
             for cut_image, image_path in zip(cut_images_list, well_frame_paths):
 
                 # get final part of the path for writting purposes
                 final_part_path = pathlib.PurePath(image_path).name
                 cv2.imwrite(args.outdir + "/" +
                             final_part_path, cut_image)
+                if first_image_for_offset == 0:
+                    cv2.imwrite(temp_outdir + "/" +
+                                'offset_verifying.png', cut_image)
+                    first_image_for_offset += 1
+
             # plot each first image of each well for an overview crop panel
                 if incremental_number == 1:
                     # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
@@ -248,25 +223,19 @@ def main(args):
 
                     if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict:
                         resulting_dict[video_metadata['channel'] +
-                                       '_' + video_metadata['loop']] = [cut_image]
+                                        '_' + video_metadata['loop']] = [cut_image]
                         resulting_dict['positions_' + video_metadata['channel'] +
-                                       '_' + video_metadata['loop']] = [video_metadata['well_id']]
+                                        '_' + video_metadata['loop']] = [video_metadata['well_id']]
                     else:
 
                         resulting_dict[video_metadata['channel'] +
-                                       '_' + video_metadata['loop']].append(cut_image)
+                                        '_' + video_metadata['loop']].append(cut_image)
                         resulting_dict['positions_' + video_metadata['channel'] +
-                                       '_' + video_metadata['loop']].append(video_metadata['well_id'])
+                                        '_' + video_metadata['loop']].append(video_metadata['well_id'])
 
-                    #plt.figure(figsize=(1, 1))
-                    # create a subplot for the first frame.
-                    # these will be used to build the main plot, in which we will subplot the last cropped frame of each well
-
+                
                 incremental_number += 1  # avoid plot more than the first frame
 
-        print("sssssssssssssssssiiiiiiiiiiizzzzzzzzzze        rrrrrrrrrrrrrrrrrr")
-        res1 = sys.getsizeof(resulting_dict)
-        print(res1)
         for item in resulting_dict.items():
             if "positions_" not in item[0]:
                 axes = []  # will be used to plot the first image for each well bellow
@@ -281,14 +250,21 @@ def main(args):
                     counter += 1
                     subplot_title = (position)
                     axes[-1].set_title(subplot_title,
-                                       fontsize=11, color='blue')
+                                        fontsize=11, color='blue')
                     plt.xticks([], [])
                     plt.yticks([], [])
                     plt.tight_layout()
                     # plot in panel the last cropped image from the loop above
                     plt.imshow(cut_image)
+                    # create the output dir if it does not exists
+                    try:
+                        os.makedirs(args.outdir)
+                    except FileExistsError:
+                        # directory already exists
+                        pass
+                    # save figure
                     plt.savefig(
-                        args.outdir + "/" + item[0] + '_panel.png', bbox_extra_artists=(suptitle,), bbox_inches="tight")
+                        temp_outdir + "/" + item[0] + '_panel.png', bbox_extra_artists=(suptitle,), bbox_inches="tight")
 
     else:
         LOGGER.exception("Script did not understand what to do")
@@ -299,8 +275,65 @@ def main(args):
 if __name__ == '__main__':
     # Parse input arguments.
     args = setup.parse_arguments()
+    setup.config_logger(args.outdir)
 
     # TODO: Handle different directory structures here.
     # Should be simple to change the indir and outdir in 'args' and pass for each detected directory respectively.
     # Avoid cluttering this file and write functions to detect and return all input/output directories in /src/io_operations.py
-    main(args)
+
+    ################# MULTI FOLDER DETECTION ######################
+
+    # Try to detect subfolder in indir
+    subdir_list = set([os.path.dirname(p)
+                      for p in glob2.glob(args.indir + '/*/*')])
+
+    if len(subdir_list) > 1:
+        # There are more than one folder in indir
+        LOGGER.info("There are " + str(len(subdir_list)) +
+                    " folders in your indir. Trying to read each one as a separated experiment and look for tiff files inside these folders...")
+
+        # just store the original outdir path
+        temp_outdir = vars(args)['outdir']
+
+        for path in subdir_list:   # loop throw the folders
+
+            # get the indir and outdir arguments on the fly
+            vars(args)['indir'] = path
+
+            # and concatenate the specific subfolder name to the outdir momentarily
+            vars(args)['outdir'] = temp_outdir + '/' + \
+                os.path.basename(os.path.normpath(vars(args)['indir']))
+            temp_indir = vars(args)['indir']
+
+            # verify if tiff files are in path. If not, try to look into a subfolder
+            for fname in os.listdir(vars(args)['indir']):
+                # If yes, do nothing  and goes to the run script
+                if fname.endswith('.tif') or fname.endswith('.tiff'):
+                    os.makedirs(vars(args)['outdir'], exist_ok=True)
+                    #runs the bpm algorithm
+                    main(args)
+                    break
+                else:
+                    # if no, access a subfolder and look for tiff images
+                    vars(args)['indir'] = temp_indir + '/' + \
+                        str(next(os.walk(vars(args)['indir']))[1][0]) + '/'
+                    for fname in os.listdir(vars(args)['indir']):
+                        if fname.endswith('.tif') or fname.endswith('.tiff'):
+                            # append the found subfolder name to the out_dir path and create out path
+                            subfolder_name = os.path.basename(
+                                os.path.normpath(vars(args)['indir']))
+                            vars(args)['outdir'] = vars(args)[
+                                'outdir'] + "/" + subfolder_name
+                            os.makedirs(vars(args)['outdir'], exist_ok=True)
+                            #runs the bpm algorithm
+                            main(args)
+                            break
+                        else:
+                            LOGGER.info(
+                                "No images found in path: " + vars(args)['indir'] + ", this folder will be skipped")
+
+    else:        
+        LOGGER.info("No multifolder experiment detected")
+
+        #the out_dir can vary if is a multifolder experiment or not. The default is 
+        main(args, output_dir = args.outdir)

@@ -1436,7 +1436,7 @@ def final_dist_graph(bpm_fourier,  out_dir):
 # final_dist_graph(bpm_fourier)    ## debug
 
 
-def crop_2(video, window_size=100):
+def crop_2(video, window_size=100, save=False):
 
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
@@ -1527,8 +1527,13 @@ def crop_2(video, window_size=100):
 
     video_cropped = []
     for img in video:
-        video_cropped.append(img[int(XY_average[0])-window_size: int(XY_average[0]) +
+        cut_image = img[int(XY_average[0])-window_size: int(XY_average[0]) +
                              window_size, int(XY_average[1])-window_size: int(XY_average[1])+window_size])
+        video_cropped.append(cut_image)
+        if save == True:
+            pass  # TODO : finish here (Save image)
+
+
 
     return video_cropped
 
@@ -1538,17 +1543,17 @@ def crop_2(video, window_size=100):
 # substituted by crop_2 (above)
 def crop(video):
     LOGGER.info("Cropping video")
-    circle_x = []
-    circle_y = []
-    circle_radii = []
+    circle_x=[]
+    circle_y=[]
+    circle_radii=[]
 
-    video_cropped = []
+    video_cropped=[]
 
-    success_count = 0
+    success_count=0
     for frame, i in zip(video, range(5)):
         # Detect embryo with Hough Circle Detection
         # Circle coords, can be used as cropping parameters
-        circle, x1, y1, x2, y2 = detectEmbryo(frame)
+        circle, x1, y1, x2, y2=detectEmbryo(frame)
 
         if circle is not None:
             circle_x.append(circle[0])
@@ -1559,41 +1564,41 @@ def crop(video):
     if len(circle_x) > 0:
         for x, y, r in zip(circle_x, circle_y, circle_radii):
 
-            x_coord = x
-            y_coord = y
-            radius = r
+            x_coord=x
+            y_coord=y
+            radius=r
 
             if x_coord is not None:
 
-                x_counts = Counter(x_coord)
-                y_counts = Counter(y_coord)
-                rad_counts = Counter(radius)
+                x_counts=Counter(x_coord)
+                y_counts=Counter(y_coord)
+                rad_counts=Counter(radius)
 
         # Use most common circle coords for the embryo
-        embryo_x, _ = x_counts.most_common(1)[0]
-        embryo_y, _ = y_counts.most_common(1)[0]
-        embryo_rad, _ = rad_counts.most_common(1)[0]
+        embryo_x, _=x_counts.most_common(1)[0]
+        embryo_y, _=y_counts.most_common(1)[0]
+        embryo_rad, _=rad_counts.most_common(1)[0]
 
     else:
-        embryo_x = None
-        embryo_y = None
-        embryo_rad = None
+        embryo_x=None
+        embryo_y=None
+        embryo_rad=None
 
     if embryo_x and embryo_y and embryo_rad:
-        y1 = embryo_y - embryo_rad - 50
-        y2 = embryo_y + embryo_rad + 50
-        x1 = embryo_x - embryo_rad - 50
-        x2 = embryo_x + embryo_rad + 50
+        y1=embryo_y - embryo_rad - 50
+        y2=embryo_y + embryo_rad + 50
+        x1=embryo_x - embryo_rad - 50
+        x2=embryo_x + embryo_rad + 50
 
     else:
         LOGGER.warning(
             "Couldn't detect circles in video. Cutting approximately around edges.")
-        shape = video[0].shape
+        shape=video[0].shape
 
-        y1 = int(shape[0] * 0.3)
-        y2 = int(shape[0] * 0.7)
-        x1 = int(shape[1] * 0.3)
-        x2 = int(shape[1] * 0.7)
+        y1=int(shape[0] * 0.3)
+        y2=int(shape[0] * 0.7)
+        x1=int(shape[1] * 0.3)
+        x2=int(shape[1] * 0.7)
     for frame in video:
         # crop_img = img[y1 : y2, x1: x2]
         video_cropped.append(frame[y1: y2, x1: x2])
@@ -1611,61 +1616,61 @@ def run(video, args, video_metadata):
     # <0 returns the image as is. This will return a 16 bit image.
 
     # store the out_dir without the well positiom, so we can use it to store general reports in main folder
-    out_base = args['outdir']
+    out_base=args['outdir']
 
     # Add well position to output directory path
-    out_dir = os.path.join(args['outdir'], video_metadata['channel'],
+    out_dir=os.path.join(args['outdir'], video_metadata['channel'],
                            video_metadata['loop'] + '-' + video_metadata['well_id'])
 
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(out_dir, exist_ok = True)
 
-    sorted_frames = video
-    frame_dict = {}
-    sorted_times = video_metadata['timestamps']
+    sorted_frames=video
+    frame_dict={}
+    sorted_times=video_metadata['timestamps']
 
     for img, time in zip(sorted_frames, sorted_times):
 
         if img is not None:
-            frame_dict[time] = img
+            frame_dict[time]=img
         else:
-            frame_dict[time] = None
+            frame_dict[time]=None
 
     # Determine frame rate from time-stamps if unspecified
     if not args['fps']:
         # total time acquiring frames in seconds
-        timestamp0 = int(sorted_times[0])
-        timestamp_final = int(sorted_times[-1])
-        total_time = (timestamp_final - timestamp0) / 1000
+        timestamp0=int(sorted_times[0])
+        timestamp_final=int(sorted_times[-1])
+        total_time=(timestamp_final - timestamp0) / 1000
         # fps = int(len(sorted_times) / round(total_time))
-        fps = len(sorted_times) / total_time
+        fps=len(sorted_times) / total_time
     else:
-        fps = args['fps']
+        fps=args['fps']
 
     # Remove duplicate time stamps,
     # same frame can have been saved more than once
-    sorted_times = list(OrderedDict.fromkeys(sorted_times))
-    sorted_frames = [frame_dict[time] for time in sorted_times]
+    sorted_times=list(OrderedDict.fromkeys(sorted_times))
+    sorted_frames=[frame_dict[time] for time in sorted_times]
 
     LOGGER.info("Normalizing frames")
     # Normalize frames
-    norm_frames = normVideo(sorted_frames)
+    norm_frames=normVideo(sorted_frames)
 
     LOGGER.info("Writing video")
 
     # Write video
-    vid_frames = [frame for frame in norm_frames if frame is not None]
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    vid_frames=[frame for frame in norm_frames if frame is not None]
+    fourcc=cv2.VideoWriter_fourcc(*'mp4v')
     # fourcc = cv2.VideoWriter_fourcc(*'avc1')
 
     try:
-        height, width, layers = vid_frames[0].shape
+        height, width, layers=vid_frames[0].shape
     except IndexError:
-        height, width = vid_frames[0].shape
+        height, width=vid_frames[0].shape
 
-    size = (width, height)
-    out_vid = os.path.join(out_dir, "embryo.mp4")
+    size=(width, height)
+    out_vid=os.path.join(out_dir, "embryo.mp4")
 
-    out = cv2.VideoWriter(out_vid, fourcc, fps, size)
+    out=cv2.VideoWriter(out_vid, fourcc, fps, size)
 
     for i in range(len(vid_frames)):
         out.write(vid_frames[i])
@@ -1676,38 +1681,38 @@ def run(video, args, video_metadata):
     if sum(frame is None for frame in sorted_frames) > len(sorted_frames) * 0.05:
         raise ValueError("More than 5% of frames are empty")
 
-    embryo = []
+    embryo=[]
 
     # Start from first non-empty frame
-    start_frame = next(x for x, frame in enumerate(
+    start_frame=next(x for x, frame in enumerate(
         norm_frames) if frame is not None)
 
     # new feature to filter mask
-    hsvz = cv2.cvtColor(norm_frames[start_frame], cv2.COLOR_RGB2HSV)
-    lower_green = np.array([0, 0, 0])
-    upper_green = np.array([150, 150, 150])
-    maskx = cv2.inRange(hsvz, lower_green, upper_green)
-    kernelz = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-    opened_maskz = cv2.morphologyEx(maskx, cv2.MORPH_OPEN, kernelz)
+    hsvz=cv2.cvtColor(norm_frames[start_frame], cv2.COLOR_RGB2HSV)
+    lower_green=np.array([0, 0, 0])
+    upper_green=np.array([150, 150, 150])
+    maskx=cv2.inRange(hsvz, lower_green, upper_green)
+    kernelz=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    opened_maskz=cv2.morphologyEx(maskx, cv2.MORPH_OPEN, kernelz)
     plt.imshow(norm_frames[start_frame])
     plt.imshow(opened_maskz)
 
     # Add None if first few frames are empty
-    empty_frames = range(start_frame)
+    empty_frames=range(start_frame)
     for i in empty_frames:
         embryo.append(None)
 
-    frame0 = norm_frames[start_frame]
+    frame0=norm_frames[start_frame]
     embryo.append(frame0)
 
     # Generate blank images for masking
-    rows, cols, _ = frame0.shape
-    heart_roi = np.zeros(shape=[rows, cols], dtype=np.uint8)
-    blue_print = np.zeros(shape=[rows, cols], dtype=np.uint8)
+    rows, cols, _=frame0.shape
+    heart_roi=np.zeros(shape = [rows, cols], dtype = np.uint8)
+    blue_print=np.zeros(shape = [rows, cols], dtype = np.uint8)
 
     # Process frame0
-    _, old_grey, _ = processFrame(frame0)
-    f0_grey = old_grey.copy()
+    _, old_grey, _=processFrame(frame0)
+    f0_grey=old_grey.copy()
 
     # Numpy matrix:
     # Coord 1 = row(s)
@@ -1715,14 +1720,14 @@ def run(video, args, video_metadata):
 
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
-    j = start_frame + 1
+    j=start_frame + 1
     while j < len(norm_frames):
 
-        frame = norm_frames[j]
+        frame=norm_frames[j]
 
         if frame is not None:
 
-            masked_frame, triangle_thresh, thresh, movement = rolling_diff(
+            masked_frame, triangle_thresh, thresh, movement=rolling_diff(
                 j, norm_frames, win_size=2, direction="reverse", min_area=150)  # I´ve added thresh just to test
 
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.

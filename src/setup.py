@@ -46,8 +46,10 @@ def parse_arguments():
                         help='Should crop images',                              required=False)
     parser.add_argument('-s', '--embryosize',    action="store",         dest='window_size',
                         help='Size of embryo in pixels',                  default=300,      required=False, type=int)
-    parser.add_argument('--onlycrop',           action="store_true",    dest='only_crop',
+    parser.add_argument('--only_crop',           action="store_true",    dest='only_crop',
                         help='Should only crop images, not run bpm script',     default=False,    required=False)
+    parser.add_argument('--crop_and_save',           action="store_true",    dest='crop_and_save',
+                        help='Should crop crop images and save, and run bpm in cropped images',     default=False,    required=False)
     # Cluster arguments. Index is hidden argument that is set through bash script to assign wells to cluster instances.
 
     parser.add_argument('--slowmode',       action="store_true",    dest='slowmode',
