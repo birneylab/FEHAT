@@ -44,7 +44,11 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 
     # Crop and analyse
     if args.crop:
-        video = segment_heart.crop_2(video, vars(args)['window_size'])
+        video = segment_heart.crop_2(video, well_frame_paths, args, vars(args)[
+                                     'window_size'], save=False)
+    elif args.crop_and_save:
+        video = segment_heart.crop_2(video, well_frame_paths, args, vars(args)[
+                                     'window_size'], save=True)
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
@@ -54,10 +58,9 @@ def run_algorithm(well_frame_paths, video_metadata, args):
 def main(args):
 
     ################################## STARTUP SETUP ##################################
-    
+
     arg_channels, arg_loops = setup.process_arguments(args)
 
-    
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
 
@@ -96,7 +99,7 @@ def main(args):
                     arguments_variable = [
                         ['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
                     arguments_bool = ['--' + key for key,
-                                        value in vars(args).items() if value is True]
+                                      value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
@@ -126,19 +129,19 @@ def main(args):
             # error here
             # changed the job name so it can be seen in list of jobs
             consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w',
-                                'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
+                               'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
 
             if args.email == False:
                 consolidate_cmd.append('-o /dev/null')
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
             python_cmd = ['python3', 'src/cluster_consolidate.py',
-                            '-i', tmp_dir, '-o', args.outdir]
+                          '-i', tmp_dir, '-o', args.outdir]
 
             consolidate_cmd += python_cmd
 
             subprocess.run(consolidate_cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                           stderr=subprocess.STDOUT)
 
         except Exception as e:
             LOGGER.exception(
@@ -147,7 +150,7 @@ def main(args):
     elif args.cluster == False and args.only_crop == False:
         LOGGER.info("Running on a single machine")
         results = {'channel': [], 'loop': [],
-                    'well': [], 'heartbeat': []}
+                   'well': [], 'heartbeat': []}
         try:
             LOGGER.info("##### Analysis #####")
 
@@ -165,9 +168,9 @@ def main(args):
 
                 except Exception as e:
                     LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
-                                        + " in loop " +
-                                        str(video_metadata['loop'])
-                                        + " with channel " + str(video_metadata['channel']))
+                                     + " in loop " +
+                                     str(video_metadata['loop'])
+                                     + " with channel " + str(video_metadata['channel']))
                 finally:
                     # Save results
                     results['channel'].append(
@@ -187,7 +190,7 @@ def main(args):
         nr_of_results = len(results['heartbeat'])
         if (nr_of_videos != nr_of_results):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
-                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
         io_operations.write_to_spreadsheet(args.outdir, results)
 
@@ -209,7 +212,7 @@ def main(args):
 
                 # get final part of the path for writting purposes
                 final_part_path = pathlib.PurePath(image_path).name
-                cv2.imwrite(args.outdir + "/" +
+                cv2.imwrite(args.outdir + "/cropped_by_EBI_script/" +
                             final_part_path, cut_image)
                 if first_image_for_offset == 0:
                     cv2.imwrite(temp_outdir + "/" +
@@ -223,17 +226,16 @@ def main(args):
 
                     if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict:
                         resulting_dict[video_metadata['channel'] +
-                                        '_' + video_metadata['loop']] = [cut_image]
+                                       '_' + video_metadata['loop']] = [cut_image]
                         resulting_dict['positions_' + video_metadata['channel'] +
-                                        '_' + video_metadata['loop']] = [video_metadata['well_id']]
+                                       '_' + video_metadata['loop']] = [video_metadata['well_id']]
                     else:
 
                         resulting_dict[video_metadata['channel'] +
-                                        '_' + video_metadata['loop']].append(cut_image)
+                                       '_' + video_metadata['loop']].append(cut_image)
                         resulting_dict['positions_' + video_metadata['channel'] +
-                                        '_' + video_metadata['loop']].append(video_metadata['well_id'])
+                                       '_' + video_metadata['loop']].append(video_metadata['well_id'])
 
-                
                 incremental_number += 1  # avoid plot more than the first frame
 
         for item in resulting_dict.items():
@@ -250,7 +252,7 @@ def main(args):
                     counter += 1
                     subplot_title = (position)
                     axes[-1].set_title(subplot_title,
-                                        fontsize=11, color='blue')
+                                       fontsize=11, color='blue')
                     plt.xticks([], [])
                     plt.yticks([], [])
                     plt.tight_layout()
@@ -310,7 +312,7 @@ if __name__ == '__main__':
                 # If yes, do nothing  and goes to the run script
                 if fname.endswith('.tif') or fname.endswith('.tiff'):
                     os.makedirs(vars(args)['outdir'], exist_ok=True)
-                    #runs the bpm algorithm
+                    # runs the bpm algorithm
                     main(args)
                     break
                 else:
@@ -325,15 +327,15 @@ if __name__ == '__main__':
                             vars(args)['outdir'] = vars(args)[
                                 'outdir'] + "/" + subfolder_name
                             os.makedirs(vars(args)['outdir'], exist_ok=True)
-                            #runs the bpm algorithm
+                            # runs the bpm algorithm
                             main(args)
                             break
                         else:
                             LOGGER.info(
                                 "No images found in path: " + vars(args)['indir'] + ", this folder will be skipped")
 
-    else:        
+    else:
         LOGGER.info("No multifolder experiment detected")
 
-        #the out_dir can vary if is a multifolder experiment or not. The default is 
-        main(args, output_dir = args.outdir)
+        # the out_dir can vary if is a multifolder experiment or not.
+        main(args)
