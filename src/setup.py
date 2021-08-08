@@ -5,13 +5,17 @@ from multiprocessing import cpu_count
 
 LOGGER = logging.getLogger(__name__)
 
-def config_logger(logfile_path, logfile_name="medaka_outdir.log"):
+def config_logger(logfile_path, logfile_name="medaka_outdir.log", in_debug_mode=False):
     os.makedirs(logfile_path, exist_ok=True)
+
+    loglevel = logging.INFO
+    if in_debug_mode:
+        loglevel = logging.DEBUG
     
     # Global logger settings
     logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s] %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
-                        level=logging.INFO,
+                        level=loglevel,
                         handlers=[
                             logging.StreamHandler(),
                             logging.FileHandler(os.path.join(logfile_path, logfile_name))
@@ -37,7 +41,10 @@ def parse_arguments():
     parser.add_argument('--email',          action="store_true",    dest='email',       help='Receive email for cluster notification',          required = False)
     parser.add_argument('-m','--maxjobs',   action="store",         dest='maxjobs',     help='maxjobs on the cluster',          default=None,   required = False)
     parser.add_argument('-x', '--lsf_index',action="store",         dest='lsf_index',   help=argparse.SUPPRESS,                                 required = False)
-    parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False)
+
+    # Debug flag
+    parser.add_argument('--debug',           action="store_true",    dest='isDebugMode',      help='Additional debug output',                         required = False)
+    parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False, isDebugMode=False)
     args = parser.parse_args()
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.

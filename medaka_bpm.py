@@ -40,27 +40,6 @@ def run_algorithm(well_frame_paths, video_metadata, args):
     return bpm;
 
 def run_multifolder(args, dirs):
-    # Case 1: No cropped tiff, no other folders, tiffs contained contained
-    # If it's croppedTiff folder
-    # -> main(args)
-
-    # # Case 2: Multiple experiment folders
-    # print("Calling multiple folders")
-    # #loop over directories
-    #     # Dictionary of the aruments
-    #     arguments_variable = {['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True}
-    #     arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
-        
-    #     # Change the indir-argument to the subfolder
-    #     # Change the outdir to outdir + subfolder_name
-    #     # If it's croppedTiff folder
-
-    #     arguments = sum(arguments_variable, arguments_bool)
-    #     main(args)
-    #     args = list(args)
-    #     python_cmd = ['python3', 'medake_bpm.py', arguments]
-    #     subprocess.run(python_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
     # processes to be dispatched
     cmd_list = []
     procs_list = []
@@ -110,7 +89,7 @@ def run_multifolder(args, dirs):
 def main(args):
     ################################## STARTUP SETUP ##################################
     arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
-    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"))
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.isDebugMode)
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -161,31 +140,31 @@ def main(args):
                     bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
                     if args.email == False:
-                        outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
-                        os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
-                        #bsub_cmd.append('-o')
-                        #bsub_cmd.append('/dev/null')
-                        bsub_cmd+= ['-o', outfile]
+                        if args.isDebugMode:
+                            outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
+                            os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                            consolidate_cmd+= ['-o', outfile]
+                        else:
+                            consolidate_cmd += ['-o', '/dev/null']
 
                     cmd = bsub_cmd + ['source', 'activate', 'medaka_env', '&&'] + python_cmd
 
                     #Create a job array for each well
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-                    LOGGER.info(cmd)
+                    LOGGER.debug(cmd)
                     LOGGER.info("\n" + result.stdout.decode('utf-8'))
 
             #Create a dependent job for final report
-            # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
-
             consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
 
             if args.email == False:
-                outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
-                os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
-                #consolidate_cmd.append('-o')
-                #consolidate_cmd.append('/dev/null')
-                consolidate_cmd+= ['-o', outfile]
+                if args.isDebugMode:
+                    outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
+                    os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                    consolidate_cmd+= ['-o', outfile]
+                else:
+                    consolidate_cmd += ['-o', '/dev/null']
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
             exe_path = os.path.join(main_directory, 'src/', 'cluster_consolidate.py')
@@ -194,6 +173,7 @@ def main(args):
             consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']
             consolidate_cmd += python_cmd
 
+            LOGGER.debug(consolidate_cmd)
             subprocess.run(consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
