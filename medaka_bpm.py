@@ -134,7 +134,10 @@ def main(args):
 
     ################################## ANALYSIS ##################################
     if args.cluster:
-        #Run cluster analysis
+
+    #Run cluster analysis
+        main_directory = os.path.dirname(os.path.abspath(__file__))
+
         LOGGER.info("Running on cluster")
         try:
             for channel in channels:
@@ -149,36 +152,47 @@ def main(args):
                     arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
+                    exe_path = os.path.join(main_directory, 'cluster.py')
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
-                    python_cmd = ['python3', 'cluster.py'] + arguments + ['-x', '\$LSB_JOBINDEX']
+                    python_cmd = ['python3', exe_path] + arguments + ['-x', '\$LSB_JOBINDEX']
 
                     jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
-                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']                   
+                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
-                    if args.email == False:                        
-                        bsub_cmd.append( '-o /dev/null')                  
+                    if args.email == False:
+                        outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
+                        os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                        #bsub_cmd.append('-o')
+                        #bsub_cmd.append('/dev/null')
+                        bsub_cmd+= ['-o', outfile]
 
-                    cmd = bsub_cmd + python_cmd
+                    cmd = bsub_cmd + ['source', 'activate', 'medaka_env', '&&'] + python_cmd
 
                     #Create a job array for each well
-                    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-                    LOGGER.info("\n"+ result.stdout.decode('utf-8'))
+                    LOGGER.info(cmd)
+                    LOGGER.info("\n" + result.stdout.decode('utf-8'))
 
             #Create a dependent job for final report
             # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
 
-            #error here
             consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
 
             if args.email == False:
-                consolidate_cmd.append('-o /dev/null')
+                outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
+                os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                #consolidate_cmd.append('-o')
+                #consolidate_cmd.append('/dev/null')
+                consolidate_cmd+= ['-o', outfile]
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
-            python_cmd = ['python3', 'src/cluster_consolidate.py', '-i', tmp_dir, '-o', args.outdir]
+            exe_path = os.path.join(main_directory, 'src/', 'cluster_consolidate.py')
+            python_cmd = ['python3', exe_path, '-i', tmp_dir, '-o', args.outdir]
 
-            consolidate_cmd += python_cmd            
+            consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']
+            consolidate_cmd += python_cmd
 
             subprocess.run(consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

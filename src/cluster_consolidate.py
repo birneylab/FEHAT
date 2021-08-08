@@ -20,7 +20,7 @@ import shutil
 LOGGER = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description='Read in medaka heart video frames')
-parser.add_argument('-o','--outdir', action="store", dest='outdir', help='Where store the output report and the global log',    default=False, required = True)
+parser.add_argument('-o','--outdir', action="store", dest='outdir', help='Where to store the output report and the global log',    default=False, required = True)
 parser.add_argument('-i','--indir', action="store", dest='indir', help='Path to temp folder with results',                      default=False, required = True)
 
 args = parser.parse_args()
@@ -34,7 +34,7 @@ indir = args.indir
 
 # Number code for logfile and outfile respectively
 experiment_name = os.path.basename(os.path.normpath(out_dir))
-experiment_id = experiment_name = experiment_name.split('_')
+experiment_id = experiment_name.split('_')[1] # "out_" prefix
 
 setup.config_logger(out_dir, ("logfile_" + experiment_id + ".log"))
 
