@@ -89,7 +89,7 @@ def run_multifolder(args, dirs):
 def main(args):
     ################################## STARTUP SETUP ##################################
     arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
-    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.isDebugMode)
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -119,6 +119,7 @@ def main(args):
 
         LOGGER.info("Running on cluster")
         try:
+            job_ids = []
             for channel in channels:
                 for loop in loops:
                     LOGGER.info("Dispatching wells from " + channel + " " + loop + " to cluster")
@@ -140,12 +141,12 @@ def main(args):
                     bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
                     if args.email == False:
-                        if args.isDebugMode:
+                        if args.debug:
                             outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
                             os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
-                            consolidate_cmd+= ['-o', outfile]
+                            bsub_cmd+= ['-o', outfile]
                         else:
-                            consolidate_cmd += ['-o', '/dev/null']
+                            bsub_cmd += ['-o', '/dev/null']
 
                     cmd = bsub_cmd + ['source', 'activate', 'medaka_env', '&&'] + python_cmd
 
@@ -153,16 +154,25 @@ def main(args):
                     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
                     LOGGER.debug(cmd)
-                    LOGGER.info("\n" + result.stdout.decode('utf-8'))
+
+                    stdout_return = result.stdout.decode('utf-8')
+                    LOGGER.info("\n" + stdout_return)
+
+                    # Get jobId for consolidate command later
+                    i1 = stdout_return.find('<') + 1
+                    i2 = stdout_return.find('>')
+                    job_ids.append(stdout_return[i1:i2])
 
             #Create a dependent job for final report
-            consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
+            job_ids = [("ended(" + s + ")") for s in job_ids]
+            w_condition = '&&'.join(job_ids)
+            consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', w_condition, '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
 
             if args.email == False:
-                if args.isDebugMode:
+                if args.debug:
                     outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
                     os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
-                    consolidate_cmd+= ['-o', outfile]
+                    consolidate_cmd += ['-o', outfile]
                 else:
                     consolidate_cmd += ['-o', '/dev/null']
 
