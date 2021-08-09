@@ -43,19 +43,23 @@ def run_algorithm(well_frame_paths, video_metadata, args):
         well_frame_paths)
 
     # Crop and analyse
-    if args.crop:
-        video = segment_heart.crop_2(video, well_frame_paths, args, vars(args)[
-                                     'window_size'], save=False)
-    elif args.crop_and_save:
-        video = segment_heart.crop_2(video, well_frame_paths, args, vars(args)[
-                                     'window_size'], save=True)
+    if args.crop == True and args.crop_and_save == False:
+        LOGGER.info("Cropping images but do not saving...")
+
+        video, resulting_dict_from_crop = segment_heart.crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)[
+            'window_size'], save=False)
+    elif args.crop_and_save == True:
+        LOGGER.info("Cropping images and saving...")
+
+        video, resulting_dict_from_crop = segment_heart.crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)[
+            'window_size'], save=True)
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
     return bpm
 
 
-def main(args):
+def main(args, resulting_dict_from_crop):
 
     ################################## STARTUP SETUP ##################################
 
@@ -195,78 +199,19 @@ def main(args):
         io_operations.write_to_spreadsheet(args.outdir, results)
 
     elif args.only_crop == True:
-        resulting_dict = {}
+
         LOGGER.info("Only cropping, script will not run BPM analyses")
 
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
 
+            LOGGER.info("Reading a batch of files...")
+
             video = io_operations.load_well_video(well_frame_paths)
 
-            cut_images_list = segment_heart.crop_2(
-                video, vars(args)['window_size'])
+            LOGGER.info("cropping and saving...")
 
-            incremental_number = 1
-            # will be used for ploting a unique image for all the experiment, just for offset verifying
-            first_image_for_offset = 0
-            for cut_image, image_path in zip(cut_images_list, well_frame_paths):
-
-                # get final part of the path for writting purposes
-                final_part_path = pathlib.PurePath(image_path).name
-                cv2.imwrite(args.outdir + "/cropped_by_EBI_script/" +
-                            final_part_path, cut_image)
-                if first_image_for_offset == 0:
-                    cv2.imwrite(temp_outdir + "/" +
-                                'offset_verifying.png', cut_image)
-                    first_image_for_offset += 1
-
-            # plot each first image of each well for an overview crop panel
-                if incremental_number == 1:
-                    # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
-                    # it is necessary because we want to replot after each well, that is, to be able to skip the crop script but have the partial results plotted
-
-                    if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict:
-                        resulting_dict[video_metadata['channel'] +
-                                       '_' + video_metadata['loop']] = [cut_image]
-                        resulting_dict['positions_' + video_metadata['channel'] +
-                                       '_' + video_metadata['loop']] = [video_metadata['well_id']]
-                    else:
-
-                        resulting_dict[video_metadata['channel'] +
-                                       '_' + video_metadata['loop']].append(cut_image)
-                        resulting_dict['positions_' + video_metadata['channel'] +
-                                       '_' + video_metadata['loop']].append(video_metadata['well_id'])
-
-                incremental_number += 1  # avoid plot more than the first frame
-
-        for item in resulting_dict.items():
-            if "positions_" not in item[0]:
-                axes = []  # will be used to plot the first image for each well bellow
-                rows = 8
-                cols = 12
-                fig = plt.figure(figsize=(10, 28))
-                suptitle = plt.suptitle(
-                    'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
-                counter = 1
-                for cut_image, position in zip(item[1], resulting_dict['positions_' + item[0]]):
-                    axes.append(fig.add_subplot(rows, cols, counter))
-                    counter += 1
-                    subplot_title = (position)
-                    axes[-1].set_title(subplot_title,
-                                       fontsize=11, color='blue')
-                    plt.xticks([], [])
-                    plt.yticks([], [])
-                    plt.tight_layout()
-                    # plot in panel the last cropped image from the loop above
-                    plt.imshow(cut_image)
-                    # create the output dir if it does not exists
-                    try:
-                        os.makedirs(args.outdir)
-                    except FileExistsError:
-                        # directory already exists
-                        pass
-                    # save figure
-                    plt.savefig(
-                        temp_outdir + "/" + item[0] + '_panel.png', bbox_extra_artists=(suptitle,), bbox_inches="tight")
+            _, resulting_dict_from_crop = segment_heart.crop_2(
+                video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)['window_size'], save=True)
 
     else:
         LOGGER.exception("Script did not understand what to do")
@@ -298,6 +243,7 @@ if __name__ == '__main__':
         temp_outdir = vars(args)['outdir']
 
         for path in subdir_list:   # loop throw the folders
+            resulting_dict_from_crop = {}  # will be used only if need to crop images
 
             # get the indir and outdir arguments on the fly
             vars(args)['indir'] = path
@@ -313,7 +259,7 @@ if __name__ == '__main__':
                 if fname.endswith('.tif') or fname.endswith('.tiff'):
                     os.makedirs(vars(args)['outdir'], exist_ok=True)
                     # runs the bpm algorithm
-                    main(args)
+                    #main(args, resulting_dict_from_crop)
                     break
                 else:
                     # if no, access a subfolder and look for tiff images
@@ -328,14 +274,18 @@ if __name__ == '__main__':
                                 'outdir'] + "/" + subfolder_name
                             os.makedirs(vars(args)['outdir'], exist_ok=True)
                             # runs the bpm algorithm
-                            main(args)
+                            #main(args, resulting_dict_from_crop)
                             break
                         else:
                             LOGGER.info(
+
                                 "No images found in path: " + vars(args)['indir'] + ", this folder will be skipped")
+            
+            main(args, resulting_dict_from_crop)
 
     else:
         LOGGER.info("No multifolder experiment detected")
 
         # the out_dir can vary if is a multifolder experiment or not.
-        main(args)
+        resulting_dict_from_crop = {}  # will be used only if need to crop images
+        main(args, resulting_dict_from_crop)
