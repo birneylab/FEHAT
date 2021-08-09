@@ -1521,18 +1521,10 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
                             'offset_verifying.png', cut_image)
             first_image_for_offset += 1
 
-            # create pannel
-
+            # will start creating the pannel
             # get final part of the path for writting purposes
             final_part_path = pathlib.PurePath(image_path).name
-            #os.makedirs(args.outdir + '/cropped_by_EBI_script/', exist_ok=True)
-            # cv2.imwrite(args.outdir + "/cropped_by_EBI_script/" +
-            # final_part_path, cut_image)
-            # if first_image_for_offset == 0:
-            # cv2.imwrite(temp_outdir + "/" +
-            # 'offset_verifying.png', cut_image)
-            #first_image_for_offset += 1
-
+           
         # plot each first image of each well for an overview crop panel
             if incremental_number == 1:
                 # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.

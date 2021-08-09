@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 ################################## ALGORITHM ##################################
 
 
-def run_algorithm(well_frame_paths, video_metadata, args):
+def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
     LOGGER.info("Analysing video - " + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
                 + " Well: " +
@@ -96,7 +96,7 @@ def main(args, resulting_dict_from_crop):
                     LOGGER.info("Dispatching wells from " +
                                 channel + " " + loop + " to cluster")
 
-                    # Prepae arguments to pass to bsub job
+                    # Prepare arguments to pass to bsub job
                     args.channels = channel
                     args.loops = loop
 
@@ -167,7 +167,7 @@ def main(args, resulting_dict_from_crop):
 
                 try:
                     bpm = run_algorithm(
-                        well_frame_paths, video_metadata, args)
+                        well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                     LOGGER.info("Reported BPM: " + str(bpm))
 
                 except Exception as e:
@@ -280,7 +280,7 @@ if __name__ == '__main__':
                             LOGGER.info(
 
                                 "No images found in path: " + vars(args)['indir'] + ", this folder will be skipped")
-            
+
             main(args, resulting_dict_from_crop)
 
     else:
