@@ -87,10 +87,20 @@ The email address will be the email of the user logged on the cluster.
 
 --crop
 
-If the script needs to crop the image, set it to True. 
-It is useful if you have not previously cropped the images so that the script will crop them on the fly. 
-Note that nothing new will be created; the script will discard cropped files after analyses. 
-If you try to run the script without cropping, the script will probably fail after a long time analyzing each well, as analyzing full dimensions images is memory consuming.
+Use it if the script needs to crop the image. It is useful if you have not previously cropped the images so that the script will crop them on the fly. 
+Note that nothing new will be created; the script will discard cropped files after analyses. If you need keep the cropped files, see the crop_and_save option bellow. If you try to run the script without cropping, the script will probably fail after a long time analyzing each well, as analyzing full dimensions images is memory consuming. You can use the parameter -s (bellow) to adjust the cropping. If you are not sure if the cropping offset is ok, we suggest using the option "only_crop" for some wells just to see if is being cropped in the right position. 
+
+--only_crop
+
+Only crop images (not run bpm script) based on indir and save croped images and a resulting panel report (a ".png" file) in outdir. If there are multiple folders in indir, the script will try to crop images in every folder and save them in different folders. An image called offset_verifying.png will be created at the beginning of the analyses, so if you want, you can stop the script and see if the parameter -s needs to be adjusted.
+
+--crop_and_save
+
+The script will crop images (apart of running bpm script), and save them. This is useful because the bottleneck of the script is reading and writing images, then, using this option, reading and writing will be done just once for bpm and cropping, saving a lot of time. If there are multiple folders in indir, the script will try to crop images in every folder and save them in different folders. An image called offset_verifying.png will be created at the beginning of the analyses, so if you want, you can stop the script and see if the parameter -s needs to be adjusted.
+
+-s
+
+Only useful when cropping images. It is the size of the expected radius of the embryo, and this value will be used for cropping based on embryo's center of mass. The default value is 300 px. If you don´t know how much to use, we suggest test first using the option only_crop for some wells, then stop the script and check the offset.
 
 
 # What happens after a job is submitted?
