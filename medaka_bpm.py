@@ -46,13 +46,13 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
     if args.crop == True and args.crop_and_save == False:
         LOGGER.info("Cropping images but do not saving...")
 
-        video, resulting_dict_from_crop = segment_heart.crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)[
-            'window_size'], save=False)
+        video, resulting_dict_from_crop = segment_heart.crop_2(
+            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=False)
     elif args.crop_and_save == True:
         LOGGER.info("Cropping images and saving...")
 
-        video, resulting_dict_from_crop = segment_heart.crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)[
-            'window_size'], save=True)
+        video, resulting_dict_from_crop = segment_heart.crop_2(
+            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=True)
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
@@ -211,7 +211,7 @@ def main(args, resulting_dict_from_crop):
             LOGGER.info("cropping and saving...")
 
             _, resulting_dict_from_crop = segment_heart.crop_2(
-                video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, vars(args)['window_size'], save=True)
+                video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=True)
 
     else:
         LOGGER.exception("Script did not understand what to do")

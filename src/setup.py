@@ -44,8 +44,8 @@ def parse_arguments():
                         help='average',                         default=0.0,    required=False, type=float)
     parser.add_argument('--crop',           action="store_true",    dest='crop',
                         help='Should crop images',                              required=False)
-    parser.add_argument('-s', '--embryosize',    action="store",         dest='window_size',
-                        help='Size of embryo in pixels',                  default=300,      required=False, type=int)
+    parser.add_argument('-s', '--embryosize',    action="store",         dest='embryo_size',
+                        help='radius of embryo in pixels',                  default=300,      required=False, type=int)
     parser.add_argument('--only_crop',           action="store_true",    dest='only_crop',
                         help='Should only crop images, not run bpm script',     default=False,    required=False)
     parser.add_argument('--crop_and_save',           action="store_true",    dest='crop_and_save',

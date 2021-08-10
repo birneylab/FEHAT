@@ -100,7 +100,7 @@ The script will crop images (apart of running bpm script), and save them. This i
 
 -s
 
-Only useful when cropping images. It is the size of the expected radius of the embryo, and this value will be used for cropping based on embryo's center of mass. The default value is 100 px. If you don´t know how much to use, we suggest test first using the option only_crop for some wells, then stop the script and check the offset.
+Only useful when cropping images. It is the size of the expected radius of the embryo, and this value will be used for cropping based on embryo's center of mass. The default value is 300 px. If you don´t know how much to use, we suggest test first using the option only_crop for some wells, then stop the script and check the offset.
 
 
 # What happens after a job is submitted?

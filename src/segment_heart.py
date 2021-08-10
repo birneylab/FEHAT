@@ -1438,7 +1438,7 @@ def final_dist_graph(bpm_fourier,  out_dir):
 # final_dist_graph(bpm_fourier)    ## debug
 
 
-def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, window_size=100, save=False):
+def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_size, save=False):
 
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
@@ -1447,10 +1447,12 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
     # get the minimum size of the first frame
     maximum_dimension = min(video[0].shape[0:1])
 
-    if window_size < 50:
-        window_size = 50
-    if window_size > maximum_dimension:
-        window_size = maximum_dimension
+    if embryo_size < 50:
+        embryo_size = 50
+    if embryo_size > int((maximum_dimension/3)):
+        embryo_size = int((maximum_dimension/3))
+        LOGGER.info(
+            "-s paramter has excedded the allowed by image dimensions. Used " + str(embryo_size) + " instead.")
 
     center_of_embryo_list = []
     for img, i in zip(video, range(5)):
@@ -1476,8 +1478,7 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
-                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1509,8 +1510,14 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
     incremental_number = 1
 
     for img, image_path in zip(video, well_frame_paths):
-        cut_image = img[int(XY_average[0])-window_size: int(XY_average[0]) +
-                        window_size, int(XY_average[1])-window_size: int(XY_average[1])+window_size]
+        try:
+            cut_image = img[int(XY_average[0])-embryo_size: int(XY_average[0]) +
+                            embryo_size, int(XY_average[1])-embryo_size: int(XY_average[1])+embryo_size]
+        except:
+            cut_image = img
+            LOGGER.info(
+                "Problems cropping image (image dimensions in -s paramter)")
+
         video_cropped.append(cut_image)
         if save == True:
             final_part_path = pathlib.PurePath(image_path).name
@@ -1524,7 +1531,7 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
             # will start creating the pannel
             # get final part of the path for writting purposes
             final_part_path = pathlib.PurePath(image_path).name
-           
+
         # plot each first image of each well for an overview crop panel
             if incremental_number == 1:
                 # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
