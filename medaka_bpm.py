@@ -89,7 +89,7 @@ def run_multifolder(args, dirs):
 def main(args):
     ################################## STARTUP SETUP ##################################
     arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
-    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.isDebugMode)
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -97,7 +97,7 @@ def main(args):
     nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
     if arg_channels:
         channels    = list(arg_channels.intersection(channels))
-        channels.sort() 
+        channels.sort()
     if arg_loops:
         loops       = list(arg_loops.intersection(loops))
         loops.sort()
@@ -140,7 +140,7 @@ def main(args):
                     bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
                     if args.email == False:
-                        if args.isDebugMode:
+                        if args.debug:
                             outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
                             os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
                             consolidate_cmd+= ['-o', outfile]
@@ -159,7 +159,7 @@ def main(args):
             consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', 'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
 
             if args.email == False:
-                if args.isDebugMode:
+                if args.debug:
                     outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
                     os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
                     consolidate_cmd+= ['-o', outfile]

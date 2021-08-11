@@ -43,7 +43,7 @@ def parse_arguments():
     parser.add_argument('-x', '--lsf_index',action="store",         dest='lsf_index',   help=argparse.SUPPRESS,                                 required = False)
 
     # Debug flag
-    parser.add_argument('--debug',           action="store_true",    dest='isDebugMode',      help='Additional debug output',                         required = False)
+    parser.add_argument('--debug',           action="store_true",    dest='debug',      help='Additional debug output',                         required = False)
     parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False, isDebugMode=False)
     args = parser.parse_args()
 
