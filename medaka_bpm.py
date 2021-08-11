@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 ############################################################################################################
-# Author: Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
-# Date: 04/2021
-# License: Contact author
+# Authors: 
+#   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
+#   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
+# Date: 08/2021
+# License: Contact authors
 ###
 # Main program file.
 ###
@@ -27,13 +29,11 @@ import src.segment_heart as segment_heart
 LOGGER = logging.getLogger(__name__)
 
 ################################## ALGORITHM ##################################
-
-
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
-    LOGGER.info("Analysing video - " + "Channel: " + str(video_metadata['channel'])
+    LOGGER.info("Analysing video - " 
+                + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
-                + " Well: " +
-                str(video_metadata['well_id'])
+                + " Well: " + str(video_metadata['well_id'])
                 )
 
     # TODO: I/O is very slow, 1 video ~500mb ~20s locally. Buffer video loading for single machine?
@@ -44,26 +44,71 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
 
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
-        LOGGER.info("Cropping images but do not saving...")
+        LOGGER.info("Cropping images - not saving cropped images separetely...")
 
         video, resulting_dict_from_crop = segment_heart.crop_2(
-            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=False)
+            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, save=False)
     elif args.crop_and_save == True:
-        LOGGER.info("Cropping images and saving...")
+        LOGGER.info("Cropping images and saving cropped images...")
 
         video, resulting_dict_from_crop = segment_heart.crop_2(
-            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=True)
+            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, save=True)
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
     return bpm
 
+def run_multifolder(args, dirs):
+    # processes to be dispatched
+    cmd_list = []
+    procs_list = []
 
-def main(args, resulting_dict_from_crop):
+    # loop throw the folders
+    for path in dirs:   
+    
+        # get the indir and outdir arguments on the fly
+        args.indir = path
 
+        # get arguments for recursive call
+        arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+        arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
+        arguments = sum(arguments_variable, arguments_bool)
+
+        # absolute filepath and sys.executeable for windows compatibility
+        filename = os.path.abspath(__file__)
+        python_cmd = [sys.executable, filename] + arguments
+        cmd_list.append(python_cmd)
+    
+    if args.cluster:
+        for cmd in cmd_list:
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        max_subprocesses = 2
+        print("Processing subfolders " + str(max_subprocesses) + " at a time.")
+        i = max_subprocesses
+        for cmd in cmd_list:
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            procs_list.append(p)
+
+            experiment_name = cmd[cmd.index("--indir")+1]
+            experiment_name = os.path.basename(os.path.normpath(experiment_name))
+            print("Starting " + experiment_name)
+            i -= 1
+
+            if i == 0:
+                for proc in procs_list:
+                    proc.wait()
+                print("Finished process set\n")
+                i = max_subprocesses
+                
+        for proc in procs_list:
+            proc.wait()
+        print("\nFinished all subfolders")
+
+def main(args):
     ################################## STARTUP SETUP ##################################
-
-    arg_channels, arg_loops = setup.process_arguments(args)
+    arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -87,10 +132,13 @@ def main(args, resulting_dict_from_crop):
     LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
 
     ################################## ANALYSIS ##################################
-    if args.cluster == True and args.only_crop == False:
-        # Run cluster analysis
+    if args.cluster:
+    #Run cluster analysis
+        main_directory = os.path.dirname(os.path.abspath(__file__))
+
         LOGGER.info("Running on cluster")
         try:
+            job_ids = []
             for channel in channels:
                 for loop in loops:
                     LOGGER.info("Dispatching wells from " +
@@ -106,58 +154,72 @@ def main(args, resulting_dict_from_crop):
                                       value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
+                    exe_path = os.path.join(main_directory, 'cluster.py')
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
-                    python_cmd = ['python3', 'cluster.py'] + \
-                        arguments + ['-x', '\$LSB_JOBINDEX']
+                    python_cmd = ['python3', exe_path] + arguments + ['-x', '\$LSB_JOBINDEX']
 
-                    jobname = 'heartRate' + \
-                        args.wells + str(args.maxjobs)
+                    jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
-                    bsub_cmd = ['bsub', '-J', jobname,
-                                '-M20000', '-R', 'rusage[mem=8000]']
+                    bsub_cmd = ['bsub', '-J', jobname, '-M20000', '-R', 'rusage[mem=8000]']
 
                     if args.email == False:
-                        bsub_cmd.append('-o /dev/null')
+                        if args.debug:
+                            outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
+                            os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                            bsub_cmd+= ['-o', outfile]
+                        else:
+                            bsub_cmd += ['-o', '/dev/null']
 
-                    cmd = bsub_cmd + python_cmd
+                    cmd = bsub_cmd + ['source', 'activate', 'medaka_env', '&&'] + python_cmd
 
                     # Create a job array for each well
                     result = subprocess.run(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-                    LOGGER.info("\n" + result.stdout.decode('utf-8'))
+                    LOGGER.debug(cmd)
 
-            # Create a dependent job for final report
-            # #bsub -J "consolidateHeartRate" -w "ended(heartRate)"  -M3000 -R rusage[mem=3000] $email python3 consolidated.py -i "$out_dir" -o "$out_dir" #-o log_consolidated.txt
+                    stdout_return = result.stdout.decode('utf-8')
+                    LOGGER.info("\n" + stdout_return)
 
-            # error here
-            # changed the job name so it can be seen in list of jobs
-            consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w',
-                               'ended(heartRate)', '-M3000', '-R', 'rusage[mem=3000]']
+                    # Get jobId for consolidate command later
+                    i1 = stdout_return.find('<') + 1
+                    i2 = stdout_return.find('>')
+                    job_ids.append(stdout_return[i1:i2])
+
+            #Create a dependent job for final report
+            job_ids = [("ended(" + s + ")") for s in job_ids]
+            w_condition = '&&'.join(job_ids)
+            consolidate_cmd = ['bsub', '-J', 'HRConsolidated', '-w', w_condition, '-M3000', '-R', 'rusage[mem=3000]'] # changed the job name so it can be seen in list of jobs
 
             if args.email == False:
-                consolidate_cmd.append('-o /dev/null')
+                if args.debug:
+                    outfile = os.path.join(args.outdir, 'bsub_out/', r'%J_consolidate.log')
+                    os.makedirs(os.path.join(args.outdir, 'bsub_out/'), exist_ok=True)
+                    consolidate_cmd += ['-o', outfile]
+                else:
+                    consolidate_cmd += ['-o', '/dev/null']
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
-            python_cmd = ['python3', 'src/cluster_consolidate.py',
-                          '-i', tmp_dir, '-o', args.outdir]
+            exe_path = os.path.join(main_directory, 'src/', 'cluster_consolidate.py')
+            python_cmd = ['python3', exe_path, '-i', tmp_dir, '-o', args.outdir]
 
+            consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']
             consolidate_cmd += python_cmd
 
-            subprocess.run(consolidate_cmd, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT)
+            LOGGER.debug(consolidate_cmd)
+            subprocess.run(consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
             LOGGER.exception(
                 "During dispatching of jobs onto the cluster")
 
-    elif args.cluster == False and args.only_crop == False:
+    elif args.only_crop == False:
         LOGGER.info("Running on a single machine")
         results = {'channel': [], 'loop': [],
                    'well': [], 'heartbeat': []}
         try:
             LOGGER.info("##### Analysis #####")
-
+            resulting_dict_from_crop = {}
             for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
                 LOGGER.info(
                     "The analyse for each well can take about from one to several minutes\n")
@@ -166,8 +228,7 @@ def main(args, resulting_dict_from_crop):
                 bpm = None
 
                 try:
-                    bpm = run_algorithm(
-                        well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                    bpm = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                     LOGGER.info("Reported BPM: " + str(bpm))
 
                 except Exception as e:
@@ -196,96 +257,43 @@ def main(args, resulting_dict_from_crop):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
-        io_operations.write_to_spreadsheet(args.outdir, results)
+        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
 
-    elif args.only_crop == True:
-
+    else:
         LOGGER.info("Only cropping, script will not run BPM analyses")
-
+    
+        resulting_dict_from_crop = {}
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
 
-            LOGGER.info("Reading a batch of files...")
+            LOGGER.info("Looking at video - " 
+            + "Channel: " + str(video_metadata['channel'])
+            + " Loop: " + str(video_metadata['loop'])
+            + " Well: " + str(video_metadata['well_id'])
+            )
 
             video = io_operations.load_well_video(well_frame_paths)
 
             LOGGER.info("cropping and saving...")
 
-            _, resulting_dict_from_crop = segment_heart.crop_2(
-                video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, args.embryo_size, save=True)
-
-    else:
-        LOGGER.exception("Script did not understand what to do")
-        sys.exit()
+            _, resulting_dict_from_crop = segment_heart.crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, save=True)
 
 
 # TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
 if __name__ == '__main__':
     # Parse input arguments.
     args = setup.parse_arguments()
-    setup.config_logger(args.outdir)
-
-    # TODO: Handle different directory structures here.
-    # Should be simple to change the indir and outdir in 'args' and pass for each detected directory respectively.
-    # Avoid cluttering this file and write functions to detect and return all input/output directories in /src/io_operations.py
 
     ################# MULTI FOLDER DETECTION ######################
+    # Detect subfolders in indir
+    dir_list = io_operations.detect_experiment_directories(args.indir)
 
-    # Try to detect subfolder in indir
-    subdir_list = set([os.path.dirname(p)
-                      for p in glob2.glob(args.indir + '/*/*')])
+    if len(dir_list) < 1:
+        print("Error: Indirectory invalid")
+        sys.exit(1)
 
-    if len(subdir_list) > 1:
-        # There are more than one folder in indir
-        LOGGER.info("There are " + str(len(subdir_list)) +
-                    " folders in your indir. Trying to read each one as a separated experiment and look for tiff files inside these folders...")
-
-        # just store the original outdir path
-        temp_outdir = vars(args)['outdir']
-
-        for path in subdir_list:   # loop throw the folders
-            resulting_dict_from_crop = {}  # will be used only if need to crop images
-
-            # get the indir and outdir arguments on the fly
-            vars(args)['indir'] = path
-
-            # and concatenate the specific subfolder name to the outdir momentarily
-            vars(args)['outdir'] = temp_outdir + '/' + \
-                os.path.basename(os.path.normpath(vars(args)['indir']))
-            temp_indir = vars(args)['indir']
-
-            # verify if tiff files are in path. If not, try to look into a subfolder
-            for fname in os.listdir(vars(args)['indir']):
-                # If yes, do nothing  and goes to the run script
-                if fname.endswith('.tif') or fname.endswith('.tiff'):
-                    os.makedirs(vars(args)['outdir'], exist_ok=True)
-                    # runs the bpm algorithm
-                    #main(args, resulting_dict_from_crop)
-                    break
-                else:
-                    # if no, access a subfolder and look for tiff images
-                    vars(args)['indir'] = temp_indir + '/' + \
-                        str(next(os.walk(vars(args)['indir']))[1][0]) + '/'
-                    for fname in os.listdir(vars(args)['indir']):
-                        if fname.endswith('.tif') or fname.endswith('.tiff'):
-                            # append the found subfolder name to the out_dir path and create out path
-                            subfolder_name = os.path.basename(
-                                os.path.normpath(vars(args)['indir']))
-                            vars(args)['outdir'] = vars(args)[
-                                'outdir'] + "/" + subfolder_name
-                            os.makedirs(vars(args)['outdir'], exist_ok=True)
-                            # runs the bpm algorithm
-                            #main(args, resulting_dict_from_crop)
-                            break
-                        else:
-                            LOGGER.info(
-
-                                "No images found in path: " + vars(args)['indir'] + ", this folder will be skipped")
-
-            main(args, resulting_dict_from_crop)
-
-    else:
-        LOGGER.info("No multifolder experiment detected")
-
-        # the out_dir can vary if is a multifolder experiment or not.
-        resulting_dict_from_crop = {}  # will be used only if need to crop images
-        main(args, resulting_dict_from_crop)
+    if len(dir_list) == 1:          # only one directory: process directly
+        args.indir = dir_list.pop()
+        main(args)
+    else:                            # Multidir. Process separately
+        print("Running multifolder mode. Limited console feedback, check logfiles for process status")
+        run_multifolder(args, dir_list)

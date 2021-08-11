@@ -20,7 +20,7 @@ import shutil
 LOGGER = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description='Read in medaka heart video frames')
-parser.add_argument('-o','--outdir', action="store", dest='outdir', help='Where store the output report and the global log',    default=False, required = True)
+parser.add_argument('-o','--outdir', action="store", dest='outdir', help='Where to store the output report and the global log',    default=False, required = True)
 parser.add_argument('-i','--indir', action="store", dest='indir', help='Path to temp folder with results',                      default=False, required = True)
 
 args = parser.parse_args()
@@ -32,7 +32,11 @@ args.outdir = os.path.join(args.outdir, '')
 out_dir = args.outdir
 indir = args.indir
 
-setup.config_logger(out_dir)
+# Number code for logfile and outfile respectively
+experiment_name = os.path.basename(os.path.normpath(out_dir))
+experiment_id = experiment_name.split('_')[0]
+
+setup.config_logger(out_dir, ("logfile_" + experiment_id + ".log"))
 
 LOGGER.info("Consolidating cluster results")
 
@@ -73,7 +77,7 @@ LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
 results = results.to_dict(orient='list')
 
 #  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-io_operations.write_to_spreadsheet(out_dir, results)
+io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
 
 #TODO: Dangerous as it removes all conents of directory. Assert that in fact, only log and txt files are inside
 #TODO: and that folder is named tmp/

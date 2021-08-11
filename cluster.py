@@ -7,7 +7,6 @@ import src.setup as setup
 
 from medaka_bpm import run_algorithm
 
-
 LOGGER = logging.getLogger(__name__)
 
 ################################## STARTUP SETUP ##################################
@@ -15,22 +14,26 @@ LOGGER = logging.getLogger(__name__)
 args = setup.parse_arguments()
 
 tmp_dir = os.path.join(args.outdir, 'tmp')
-# this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here
-lsf_index = args.lsf_index[1:]
-well_id = 'WE00' + '{:03d}'.format(int(lsf_index))
+
+if args.lsf_index[0] == '\\':
+    args.lsf_index = args.lsf_index[1:] #this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here. 
+
+well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
 analysis_id = args.channels + '-' + args.loops + '-' + well_id
+
 # Check if video for well id exists before producting data.
 if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
     sys.exit()
 
 setup.config_logger(tmp_dir, (analysis_id + ".log"))
 
-channels, loops = setup.process_arguments(args)
-channels = list(channels)
-loops = list(loops)
+# need to pass as list to generator
+channels    = [args.channels]
+loops       = [args.loops]
 
 # Run analysis
 results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+resulting_dict_from_crop = {} # NOTE: added for compatibility, not working at this moment.
 try:
     LOGGER.info("##### Analysis #####")
     bpm = None
