@@ -44,7 +44,7 @@ def parse_arguments():
 
     # Debug flag
     parser.add_argument('--debug',           action="store_true",    dest='debug',      help='Additional debug output',                         required = False)
-    parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False, isDebugMode=False)
+    parser.set_defaults(crop=False, slowmode=False, cluster=False, email=False, debug=False)
     args = parser.parse_args()
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
