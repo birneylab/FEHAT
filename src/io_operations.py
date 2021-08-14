@@ -27,22 +27,25 @@ def well_video_generator(indir, channels, loops):
             LOGGER.info("### LOOP " + loop + " ###")
             loop_videos = [frame for frame in channel_videos if loop in frame]
 
-            #Well
-            for well_id in range(1,97):  
+            # Well
+            for well_id in range(1, 97):
                 well_id = ('WE00' + '{:03d}'.format(well_id))
 
-                well_frames = [frame for frame in loop_videos if well_id in frame]
+                well_frames = [
+                    frame for frame in loop_videos if well_id in frame]
 
                 # Skipping costs (close to) no time and the logic is simpler than extracting the exact set of wells per loop/channel.
                 # Could be solved cleaner though.
                 if not well_frames:
                     continue
-                
+
                 # Sort frames in correct order
                 frame_indices = [frameIdx(path) for path in well_frames]
-                _, well_frames_sorted = (list(t) for t in zip(*sorted(zip(frame_indices, well_frames))))
+                _, well_frames_sorted = (list(t) for t in zip(
+                    *sorted(zip(frame_indices, well_frames))))
 
-                metadata = {'well_id': well_id, 'loop': loop, 'channel': channel}
+                metadata = {'well_id': well_id,
+                            'loop': loop, 'channel': channel}
                 yield well_frames_sorted, metadata
 
 def detect_experiment_directories(indir):
@@ -66,7 +69,7 @@ def detect_experiment_directories(indir):
     return subdirs
 
 # TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
-def load_well_video(frame_paths_sorted, color_mode = cv2.IMREAD_COLOR):
+def load_well_video(frame_paths_sorted, color_mode=cv2.IMREAD_COLOR):
     LOGGER.info("Loading video")
     video = []
     for path in frame_paths_sorted:
@@ -77,9 +80,9 @@ def load_well_video(frame_paths_sorted, color_mode = cv2.IMREAD_COLOR):
 
 def extract_timestamps(sorted_frame_paths):
     # splits every path at '-T'. Picks first 10 chars of the string that starts with a number.
-    timestamps = [[s for s in path.split('-T') if s[0].isdigit()][-1][0:10] for path in sorted_frame_paths]
+    timestamps = [[s for s in path.split(
+        '-T') if s[0].isdigit()][-1][0:10] for path in sorted_frame_paths]
     return timestamps
-
 
 # Get metadata about the directory that is read in
 # Number of videos and channels and loops present.
@@ -95,11 +98,13 @@ def extract_data(indir):
         raise ValueError("Could not find any tiffs inside " + indir)
 
     # Extract different channels
-    channels = {'CO' + tiff.split('-CO')[-1][0] for tiff in tiffs} # using a set, gives only unique values
+    # using a set, gives only unique values
+    channels = {'CO' + tiff.split('-CO')[-1][0] for tiff in tiffs}
     channels = sorted(list(channels))
 
     # Extract different Loops
-    loops = {'LO' + tiff.split('-LO')[-1][0:3] for tiff in tiffs} # using a set, gives only unique values
+    # using a set, gives only unique values
+    loops = {'LO' + tiff.split('-LO')[-1][0:3] for tiff in tiffs}
     loops = sorted(list(loops))
 
     return nr_of_videos, channels, loops
@@ -113,7 +118,8 @@ def frameIdx(path):
 
 def well_video_exists(indir, channel, loop, well_id):
     all_frames = glob2.glob(indir + '*.tif') + glob2.glob(indir + '*.tiff')
-    video_frames = [frame for frame in all_frames if (channel in frame and loop in frame and well_id in frame)]
+    video_frames = [frame for frame in all_frames if (
+        channel in frame and loop in frame and well_id in frame)]
 
     if video_frames:
         return True
@@ -121,7 +127,7 @@ def well_video_exists(indir, channel, loop, well_id):
         return False
 
 # Results:
-#   Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+# Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 #TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
 def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
@@ -130,7 +136,8 @@ def write_to_spreadsheet(outdir, results, experiment_id):
 
     # Don't erase previous results by accident
     if os.path.isfile(outpath):
-        LOGGER.warning("Outdir already contains results file. Writing new file version")
+        LOGGER.warning(
+            "Outdir already contains results file. Writing new file version")
 
     version = 2
     while os.path.isfile(outpath):
@@ -139,24 +146,26 @@ def write_to_spreadsheet(outdir, results, experiment_id):
 
     # Write results in file
     with open(outpath, 'w') as outfile:
-        writer = csv.writer(outfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer = csv.writer(outfile, delimiter=',',
+                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-        writer.writerow(['Index', 'WellID', 'Loop', 'Channel','Heartrate (BPM)'])
+        writer.writerow(['Index', 'WellID', 'Loop',
+                        'Channel', 'Heartrate (BPM)'])
         nr_of_results = len(results['heartbeat'])
         for idx in range(nr_of_results):
-                ch      = results['channel'][idx]
-                loop    = results['loop'][idx]
-                well    = results['well'][idx]
-                bpm     = results['heartbeat'][idx]
-                if bpm is None:
-                    bpm = "NA"
-                else:
-                    bpm = str(bpm)
-                writer.writerow([str(idx+1), well, loop, ch, bpm])
+            ch = results['channel'][idx]
+            loop = results['loop'][idx]
+            well = results['well'][idx]
+            bpm = results['heartbeat'][idx]
+            if bpm is None:
+                bpm = "NA"
+            else:
+                bpm = str(bpm)
+            writer.writerow([str(idx+1), well, loop, ch, bpm])
 
 # def save_cropped_img(outdir, img, well_id, loop_id):
 #     name = loop_id + '-' + str(well_id)
-                
+
 #     out_fig = os.path.join(outdir, name + "_cropped.png")
 #     plt.imshow(img)
 #     plt.title('Original Frame', fontsize=10)
