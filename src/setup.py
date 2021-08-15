@@ -1,3 +1,12 @@
+############################################################################################################
+### Author: Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
+###         Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
+### Date: 08/2021
+### License: Contact author
+###
+### Configures logger and handles command line arguments.
+### 
+############################################################################################################
 import argparse
 import os
 import logging

@@ -1,5 +1,16 @@
 #!/usr/bin/env python
-
+############################################################################################################
+# Authors: 
+#   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
+#   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
+# Date: 08/2021
+# License: Contact authors
+###
+# For cluster mode.
+# Called as a dependend bsub job when all instances running cluster.py have finished.
+# Gathers data from outdir/tmp and creates the final report.
+###
+############################################################################################################
 import argparse
 import pandas as pd
 import os

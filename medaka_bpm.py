@@ -148,10 +148,8 @@ def main(args):
                     args.channels = channel
                     args.loops = loop
 
-                    arguments_variable = [
-                        ['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
-                    arguments_bool = ['--' + key for key,
-                                      value in vars(args).items() if value is True]
+                    arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+                    arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
                     exe_path = os.path.join(main_directory, 'cluster.py')

@@ -1,3 +1,13 @@
+############################################################################################################
+# Authors: 
+#   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
+#   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
+# Date: 08/2021
+# License: Contact authors
+###
+# Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
+###
+############################################################################################################
 import logging
 import os
 
