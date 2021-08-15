@@ -15,9 +15,11 @@ from matplotlib import pyplot as plt
 import scipy.stats
 
 import argparse
+import logging
 import os
 import sys
-import time
+
+LOGGER = logging.getLogger(__name__)
 
 def draw_classification_rate(dataframe, axes):
     dataframe_ground_truth    = dataframe[dataframe['ground truth'] != 'NOT CLASSIFIED']
@@ -110,64 +112,74 @@ def create_plots(dataframe, outdir, filename):
     ax2, ax3 = draw_accuracy(dataframe, ax2, ax3)
 
     plt.savefig(os.path.join(outdir, filename + '.png'))
-    plt.show()
+    #plt.show()
     fig.clf()
 
-parser = argparse.ArgumentParser(description='Read in medaka heart video frames')
-parser.add_argument('-o', '--outdir', action="store", dest='outdir', help='Where store the assessment report data',         default=False, required = True)
-parser.add_argument('-i', '--indir', action="store", dest='indir', help='Path to analysed folders',                         default=False, required = True)
-parser.add_argument('-g', '--ground_truth', action="store", dest='ground_truth_csv', help="Path to the ground truth csv",   default=False, required=True)
+def main(indir,outdir, path_ground_truths):
+    LOGGER.info("######## Quality Control: Statistical Analysis ########")
+    os.makedirs(outdir, exist_ok=True)
 
-args = parser.parse_args()
+    # Load in ground truth cvs into dataframe
+    ground_truths = pd.read_csv(path_ground_truths, keep_default_na=False)
 
-# output directory
-timestamp = time.strftime("%Y%m%d-%H%M%S")
-os.makedirs(os.path.join(args.outdir, timestamp), exist_ok=True)
+    # Load result.csv files into dataframe
+    algorithm_results = []
 
-# Load in ground truth cvs into dataframe
-ground_truths = pd.read_csv(args.ground_truth_csv, keep_default_na=False)
+    subdirs = {os.path.join(p, '') for p in glob2.glob(indir + '/*/')}
 
-# Load result.csv files into dataframe
-algorithm_results = []
+    for path in subdirs:
+        if os.path.isdir(path):
+            results_files = [f for f in glob2.glob(path + '/*.csv')]
+            if not results_files:
+                continue
+            elif len(results_files) > 1:
+                print("Error: More than one results file found")
+                sys.exit()
 
-subdirs = {os.path.join(p, '') for p in glob2.glob(args.indir + '/*/')}
+            dataset_name = os.path.basename(os.path.normpath(path))
+            dataset_name = dataset_name[:-15] # Remove "out_" prefix from folder names TODO:Adjust to new suffix
 
-for path in subdirs:
-    if os.path.isdir(path):
-        results_files = [f for f in glob2.glob(path + '/*.csv')]
-        if not results_files:
-            continue
-        elif len(results_files) > 1:
-            print("Error: More than one results file found")
-            sys.exit()
+            # add DATASET column for merge later
+            results = pd.read_csv(results_files[0], keep_default_na=False)
+            results.insert(0,'DATASET','')
+            results["DATASET"] = dataset_name
 
-        dataset_name = os.path.basename(os.path.normpath(path))
-        datasetname = dataset_name[4:] # Remove "out_" prefix from folder names
+            algorithm_results.append(results)
 
-        # add DATASET column for merge later
-        results = pd.read_csv(results_files[0], keep_default_na=False)
-        results.insert(0,'DATASET','')
-        results["DATASET"] = dataset_name
+    algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
 
-        algorithm_results.append(results)
+    # Merge the results
+    output_df = pd.merge(algorithm_results, ground_truths, how="left")
 
-algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
+    # remove empty entries
+    output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
+    csv = output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
 
-# Merge the results
-output_df = pd.merge(algorithm_results, ground_truths, how="left")
+    #split 35C off, as unreliable for 13fps
+    C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
+    C35 = output_df[output_df['DATASET'].str.contains("35C")]
+    csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
+    csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
 
-# remove empty entries
-output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
-csv = output_df.to_csv(os.path.join(args.outdir, "merged.csv"), index=False)
+    # create and store plots on disk
+    create_plots(C21_28, outdir, 'C21_28')
+    create_plots(C35, outdir, 'C35')
+    return
 
-#split 35C off, as unreliable for 13fps
-C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
-C35 = output_df[output_df['DATASET'].str.contains("35C")]
-csv = C21_28.to_csv(os.path.join(args.outdir, "21c_28c.csv"), index=False)
-csv = C35.to_csv(os.path.join(args.outdir, "35c.csv"), index=False)
+# For cluster mode, runable as toplevel script
+if __name__ == '__main__':
+    import setup
+    # Parse input arguments.
+    parser = argparse.ArgumentParser(description='Combine ground truths with analysis output and calculate accuracy statistics')
+    parser.add_argument('-o', '--outdir', action="store", dest='outdir', help='Where store the assessment report data',         default=False, required = True)
+    parser.add_argument('-i', '--indir', action="store", dest='indir', help='Path to analysed folders',                         default=False, required = True)
+    parser.add_argument('-g', '--ground_truth', action="store", dest='ground_truth_csv', help="Path to the ground truth csv",   default=False, required=True)
 
-# create and store plots on disk
-create_plots(C21_28, args.outdir, 'C21_28')
-create_plots(C35, args.outdir, 'C35')
+    args = parser.parse_args()
+    setup.config_logger(args.outdir, ("assessment" + ".log"))
 
-# %%
+    main(args.indir, args.outdir, args.ground_truth_csv)
+
+# This is a workaround to ensure relative import works when using this file as both a  toplevel script and module.
+else:
+    from . import setup
