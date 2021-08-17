@@ -60,7 +60,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         video = io_operations.load_well_video_16bits(well_frame_paths)
         embryo_coordinates = segment_heart.embryo_detection(video8)
         _, resulting_dict_from_crop = segment_heart.crop_2(
-            video16, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_coordinates, save=True)
+            video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_coordinates, save=True)
 
     bpm = segment_heart.run(video, vars(args), video_metadata)
 
