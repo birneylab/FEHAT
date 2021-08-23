@@ -58,7 +58,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
             video8, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_coordinates, save=False)
 
     elif args.crop_and_save == True:
-        LOGGER.info("Cropping images and saving cropped images...")
+        LOGGER.info("Cropping images and saving them...")
         # first 5 frames to calculate embryo coordinates
         video8 = io_operations.load_well_video_8bits(
             well_frame_paths, max_frames=5)
@@ -68,6 +68,10 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         _, resulting_dict_from_crop = segment_heart.crop_2(
             video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_coordinates, save=True)
         # now we need every frame in 8bits to run bpm
+        video = io_operations.load_well_video_8bits(
+            well_frame_paths)
+
+    else:
         video = io_operations.load_well_video_8bits(
             well_frame_paths)
 
@@ -108,6 +112,8 @@ def run_multifolder(args, dirs):
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
+            print("CMD")
+            print(cmd)
             p = subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)
