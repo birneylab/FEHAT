@@ -76,7 +76,7 @@ def load_well_video_8bits(frame_paths_sorted, max_frames = -1):
         #check if the function is supposed to read every frame (-1), otherwise, runs only the number of frames specified in max_frames argument
         # it is usefull as if we need crop and save the images, we only need the first 5 frames to make the average of position.
         if max_frames == -1 or index < max_frames:
-            frame = cv2.imread(path, 0) # 0 flag to read image as bw
+            frame = cv2.imread(path, 1) # 1 flag to read image as rgb
             video8.append(frame)
     return video8
 

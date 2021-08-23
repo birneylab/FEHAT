@@ -1512,7 +1512,7 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
         embryo_size = int((maximum_dimension/3))
         LOGGER.info(
             "-s paramter has excedded the allowed by image dimensions. Used " + str(embryo_size) + " instead.")
-    embryo_size += 100
+    #embryo_size += 100
 
     video_cropped = []
     if save == True:
@@ -1875,8 +1875,8 @@ def run(video, args, video_metadata):
 
             # print('masked_grey')
             # print('Embryo number: ' + str(i))
-            plt.imshow(masked_grey)
-            plt.show()
+            
+
 
             # Create vector of the signal within the region of the heart
             # Flatten array (matrix) into a vector
@@ -1899,9 +1899,9 @@ def run(video, args, video_metadata):
 
             masked_frame = cv2.merge((b, g, r))
 
-            # print('masked_frame')
-            plt.imshow(masked_frame)
-            plt.show()
+           
+
+           
 
             #################################
 
