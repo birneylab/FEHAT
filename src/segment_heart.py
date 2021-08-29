@@ -916,6 +916,7 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     psd = psd[freqs > 0]
     freqs = freqs[freqs > 0]
 
+    #TODO: This limits from 30 to 300bpm, which should not be done.
     # Calculate ylims for xrange 0.5 to 5 Hz
     heart_indices = np.where(np.logical_and(
         freqs >= heart_range[0], freqs <= heart_range[1]))[0]
@@ -954,7 +955,7 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
                 bpm = beat_freq * 60
                 peak_coord = (beat_freq, beat_power)
 
-            # TODO
+            # TODO:
             # Need something more sophisticated here
             # If 4 peaks or less, take the first one
             elif 1 < len(beat_indices) < 4:
@@ -1116,6 +1117,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
 
             # Index of largest spectrum in heart range
             index_max = np.argmax(heart_psd)
+            
             # Corresponding frequency
             highest_freq = heart_freqs[index_max]
             highest_freqs.append(highest_freq)
@@ -1594,78 +1596,24 @@ def crop(video):
 
     return video_cropped
 
-
-# TODO: Too long, should probably be split into separate parts to maintain overview of steps in the algorithm pipeline
-# run the algorithm on a well video
-def run(video, args, video_metadata):
-    LOGGER.info("Starting algorithmic analysis")
-    # Read all images for a given well
-    # >0 returns a 3 channel RGB image. This results in conversion to 8 bit.
-    # 0 returns a greyscale image. Also results in conversion to 8 bit.
-    # <0 returns the image as is. This will return a 16 bit image.
-
-    # store the out_dir without the well positiom, so we can use it to store general reports in main folder
-    out_base = args['outdir']
-
-    # Add well position to output directory path
-    out_dir = os.path.join(args['outdir'], video_metadata['channel'],
-                           video_metadata['loop'] + '-' + video_metadata['well_id'])
-
-    os.makedirs(out_dir, exist_ok=True)
-
-    sorted_frames = video
-    frame_dict = {}
-    sorted_times = video_metadata['timestamps']
-
-    for img, time in zip(sorted_frames, sorted_times):
-
-        if img is not None:
-            frame_dict[time] = img
-        else:
-            frame_dict[time] = None
-
-    # Determine frame rate from time-stamps if unspecified
-    if not args['fps']:
-        # total time acquiring frames in seconds
-        timestamp0 = int(sorted_times[0])
-        timestamp_final = int(sorted_times[-1])
-        total_time = (timestamp_final - timestamp0) / 1000
-        # fps = int(len(sorted_times) / round(total_time))
-        fps = len(sorted_times) / total_time
-    else:
-        fps = args['fps']
-
-    # Remove duplicate time stamps,
-    # same frame can have been saved more than once
-    sorted_times = list(OrderedDict.fromkeys(sorted_times))
-    sorted_frames = [frame_dict[time] for time in sorted_times]
-
-    LOGGER.info("Normalizing frames")
-    # Normalize frames
-    norm_frames = normVideo(sorted_frames)
-
-    LOGGER.info("Writing video")
-
-    # Write video
-    vid_frames = [frame for frame in norm_frames if frame is not None]
+def save_video(video, fps, outdir, filename):
+    vid_frames = [frame for frame in video if frame is not None]
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # fourcc = cv2.VideoWriter_fourcc(*'avc1')
 
     try:
         height, width, layers = vid_frames[0].shape
     except IndexError:
         height, width = vid_frames[0].shape
-
     size = (width, height)
-    out_vid = os.path.join(out_dir, "embryo.mp4")
-
+    out_vid = os.path.join(outdir, filename)
     out = cv2.VideoWriter(out_vid, fourcc, fps, size)
 
     for i in range(len(vid_frames)):
         out.write(vid_frames[i])
     out.release()
 
-    LOGGER.info("Detecting HROI")
+# Detect heart region of interest (HROI)
+def HROI(sorted_frames, norm_frames, hroi_ax):
     # Only process if less than 5% frames are empty
     if sum(frame is None for frame in sorted_frames) > len(sorted_frames) * 0.05:
         raise ValueError("More than 5% of frames are empty")
@@ -1675,16 +1623,6 @@ def run(video, args, video_metadata):
     # Start from first non-empty frame
     start_frame = next(x for x, frame in enumerate(
         norm_frames) if frame is not None)
-
-    # new feature to filter mask
-    hsvz = cv2.cvtColor(norm_frames[start_frame], cv2.COLOR_RGB2HSV)
-    lower_green = np.array([0, 0, 0])
-    upper_green = np.array([150, 150, 150])
-    maskx = cv2.inRange(hsvz, lower_green, upper_green)
-    kernelz = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
-    opened_maskz = cv2.morphologyEx(maskx, cv2.MORPH_OPEN, kernelz)
-    plt.imshow(norm_frames[start_frame])
-    plt.imshow(opened_maskz)
 
     # Add None if first few frames are empty
     empty_frames = range(start_frame)
@@ -1710,6 +1648,7 @@ def run(video, args, video_metadata):
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
     j = start_frame + 1
+    stop_frame = 0
     while j < len(norm_frames):
 
         frame = norm_frames[j]
@@ -1734,6 +1673,16 @@ def run(video, args, video_metadata):
         else:
             embryo.append(None)
         j += 1
+
+    # new feature to filter mask
+    hsvz = cv2.cvtColor(norm_frames[start_frame], cv2.COLOR_RGB2HSV)
+    lower_green = np.array([0, 0, 0])
+    upper_green = np.array([150, 150, 150])
+    maskx = cv2.inRange(hsvz, lower_green, upper_green)
+    kernelz = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    opened_maskz = cv2.morphologyEx(maskx, cv2.MORPH_OPEN, kernelz)
+    plt.imshow(norm_frames[start_frame])
+    plt.imshow(opened_maskz)
 
     heart_roi = cv2.bitwise_and(heart_roi, heart_roi, mask=opened_maskz)
 
@@ -1772,12 +1721,7 @@ def run(video, args, video_metadata):
                               alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
 
     # Generate figure showing with potential heart region highlighted
-    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
-    fig, ax = plt.subplots(2, 2, figsize=(15, 15))
-    ax = heartQC_plot(ax, f0_grey, heart_roi, heart_roi_clean, overlay)
-    plt.savefig(out_fig, bbox_inches='tight')
-    plt.show()
-    plt.close()
+    hroi_ax = heartQC_plot(hroi_ax, f0_grey, heart_roi, heart_roi_clean, overlay)
 
     # Check if heart region was detected, i.e. if sum(masked) > 0
     # and limit number of possible heart regions to 3 or fewer
@@ -1785,35 +1729,70 @@ def run(video, args, video_metadata):
     if (final_mask.sum() <= 0):
         raise RuntimeError("Couldn't detect a HROI")
 
-    mask = final_mask
+    return embryo, final_mask, hroi_ax, stop_frame
+
+
+# Run normally, Fourier in segemented area
+def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_dir):
+    # Signal per pixel
+    pixel_signals = PixelSignal(masked_greys)
+
+    # print('not slow')
+    # Perform Fourier Transform on each pixel in segmented area
+    out_fourier = os.path.join(out_dir, "pixel_fourier.png")
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax, highest_freqs = PixelFourier(pixel_signals, times, empty_frames, frame2frame_sec, args['threads'], pixel_num=1000, plot=True)
+    plt.savefig(out_fourier)
+
+    # plt.imshow(ax)
+    plt.show()
+
+    plt.close()
+
+    # Plot the density of fourier transform global maxima across pixels
+    out_kde = os.path.join(out_dir, "pixel_rate.png")
+    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+    ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter=True)
+    plt.savefig(out_kde)
+    plt.close()
+
+    return bpm_fourier
+
+# Run in slow mode, Fourier on every pixel
+def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args, out_dir):
+
+    # Resize frames to make faster
+    # TODO: That just results in wrong measurements, as the heart may be cut.
+    norm_frames = resizeFrames(norm_frames, scale=50)
+
+    # Signal for every pixel
+    all_pixel_sigs = PixelSignal(norm_frames)
+
+    # Perform Fourier Transform on every pixel
+    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=True)
+
+    # Plot the density of fourier transform global maxima across pixels
+    out_kde2 = os.path.join(out_dir, "pixel_rate_all.png")
+    fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
+    ax2, bpm_fourier = PixelFreqs(highest_freqs2, args['average'], peak_filter=False)
+    plt.savefig(out_kde2)
+    plt.close()
+
+    return bpm_fourier
+
+def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
+
+    LOGGER.info("Statistical analysis")
 
     # Coefficient of variation
     cvs = {}
-    times = []
 
-    timestamp0 = int(sorted_times[0])
-
-    LOGGER.info("Statistical analysis")
-    masked_frames = []
-    # Draw contours of heart
-    for i in range(len(embryo)):
-
-        # raw_frame = sorted_frames[i]
-        frame = embryo[i]
+    for i, frame in enumerate(masked_greys):
 
         if frame is not None:
-            masked_data = cv2.bitwise_and(frame, frame, mask=mask)
-            # TODO: Suspected source of errors. Check and inspect this for frames after the first.
-            masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)
-
-            # print('masked_grey')
-            # print('Embryo number: ' + str(i))
-            plt.imshow(masked_grey)
-            plt.show()
-
             # Create vector of the signal within the region of the heart
             # Flatten array (matrix) into a vector
-            heart_values = np.ndarray.flatten(masked_grey)
+            heart_values = np.ndarray.flatten(frame)
             # Remove zero elements
             heart_values = heart_values[np.nonzero(heart_values)]
 
@@ -1824,158 +1803,21 @@ def run(video, args, video_metadata):
             # Coefficient of variation
             heart_cv = heart_std / heart_mean
 
-            # split source frame into B,G,R channels
-            b, g, r = cv2.split(frame)
-
-            # add a constant to B (blue) channel to highlight the heart
-            b = cv2.add(b, 100, dst=b, mask=mask, dtype=cv2.CV_8U)
-
-            masked_frame = cv2.merge((b, g, r))
-
-            # print('masked_frame')
-            plt.imshow(masked_frame)
-            plt.show()
-
-            #################################
-
         # No signal in heart RoI if the frame is empty
         else:
-            masked_frame = None
-            masked_grey = None
             heart_std = np.nan
             heart_cv = np.nan
 
-        masked_frames.append(masked_grey)
-        embryo[i] = masked_frame
+        cvs[i+1] = heart_cv
 
-        frame_num = i + 1
-        cvs[frame_num] = heart_cv
-
-        # Calculate time between frames
-        # Time frame 1 = 0 secs
-        if i == 0:
-            time = 0
-            time_elapsed = 0
-
-            if masked_frame is not None:
-                # Save first frame with the ROI highlighted
-                out_fig = os.path.join(out_dir, "masked_frame.png")
-                cv2.imwrite(out_fig, masked_frame)
-
-        # Time frame i = (frame i - frame i-1) / 1000
-        # Total Time frame i = (frame i - frame 0) / 1000
-        else:
-            timestamp = int(sorted_times[i])
-            old_timestamp = int(sorted_times[i-1])
-            # Time between frames in seconds
-            time = (timestamp - old_timestamp) / 1000
-            # Total time elapsed in seconds
-            time_elapsed = (timestamp - timestamp0) / 1000
-
-        times.append(time_elapsed)
-
-    # Write video
-    out_vid = os.path.join(out_dir, "embryo_changes.mp4")
-    vid_frames = [i for i in embryo if i is not None]
-    height, width, layers = vid_frames[0].shape
-    size = (width, height)
-    out2 = cv2.VideoWriter(out_vid, fourcc, fps, size)
-    for i in range(len(vid_frames)):
-        out2.write(vid_frames[i])
-    out2.release()
-
-    ############################
-    # Quality control heart rate estimate
-    ############################
-    # Min and max bpm from Jakob paper
     y = np.asarray(list(cvs.values()), dtype=float)
 
-    # Get indices of na values
-    na_values = np.isnan(y)
-    empty_frames = [i for i, x in enumerate(na_values) if x]
-
-    ##############################################
-    # TODO: if fps is given, calculate differently
-    frame2frame = times[-1] / len(times)  # 1 / fps
-    final_time = frame2frame * len(times)
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
-
     # Time domain for interpolation
-    increment = frame2frame / 6
+    increment = frame2frame_sec / 6
     td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
 
-    # Filter, detrend and interpolate region signal
-    # print('#Filter, detrend and interpolate region signal')
-    # print(times)
-    # print(y)
-    # print(empty_frames)
-
-    # TODO: This is unused atm, and fails
     times_final, y_final, cs = interpolate_signal(times, y, empty_frames)
     meanY = np.mean(cs(td))
-
-    LOGGER.info("Fourier frequency evaluation")
-
-    # Run normally, Fourier in segemented area
-    if not args['slowmode']:
-
-        # Signal per pixel
-        pixel_signals = PixelSignal(masked_frames)
-
-        # print('not slow')
-        # Perform Fourier Transform on each pixel in segmented area
-        out_fourier = os.path.join(out_dir, "pixel_fourier.png")
-        fig, ax = plt.subplots(figsize=(10, 7))
-        ax, highest_freqs = PixelFourier(
-            pixel_signals, times, empty_frames, frame2frame, args['threads'], pixel_num=1000, plot=True)
-        plt.savefig(out_fourier)
-
-        # plt.imshow(ax)
-        plt.show()
-
-        plt.close()
-
-        # Plot the density of fourier transform global maxima across pixels
-        out_kde = os.path.join(out_dir, "pixel_rate.png")
-        fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-        ax, bpm_fourier = PixelFreqs(
-            highest_freqs, args['average'], peak_filter=True)
-        plt.savefig(out_kde)
-        plt.close()
-
-    # Run in slow mode, Fourier on every pixel
-    # must be removed from here and sent to the end, as if the script does not find any mask, it still runs the slow method
-    else:
-        LOGGER.info("Running in slow mode")
-        # All pixels
-        norm_frames_grey = greyFrames(norm_frames)
-        # Resize frames to make faster
-        norm_frames_grey = resizeFrames(norm_frames_grey, scale=50)
-        # Signal for every pixel
-        all_pixel_sigs = PixelSignal(norm_frames_grey)
-
-        # Perform Fourier Transform on every pixel
-        highest_freqs2 = PixelFourier(
-            all_pixel_sigs, times, empty_frames, frame2frame, args['threads'], plot=True)
-
-        # print(highest_freqs2)
-        # print(erro)
-
-        # Plot the density of fourier transform global maxima across pixels
-        out_kde2 = os.path.join(out_dir, "pixel_rate_all.png")
-        fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
-        ax2, bpm_fourier = PixelFreqs(
-            highest_freqs2, args['average'], peak_filter=False)
-        plt.savefig(out_kde2)
-        plt.close()
-
-    # Calculate slope
-    # Presumably should be flat(ish) if good
-    # Or fit line
-#       slope, intercept, r_value, p_value, std_err = stats.linregress(td, cs(td))
-
-    # Median Absolute Deviation across signal
-#       mad = stats.median_absolute_deviation(cs(td))
 
     # Frequently issue with first few data-points
     to_keep = range(int(len(td) * 0.05), len(td))
@@ -1992,81 +1834,150 @@ def run(video, args, video_metadata):
     plt.savefig(out_fig, bbox_inches='tight')
 
     plt.show()
-
     plt.close()
 
-    # Filter out if linear regression captures signal trend well
-    # (i.e. if p-value highly significant)
-#       if (np.float64(p_value) > np.float_power(10, -8)) or (mad <= 0.02) or (np.absolute(slope) <= 0.002):
+# run the algorithm on a well video
+# TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
+def run(video, args, video_metadata):
+    LOGGER.info("Starting algorithmic analysis")
+    ################################################################################ Create Outdir for pictures
+    # Add well position to output directory path
+    out_dir = os.path.join(args['outdir'], video_metadata['channel'],
+                           video_metadata['loop'] + '-' + video_metadata['well_id'])
 
-    # Detrend and smoothe cubic spline interpolated data
-    # with Savitzky–Golay filter
-#           norm_cs = detrendSignal(cs, td, window_size = 21)
+    os.makedirs(out_dir, exist_ok=True)
+    sorted_frames = video
 
-#           out_fig = out_dir + "/bpm_trace.savgol_filter.png"
-#           plt.figure(figsize=(10,2))
-#           plt.plot(td, norm_cs(td))
-#           plt.ylabel('Normalised Heart Signal')
-#           plt.xlabel('Time [sec]')
-#           plt.hlines(y = np.mean(norm_cs(td)), xmin = td[0], xmax = td[-1], linestyles = "dashed")
-#           plt.savefig(out_fig,bbox_inches='tight')
-#           plt.close()
+    ################################################################################ timestamp-frame dictionary
+    ################################################################################ Remove duplicated Frames
+    frame_dict = {}
+    sorted_times = video_metadata['timestamps']
 
-    # Remove first 2.5% of interpolated, detrended data-points
-    # Frequently issue with first few data-points
-#           to_keep = range(int(len(td) * 0.05),len(td))
-#           filtered_td = td[to_keep]
-
-# ## run the report and graphs functions
-
-    # check heartrate was calculated
-    # otherwise create variable and set to None
-    if "bpm_fourier" not in locals():
-        # print('not in locals')
-        bpm_fourier = None
-        LOGGER.info("Couldn't determine BPM in fast mode")
-
-    # bpm_fourier = "NA"
-
-    # Try to use fast method
-    '''if bpm_fourier == 'NA':
-        try:
-            print('Try to use recovery method')
-            bpm_fourier_fast = run_a_well(indir, out_dir, frame_format, well_number, loop)    
-            bpm_fourier = round(bpm_fourier_fast.get('bpm'),2)
-            print('recoverede:')
-            print(bpm_fourier)
-            error_message = error_message + ' using the fast method'
-        except:
-            error_message="ERROR in fast method"'''
-
-    # try to use slow method
-    if bpm_fourier is None:
-        LOGGER.info("Trying slow mode")
-        # All pixels
-        if "stop_frame" in locals():
-            norm_frames_grey = greyFrames(norm_frames, stop_frame)
+    for img, time in zip(sorted_frames, sorted_times):
+        if img is not None:
+            frame_dict[time] = img
         else:
-            norm_frames_grey = greyFrames(norm_frames)
-        # Resize frames to make faster
-        norm_frames_grey = resizeFrames(norm_frames_grey, scale=50)
-        # Signal for every pixel
-        all_pixel_sigs = PixelSignal(norm_frames_grey)
+            frame_dict[time] = None
 
-        highest_freqs2 = PixelFourier(
-            all_pixel_sigs, times, empty_frames, frame2frame, args['threads'], plot=False)
-        # Plot the density of fourier transform global maxima across pixels
-        out_kde2 = os.path.join(out_dir, "pixel_rate_all.png")
-        fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
-        ax2, bpm_fourier = PixelFreqs(
-            highest_freqs2, args['average'], peak_filter=False)
-        plt.savefig(out_kde2)
-        plt.close()
+    # Remove duplicate time stamps,
+    # same frame can have been saved more than once
+    sorted_times = list(OrderedDict.fromkeys(sorted_times))
+    sorted_frames = [frame_dict[time] for time in sorted_times]
 
-    # Create or subscribe the histogram and distgraphs
-    # if bpm_fourier is not None:
-    #     #print('call graph function')
-    #     final_dist_graph(bpm_fourier)
+    ################################################################################ Determine FPS
+    # Determine frame rate from time-stamps if unspecified
+    if not args['fps']:
+        # total time acquiring frames in seconds
+        timestamp0 = int(sorted_times[0])
+        timestamp_final = int(sorted_times[-1])
+        total_time = (timestamp_final - timestamp0) / 1000
+        # fps = int(len(sorted_times) / round(total_time))
+        fps = len(sorted_times) / total_time
+    else:
+        fps = args['fps']
 
-    plt.close('all')
-    return bpm_fourier
+    ################################################################################ Normalize Frames
+    LOGGER.info("Normalizing frames")
+    # Normalize frames
+    norm_frames = normVideo(sorted_frames)
+
+    LOGGER.info("Writing video")
+    save_video(norm_frames, fps, out_dir, "embryo.mp4")
+
+    ################################################################################ Detect HROI
+    # needs: sorted_frames
+    LOGGER.info("Detecting HROI")
+
+    # Prepare outfigure
+    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
+    fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
+
+    # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
+    embryo, mask, hroi_ax, stop_frame = HROI(sorted_frames, norm_frames, hroi_ax)
+
+    # Save Figure
+    plt.savefig(out_fig, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+    ################################################################################ Mask frames
+    masked_greys= []
+    masked_frames = []
+    empty_frames = []
+    for i, frame in enumerate(embryo):
+
+        if frame is not None:
+            masked_data = cv2.bitwise_and(frame, frame, mask=mask)
+            # TODO: Suspected source of errors. Check and inspect this for frames after the first.
+            # embryo gets added 50 in greenchannel in HROI()->rolling_diff()->maskFrame() function
+            masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)
+
+            # print('masked_grey')
+            # print('Embryo number: ' + str(i))
+            plt.imshow(masked_grey)
+            plt.show()
+
+            # split source frame into B,G,R channels
+            b, g, r = cv2.split(frame)
+
+            # add a constant to B (blue) channel to highlight the heart
+            b = cv2.add(b, 100, dst=b, mask=mask, dtype=cv2.CV_8U)
+
+            masked_frame = cv2.merge((b, g, r))
+
+            # print('masked_frame')
+            plt.imshow(masked_frame)
+            plt.show()
+
+        # No signal in heart RoI if the frame is empty
+        else:
+            masked_frame = None
+            masked_grey = None
+            empty_frames.append(i)
+
+        masked_frames.append(masked_frame)
+        masked_greys.append(masked_grey)
+
+    # Save first frame with the ROI highlighted
+    out_fig = os.path.join(out_dir, "masked_frame.png")
+    cv2.imwrite(out_fig, masked_frames[0])
+
+    out_fig = os.path.join(out_dir, "masked_grey.png")
+    cv2.imwrite(out_fig, masked_greys[0])
+
+    save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
+
+    ################################################################################  Get frame timestamps, from 0, in seconds for fourier transform
+    frame2frame = 0
+    nr_of_frames = len(masked_greys)
+    if not args['fps']:
+        timespan = (int(sorted_times[nr_of_frames-1]) - int(sorted_times[0])) / 1000
+        frame2frame = timespan / nr_of_frames  # 1 / fps
+    else:
+        frame2frame = 1/args['fps']
+
+    final_time = frame2frame * nr_of_frames
+    times = np.arange(start=0, stop=final_time, step=frame2frame)
+
+    ################################################################################ Fourier Frequency estimation
+    LOGGER.info("Fourier frequency evaluation")
+    bpm = None
+    # Run normally, Fourier in segemented area
+    if not args['slowmode']:
+        bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
+
+        if not bpm:
+            LOGGER.info("No bpm detected. Trying slowmode")
+
+    # Run in slow mode, Fourier on every pixel
+    if args['slowmode'] or not bpm:
+        LOGGER.info("Running in slow mode")
+        norm_frames_grey = greyFrames(norm_frames, stop_frame)
+
+        bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
+
+    ################################################################################ Draw bpm-trace
+    bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+
+    plt.close('all') # fixed memory leak
+    return bpm

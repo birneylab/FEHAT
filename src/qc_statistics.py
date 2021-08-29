@@ -137,7 +137,7 @@ def main(indir,outdir, path_ground_truths):
                 sys.exit()
 
             dataset_name = os.path.basename(os.path.normpath(path))
-            dataset_name = dataset_name[:-15] # Remove "out_" prefix from folder names TODO:Adjust to new suffix
+            dataset_name = dataset_name[:-15]
 
             # add DATASET column for merge later
             results = pd.read_csv(results_files[0], keep_default_na=False)
