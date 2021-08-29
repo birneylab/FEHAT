@@ -1769,10 +1769,11 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
     all_pixel_sigs = PixelSignal(norm_frames)
 
     # Perform Fourier Transform on every pixel
-    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=True)
+    # NOTE: plot=True too expensive and won't finish at the moment
+    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
 
     # Plot the density of fourier transform global maxima across pixels
-    out_kde2 = os.path.join(out_dir, "pixel_rate_all.png")
+    out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
     fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
     ax2, bpm_fourier = PixelFreqs(highest_freqs2, args['average'], peak_filter=False)
     plt.savefig(out_kde2)
