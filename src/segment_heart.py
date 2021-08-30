@@ -29,7 +29,7 @@ import glob2
 import random
 import logging
 
-import pathlib
+
 
 from statistics import mean
 
@@ -1473,7 +1473,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1499,7 +1499,7 @@ def embryo_detection(video):
     return XY_average
 
 
-def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, embryo_coordinates, save=False):
+def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_metadata):
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
     # and can be passed as argument in command line (100 is default)
@@ -1515,14 +1515,8 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
     #embryo_size += 100
 
     video_cropped = []
-    if save == True:
-        os.makedirs(os.path.join(
-            args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
-
-    # will be used to get only the first image from each well for make the pannel
-    is_first_image = True
-
-    for img, image_path in zip(video, well_frame_paths):
+   
+    for img in video:
         try:
             cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
                             embryo_size, int(embryo_coordinates[1])-embryo_size: int(embryo_coordinates[1])+embryo_size]
@@ -1532,70 +1526,25 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
                 "Problems cropping image (image dimensions in -s paramter)")
 
         video_cropped.append(cut_image)
-        if save == True:
-            final_part_path = pathlib.PurePath(image_path).name
-            outfile_path = os.path.join(
-                args.outdir, 'cropped_by_EBI_script/', final_part_path)
-            cv2.imwrite(outfile_path, cut_image)
 
-            if is_first_image == True:
-                outfile_path = os.path.join(
-                    args.outdir, "offset_verifying.png")
-                cv2.imwrite(outfile_path, cut_image)
+        #create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
+        if img[0]:
+            if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
+                resulting_dict_from_crop[video_metadata['channel'] +
+                                            '_' + video_metadata['loop']] = [cut_image]
+                resulting_dict_from_crop['positions_' + video_metadata['channel'] +
+                                            '_' + video_metadata['loop']] = [video_metadata['well_id']]
+            else:
+                resulting_dict_from_crop[video_metadata['channel'] +
+                                            '_' + video_metadata['loop']].append(cut_image)
+                resulting_dict_from_crop['positions_' + video_metadata['channel'] +
+                                            '_' + video_metadata['loop']].append(video_metadata['well_id']) 
 
-            # will start creating the pannel
-            # get final part of the path for writting purposes
-            final_part_path = pathlib.PurePath(image_path).name
-
-        # plot each first image of each well for an overview crop panel
-            if is_first_image == True:
-                is_first_image = False  # avoid plot more than the first frame
-
-                # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
-                # it is necessary because we want to replot after each well, that is, to be able to skip the crop script but have the partial results plotted
-                if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
-                    resulting_dict_from_crop[video_metadata['channel'] +
-                                             '_' + video_metadata['loop']] = [cut_image]
-                    resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                             '_' + video_metadata['loop']] = [video_metadata['well_id']]
-                else:
-                    resulting_dict_from_crop[video_metadata['channel'] +
-                                             '_' + video_metadata['loop']].append(cut_image)
-                    resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                             '_' + video_metadata['loop']].append(video_metadata['well_id'])
-
-                for item in resulting_dict_from_crop.items():
-                    if "positions_" not in item[0]:
-                        axes = []  # will be used to plot the first image for each well bellow
-                        rows = 8
-                        cols = 12
-                        fig = plt.figure(figsize=(10, 28))
-                        suptitle = plt.suptitle(
-                            'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
-                        counter = 1
-                        for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
-                            axes.append(fig.add_subplot(rows, cols, counter))
-                            counter += 1
-                            subplot_title = (position)
-                            axes[-1].set_title(subplot_title,
-                                               fontsize=11, color='blue')
-                            plt.xticks([], [])
-                            plt.yticks([], [])
-                            plt.tight_layout()
-                            # plot in panel the last cropped image from the loop above
-                            plt.imshow(cut_image)
-
-                            # save figure
-                            outfile_path = os.path.join(
-                                args.outdir, item[0] + "_panel.png")
-                            plt.savefig(outfile_path, bbox_extra_artists=(
-                                suptitle,), bbox_inches="tight")
-
+       # return the cropped video array and the dictionary with data from every first cropped video updated     
     return video_cropped, resulting_dict_from_crop
 ############################################################################################################
 
 # DEPRECATED: substituted by crop_2 (above)
-
 
 def crop(video):
     LOGGER.info("Cropping video")
@@ -1875,8 +1824,6 @@ def run(video, args, video_metadata):
 
             # print('masked_grey')
             # print('Embryo number: ' + str(i))
-            
-
 
             # Create vector of the signal within the region of the heart
             # Flatten array (matrix) into a vector
@@ -1898,10 +1845,6 @@ def run(video, args, video_metadata):
             b = cv2.add(b, 100, dst=b, mask=mask, dtype=cv2.CV_8U)
 
             masked_frame = cv2.merge((b, g, r))
-
-           
-
-           
 
             #################################
 
