@@ -1516,7 +1516,7 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 
     video_cropped = []
    
-    for img in video:
+    for index, img in enumerate(video):
         try:
             cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
                             embryo_size, int(embryo_coordinates[1])-embryo_size: int(embryo_coordinates[1])+embryo_size]
@@ -1528,7 +1528,7 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
         video_cropped.append(cut_image)
 
         #create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
-        if img[0]:
+        if index == 0:
             if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
                 resulting_dict_from_crop[video_metadata['channel'] +
                                             '_' + video_metadata['loop']] = [cut_image]

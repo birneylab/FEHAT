@@ -118,9 +118,7 @@ def run_multifolder(args, dirs):
         max_subprocesses = 2
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
-        for cmd in cmd_list:
-            print("CMD")
-            print(cmd)
+        for cmd in cmd_list:            
             p = subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)

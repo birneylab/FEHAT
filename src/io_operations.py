@@ -198,14 +198,14 @@ def save_cropped(cut_images, args, images_path):
     # function to save the cropped images
     os.makedirs(os.path.join(
         args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
-    for img in cut_images:
-        final_part_path = pathlib.PurePath(images_path).name
+    for index, img in enumerate(cut_images):
+        final_part_path = pathlib.PurePath(images_path[0]).name
         outfile_path = os.path.join(
             args.outdir, 'cropped_by_EBI_script/', final_part_path)
         # write the image
         cv2.imwrite(outfile_path, img)
         # get first image for saving as image offset
-        if img[0]:  # avoid plot more than the first frame
+        if index == 0:  # avoid plot more than the first frame
             outfile_path = os.path.join(args.outdir, "offset_verifying.png")
             cv2.imwrite(outfile_path, img)
 
