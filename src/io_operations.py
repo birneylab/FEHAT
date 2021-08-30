@@ -1,6 +1,6 @@
 import logging
 import os
-
+import numpy as np
 import csv
 
 import pathlib
@@ -214,6 +214,7 @@ def save_cropped(cut_images, args, images_path):
 
 
 def save_panel(resulting_dict_from_crop, args):
+
     # function used to create ans save the panel with cropped images
     for item in resulting_dict_from_crop.items():
         if "positions_" not in item[0]:
@@ -225,22 +226,40 @@ def save_panel(resulting_dict_from_crop, args):
                 'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
             counter = 1
             for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
-                axes.append(fig.add_subplot(rows, cols, counter))
-                counter += 1
-                subplot_title = (position)
-                axes[-1].set_title(subplot_title,
-                                   fontsize=11, color='blue')
-                plt.xticks([], [])
-                plt.yticks([], [])
-                plt.tight_layout()
-                # plot in panel the last cropped image from the loop above
-                plt.imshow(cut_image)
-                # save figure
-                outfile_path = os.path.join(
-                    args.outdir, item[0] + "_panel.png")
-                plt.savefig(outfile_path, bbox_extra_artists=(
-                    suptitle,), bbox_inches="tight")
+                position_number = position[-2:]
+                formated_counter = '{:02d}'.format(counter)
+                while position_number > formated_counter:  # do not save image
+                    axes.append(fig.add_subplot(rows, cols, counter))
+                    subplot_title = ("WE000" + str(formated_counter))
+                    axes[-1].set_title(subplot_title,
+                                       fontsize=11, color='blue')
+                    plt.xticks([], [])
+                    plt.yticks([], [])
+                    plt.tight_layout()
+                    # will not plot image but save figure anyway
+                    plt.imshow(np.zeros((0, 0)))
+                    outfile_path = os.path.join(
+                        args.outdir, item[0] + "_panel.png")
+                    counter += 1
+                    formated_counter = '{:02d}'.format(counter)
+                else:  # save image
+                    axes.append(fig.add_subplot(rows, cols, counter))
+                    subplot_title = (position)
+                    axes[-1].set_title(subplot_title,
+                                       fontsize=11, color='blue')
+                    plt.xticks([], [])
+                    plt.yticks([], [])
+                    plt.tight_layout()
+                    # plot in panel the last cropped image from the loop above
+                    plt.imshow(cut_image)
+                    # save figure
+                    outfile_path = os.path.join(
+                        args.outdir, item[0] + "_panel.png")
+                    counter += 1
+                    formated_counter = '{:02d}'.format(counter)
 
+            plt.savefig(outfile_path, bbox_extra_artists=(
+                        suptitle,), bbox_inches="tight")
 
 # def save_cropped_img(outdir, img, well_id, loop_id):
 #     name = loop_id + '-' + str(well_id)
