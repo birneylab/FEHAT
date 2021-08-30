@@ -221,14 +221,14 @@ def save_panel(resulting_dict_from_crop, args):
             axes = []  # will be used to plot the first image for each well bellow
             rows = 8
             cols = 12
-            fig = plt.figure(figsize=(10, 28))
+            fig = plt.figure(figsize=(10, 8))
             suptitle = plt.suptitle(
                 'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
             counter = 1
             for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
                 position_number = position[-2:]
                 formated_counter = '{:02d}'.format(counter)
-                while position_number > formated_counter:  # do not save image
+                while (position_number > formated_counter):  # do not save image
                     axes.append(fig.add_subplot(rows, cols, counter))
                     subplot_title = ("WE000" + str(formated_counter))
                     axes[-1].set_title(subplot_title,
@@ -242,6 +242,7 @@ def save_panel(resulting_dict_from_crop, args):
                         args.outdir, item[0] + "_panel.png")
                     counter += 1
                     formated_counter = '{:02d}'.format(counter)
+
                 else:  # save image
                     axes.append(fig.add_subplot(rows, cols, counter))
                     subplot_title = (position)
@@ -257,6 +258,24 @@ def save_panel(resulting_dict_from_crop, args):
                         args.outdir, item[0] + "_panel.png")
                     counter += 1
                     formated_counter = '{:02d}'.format(counter)
+
+            print("counter")
+            print(counter)
+
+            while (counter < 97):  # do not save image
+                axes.append(fig.add_subplot(rows, cols, counter))
+                subplot_title = ("WE000" + str(formated_counter))
+                axes[-1].set_title(subplot_title,
+                                   fontsize=11, color='blue')
+                plt.xticks([], [])
+                plt.yticks([], [])
+                plt.tight_layout()
+                # will not plot image but save figure anyway
+                plt.imshow(np.zeros((0, 0)))
+                outfile_path = os.path.join(
+                    args.outdir, item[0] + "_panel.png")
+                counter += 1
+                formated_counter = '{:02d}'.format(counter)
 
             plt.savefig(outfile_path, bbox_extra_artists=(
                         suptitle,), bbox_inches="tight")
