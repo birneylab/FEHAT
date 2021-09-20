@@ -60,9 +60,11 @@ def detect_experiment_directories(indir):
         indir + '/*/')}  # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
 
     # Condition: Tiffs inside or croppedRAWTifffolder
+    # The previous function seems not to work properly.
     for path in subdir_list:
         if os.path.basename(os.path.normpath(path)) == 'croppedRAWTiff':
-            continue
+            subdirs = [path]
+            return subdirs
 
         cond_1 = os.path.isdir(os.path.join(path, "croppedRAWTiff"))
         cond_2 = glob2.glob(path + '*.tif') + glob2.glob(path + '*.tiff')

@@ -28,6 +28,7 @@ import src.segment_heart as segment_heart
 
 LOGGER = logging.getLogger(__name__)
 
+
 ################################## ALGORITHM ##################################
 
 
