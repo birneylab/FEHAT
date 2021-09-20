@@ -119,7 +119,7 @@ def run_multifolder(args, dirs):
         max_subprocesses = 2
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
-        for cmd in cmd_list:            
+        for cmd in cmd_list:
             p = subprocess.Popen(
                 cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)
@@ -211,8 +211,7 @@ def main(args):
                         else:
                             bsub_cmd += ['-o', '/dev/null']
 
-                    cmd = bsub_cmd + ['source', 'activate',
-                                      'medaka_env', '&&'] + python_cmd
+                    cmd = bsub_cmd + python_cmd  # calling source medaka_env was throwing a error
 
                     # Create a job array for each well
                     result = subprocess.run(
@@ -251,7 +250,7 @@ def main(args):
             python_cmd = ['python3', exe_path,
                           '-i', tmp_dir, '-o', args.outdir]
 
-            consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']
+            # consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']  # calling source medaka_env here was throwing a error
             consolidate_cmd += python_cmd
 
             LOGGER.debug(consolidate_cmd)
