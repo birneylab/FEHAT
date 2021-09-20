@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 ############################################################################################################
-# Authors: 
+# Authors:
 #   Jack Monahan,       EMBL-EBI                                                    (First prototype)
 #   Tomas Fitzgerald,   EMBL-EBI                                                    (Fast mode)
 #   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk                            (Current Maintainer)
@@ -29,7 +29,7 @@ import glob2
 import random
 import logging
 
-import pathlib
+
 
 from statistics import mean
 
@@ -75,6 +75,8 @@ kernel = np.ones((5, 5), np.uint8)
 ##  Functions   ##
 ##########################
 # start of fast mode
+
+
 def get_image_files_and_time_spacing(indir, frame_format, well_number, loop):
 
     if frame_format == "tiff":
@@ -117,6 +119,8 @@ def get_image_files_and_time_spacing(indir, frame_format, well_number, loop):
 # NB. this means that points that move in all frames will have an intensity of 0 in the mask filter
 # NB. And e.g. if we want to include  points that move in 10% of frames low_bound would equal len(well_frame)*0.1
 # NB. here we also apply some blurring and then the standard lower bound inclusion - there are the only two parameters and could could be dynamically devired
+
+
 def define_mask_and_extract_pixels(well_frames, blur_par=11, low_bound=10):
     img = cv2.absdiff(cv2.imread(
         well_frames[0], 1), cv2.imread(well_frames[0], 1))
@@ -144,6 +148,8 @@ def define_mask_and_extract_pixels(well_frames, blur_par=11, low_bound=10):
 
 # FFT on median pixel values across frames - with a manual power spectrum calculation
 # NB. transform frequency estimate at maximum power spectra to bpm
+
+
 def estimate_bpm_fft(frame_pixel_medians, time):
     data = np.array(frame_pixel_medians)
     fourier_transform = np.fft.fft(data)
@@ -159,6 +165,8 @@ def estimate_bpm_fft(frame_pixel_medians, time):
     return {"F": F, "P": P, "bpm": bpm}
 
 # Wrapper to run the methods for a single 'well' position and 'loop' number
+
+
 def run_a_well(indir, out_dir, frame_format, well_number, loop, blur_par=11, low_bound=10):
 
     files_and_time = get_image_files_and_time_spacing(
@@ -172,6 +180,8 @@ def run_a_well(indir, out_dir, frame_format, well_number, loop, blur_par=11, low
 # end of fast mode
 ###############################################################
 # Detect embryo in image based on Hough Circle Detection
+
+
 def detectEmbryo(frame):
     # Find circle i.e. the embryo in the yolk sac
     img_grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -274,6 +284,8 @@ def detectEmbryo(frame):
 
 # ## Function greyFrames(frames)
 # Convert all frames in a list into greyscale
+
+
 def greyFrames(frames, stop_frame=0):
 
     grey_frames = []
@@ -300,6 +312,8 @@ def greyFrames(frames, stop_frame=0):
 
 # ## Function resizeFrames(frames, scale = 50)
 # Uniformly resize frames based on common scaling factor e.g. 50, will halve size
+
+
 def resizeFrames(frames, scale=50):
 
     resized_frames = []
@@ -333,6 +347,8 @@ def resizeFrames(frames, scale=50):
 # TODO: Streching should be done from the bottom as well.
 # TODO: Also, a single outlier will worsen the normalization
 # TODO: Could be done more efficient probably.
+
+
 def normVideo(frames):
 
     # Start at first non-empty frame
@@ -382,6 +398,8 @@ def normVideo(frames):
 
 # ## Function processFrame(frame)
 # Pre-process frame
+
+
 def processFrame(frame):
     """Image pre-processing and illumination normalisation"""
 
@@ -415,6 +433,8 @@ def processFrame(frame):
     return out_frame, frame_grey, blurred_frame
 
 # ## Function maskFrame(frame, mask)
+
+
 def maskFrame(frame, mask):
     """Add constant value in green channel to region of frame from the mask."""
 
@@ -428,6 +448,8 @@ def maskFrame(frame, mask):
     return masked_frame
 
 # ## Function filterMask(mask, min_area = 300):
+
+
 def filterMask(mask, min_area=300):
 
     # Contour mask
@@ -456,6 +478,8 @@ def filterMask(mask, min_area=300):
 
 # ## Function diffFrame(frame, frame2_blur, frame1_blur, min_area = 300):
 # Differences between two frames
+
+
 def diffFrame(frame, frame2_blur, frame1_blur, min_area=300):
     """Calculate the abs diff between 2 frames and returns frame2 masked with the filtered differences."""
 
@@ -496,6 +520,8 @@ def diffFrame(frame, frame2_blur, frame1_blur, min_area=300):
 
 # ## Function rolling_diff(index, frames, win_size = 5, direction = "forward", min_area = 300):
 # Forward or reverse rolling window of width w with step size ws
+
+
 def rolling_diff(index, frames, win_size=5, direction="forward", min_area=300):
     """
     Implement rolling window
@@ -584,6 +610,8 @@ def rolling_diff(index, frames, win_size=5, direction="forward", min_area=300):
 
 # ## Function heartQC_plot(ax, f0_grey, heart_roi,heart_roi_clean,label_maxima, figsize=(15, 15))
 # Generate figure highlighting the probable heart region
+
+
 def heartQC_plot(ax, f0_grey, heart_roi, heart_roi_clean, overlay):
     """
     Generate figure to QC heart segmentation
@@ -612,6 +640,8 @@ def heartQC_plot(ax, f0_grey, heart_roi, heart_roi_clean, overlay):
     return(ax)
 
 # ## Function qc_mask_contours(heart_roi)
+
+
 def new_qc_mask_contours(heart_roi, maxima):
 
  # Find contours based on thresholded, summed absolute differences
@@ -726,6 +756,8 @@ def qc_mask_contours(heart_roi, maxima, top_pixels):
     return(final_mask, regions)
 
 # ## Function qc_mask_contours(heart_roi)
+
+
 def new2_qc_mask_contours(heart_roi):
     area_count = []
     rows, cols = heart_roi.shape
@@ -759,6 +791,8 @@ def new2_qc_mask_contours(heart_roi):
 
 # Detect extreme outliers and filter them out
 # Outliers due to e.g. sudden movement of whole embryo or flickering light
+
+
 def iqrFilter(times, signal):
 
     # Calculate interquartile range from signal
@@ -777,6 +811,8 @@ def iqrFilter(times, signal):
 
 # ## Function iqrFilter(times, signal)
 # Interpolate pixel or regional signal, filtering if necessary
+
+
 def interpolate_signal(times, y, empty_frames):
 
     # No filtering needed for interpolation if no empty frames
@@ -814,6 +850,8 @@ def interpolate_signal(times, y, empty_frames):
 
 # ## Function interpolate_signal(times, y, empty_frames)
 # Detrend heart signal and smoothe
+
+
 def detrendSignal(interpolated_signal, time_domain, window_size=15):
     """
     Use Savitzky–Golay convolution filter to smoothe time-series data.
@@ -843,6 +881,8 @@ def detrendSignal(interpolated_signal, time_domain, window_size=15):
 # ## Function MAD(numeric_vector)
 # Calculate Median Absolute Deviation
 # for a given numeric vector
+
+
 def MAD(numeric_vector):
 
     median = np.median(numeric_vector)
@@ -853,6 +893,8 @@ def MAD(numeric_vector):
 
 # ## Function def rolling_window(signal, win_size = 20, win_step = 5, direction = "forward")
 # Forward or reverse rolling window W with step size Ws
+
+
 def rolling_window(signal, win_size=20, win_step=5, direction="forward"):
     """
     Implement rlling window over Nanopore read signal intensities (mean or median)
@@ -893,6 +935,8 @@ def rolling_window(signal, win_size=20, win_step=5, direction="forward"):
 
 # ## Function fourierHR(interpolated_signal, time_domain, heart_range = (0.5, 5))
 # Perform a Fourier Transform on interpolated signal from heart region
+
+
 def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     """
     When 3 or less peaks detected is Fourier,
@@ -973,6 +1017,8 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
 
 # ## Function plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211)
 # Plot Fourier Transform
+
+
 def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc=211):
 
     # Prepare label for plot
@@ -1009,6 +1055,8 @@ def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc=211):
     return(ax)
 
 # ## Function def PixelSignal(grey_frames)
+
+
 def PixelSignal(grey_frames):
     """
         Extract individual pixel signal across all frames
@@ -1052,6 +1100,8 @@ def PixelSignal(grey_frames):
     return(pixel_signals)
 
 # Plot multiple pixel signal intensities on same graph
+
+
 def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel_num=None, heart_range=(0.5, 5), plot=False):
     """
     Plot multiple pixel signal intensities on same graph
@@ -1133,6 +1183,8 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         return(highest_freqs)
 
 # ## Function PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
+
+
 def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=False):
 
     pixel_signal = pixel_signals[pixel]
@@ -1171,6 +1223,8 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=F
     return(highest_freq)
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
+
+
 def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True):
 
     sns.set_style('white')
@@ -1330,6 +1384,8 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
 # ## Function final_dist_graph(bpm_fourier)
 # Create an graph and plot averages from final report (overwrite and update if alreadye exists)
+
+
 def final_dist_graph(bpm_fourier,  out_dir):
     data_file = os.path.join(out_dir, "general_report.csv")
     output_dir = os.path.join(out_dir, "data_dist_plot.jpg")
@@ -1390,23 +1446,9 @@ def final_dist_graph(bpm_fourier,  out_dir):
         pass
 
 # final_dist_graph(bpm_fourier)    ## debug
-def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_crop, save=False):
-    # avoid window size lower than 50 or higher than the minimum dimension of images
-    # window size is the size of the window that the script will crop starting from centre os mass,
-    # and can be passed as argument in command line (100 is default)
-    embryo_size = args.embryo_size
 
-    # get the minimum size of the first frame
-    maximum_dimension = min(video[0].shape[0:1])
 
-    if embryo_size < 50:
-        embryo_size = 50
-    if embryo_size > int((maximum_dimension/3)):
-        embryo_size = int((maximum_dimension/3))
-        LOGGER.info(
-            "-s paramter has excedded the allowed by image dimensions. Used " + str(embryo_size) + " instead.")
-    embryo_size += 100
-
+def embryo_detection(video):
     center_of_embryo_list = []
     for img, i in zip(video, range(5)):
 
@@ -1454,82 +1496,56 @@ def crop_2(video, well_frame_paths, video_metadata, args, resulting_dict_from_cr
     XY_average = (mean([i[0] for i in center_of_embryo_list]), mean(
         [i[1] for i in center_of_embryo_list]))
 
+    return XY_average
+
+
+def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_metadata):
+    # avoid window size lower than 50 or higher than the minimum dimension of images
+    # window size is the size of the window that the script will crop starting from centre os mass,
+    # and can be passed as argument in command line (100 is default)
+    embryo_size = args.embryo_size
+    # get the minimum size of the first frame
+    maximum_dimension = min(video[0].shape[0:1])
+    if embryo_size < 50:
+        embryo_size = 50
+    if embryo_size > int((maximum_dimension/3)):
+        embryo_size = int((maximum_dimension/3))
+        LOGGER.info(
+            "-s paramter has excedded the allowed by image dimensions. Used " + str(embryo_size) + " instead.")
+    #embryo_size += 100
+
     video_cropped = []
-    if save == True:
-        os.makedirs(os.path.join(args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
-
-    # will be used to get only the first image from each well for make the pannel
-    is_first_image = True
-
-    for img, image_path in zip(video, well_frame_paths):
+   
+    for index, img in enumerate(video):
         try:
-            cut_image = img[int(XY_average[0])-embryo_size: int(XY_average[0]) +
-                            embryo_size, int(XY_average[1])-embryo_size: int(XY_average[1])+embryo_size]
+            cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
+                            embryo_size, int(embryo_coordinates[1])-embryo_size: int(embryo_coordinates[1])+embryo_size]
         except:
             cut_image = img
             LOGGER.info(
                 "Problems cropping image (image dimensions in -s paramter)")
 
         video_cropped.append(cut_image)
-        if save == True:
-            final_part_path = pathlib.PurePath(image_path).name
-            outfile_path = os.path.join(args.outdir, 'cropped_by_EBI_script/', final_part_path)
-            cv2.imwrite(outfile_path, cut_image)
 
-            if is_first_image == True:
-                outfile_path = os.path.join(args.outdir, "offset_verifying.png")
-                cv2.imwrite(outfile_path, cut_image)
+        #create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
+        if index == 0:
+            if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
+                resulting_dict_from_crop[video_metadata['channel'] +
+                                            '_' + video_metadata['loop']] = [cut_image]
+                resulting_dict_from_crop['positions_' + video_metadata['channel'] +
+                                            '_' + video_metadata['loop']] = [video_metadata['well_id']]
+            else:
+                resulting_dict_from_crop[video_metadata['channel'] +
+                                            '_' + video_metadata['loop']].append(cut_image)
+                resulting_dict_from_crop['positions_' + video_metadata['channel'] +
+                                            '_' + video_metadata['loop']].append(video_metadata['well_id']) 
 
-            # will start creating the pannel
-            # get final part of the path for writting purposes
-            final_part_path = pathlib.PurePath(image_path).name
-
-        # plot each first image of each well for an overview crop panel
-            if is_first_image == True:
-                is_first_image = False  # avoid plot more than the first frame
-
-                # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
-                # it is necessary because we want to replot after each well, that is, to be able to skip the crop script but have the partial results plotted
-                if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
-                    resulting_dict_from_crop[video_metadata['channel'] +
-                                             '_' + video_metadata['loop']] = [cut_image]
-                    resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                             '_' + video_metadata['loop']] = [video_metadata['well_id']]
-                else:
-                    resulting_dict_from_crop[video_metadata['channel'] +
-                                             '_' + video_metadata['loop']].append(cut_image)
-                    resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                             '_' + video_metadata['loop']].append(video_metadata['well_id'])
-
-                for item in resulting_dict_from_crop.items():
-                    if "positions_" not in item[0]:
-                        axes = []  # will be used to plot the first image for each well bellow
-                        rows = 8
-                        cols = 12
-                        fig = plt.figure(figsize=(10, 28))
-                        suptitle = plt.suptitle(
-                            'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
-                        counter = 1
-                        for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
-                            axes.append(fig.add_subplot(rows, cols, counter))
-                            counter += 1
-                            subplot_title = (position)
-                            axes[-1].set_title(subplot_title,
-                                               fontsize=11, color='blue')
-                            plt.xticks([], [])
-                            plt.yticks([], [])
-                            plt.tight_layout()
-                            # plot in panel the last cropped image from the loop above
-                            plt.imshow(cut_image)
-
-                            # save figure
-                            outfile_path = os.path.join(args.outdir, item[0] + "_panel.png")
-                            plt.savefig(outfile_path, bbox_extra_artists=(suptitle,), bbox_inches="tight")
-
+       # return the cropped video array and the dictionary with data from every first cropped video updated     
     return video_cropped, resulting_dict_from_crop
 ############################################################################################################
 
 # DEPRECATED: substituted by crop_2 (above)
+
 def crop(video):
     LOGGER.info("Cropping video")
     circle_x = []
@@ -1808,8 +1824,6 @@ def run(video, args, video_metadata):
 
             # print('masked_grey')
             # print('Embryo number: ' + str(i))
-            plt.imshow(masked_grey)
-            plt.show()
 
             # Create vector of the signal within the region of the heart
             # Flatten array (matrix) into a vector
@@ -1831,10 +1845,6 @@ def run(video, args, video_metadata):
             b = cv2.add(b, 100, dst=b, mask=mask, dtype=cv2.CV_8U)
 
             masked_frame = cv2.merge((b, g, r))
-
-            # print('masked_frame')
-            plt.imshow(masked_frame)
-            plt.show()
 
             #################################
 
