@@ -55,7 +55,7 @@ try:
         LOGGER.info("Running....please wait...")
 
         try:
-            bpm = run_algorithm(well_frame_paths, video_metadata, args)
+            bpm = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
             LOGGER.info("Reported BPM: " + str(bpm))
 
         except Exception as e:
