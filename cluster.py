@@ -29,7 +29,7 @@ for n in subdir_list:
         args.indir = os.path.join(args.indir, 'croppedRAWTiff/', '')
 
 # Check if video for well id exists before producting data. Also check in CroppedRAWTiff folder.
-if not (io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id) or io_operations.well_video_exists(args.indir + 'croppedRAWTiff/', args.channels, args.loops, well_id)):
+if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
     sys.exit()
 
 setup.config_logger(tmp_dir, (analysis_id + ".log"))
