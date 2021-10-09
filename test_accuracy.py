@@ -9,6 +9,7 @@
 # Indir must contain folders with experiments and a cvs file containing their ground truth values.
 ###
 ############################################################################################################
+import copy
 import logging
 import os
 import subprocess
@@ -18,8 +19,10 @@ import time
 
 import glob2
 
+import src.io_operations    as io_operations
 import src.setup            as setup
 import src.qc_statistics    as qc_statistics
+from medaka_bpm             import run_multifolder
 
 LOGGER = logging.getLogger(__name__)
 args = setup.parse_arguments()
@@ -35,23 +38,30 @@ setup.config_logger(args.outdir, ("assessment" + ".log"), args.debug)
 LOGGER.info("Writing results into: " + args.outdir)
 
 # run algorithm from test datasets into assessment folder
-arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
-arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
-cmd_line_arguments = sum(arguments_variable, arguments_bool)
+dir_list = io_operations.detect_experiment_directories(args.indir)
 
-LOGGER.info("Running algorithm on datasets...")
-repo_path = os.path.dirname(os.path.abspath(__file__))
-main_file = os.path.join(repo_path, "medaka_bpm.py")
-python_cmd = [sys.executable, main_file] + cmd_line_arguments
-p = subprocess.Popen(python_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print("Running multifolder mode. Limited console feedback, check logfiles for process status")
+args_copy = copy.deepcopy(args)
+run_multifolder(args_copy, dir_list)
+, 
+# arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+# arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
+# cmd_line_arguments = sum(arguments_variable, arguments_bool)
 
-p.wait()
+# LOGGER.info("Running algorithm on datasets...")
+# main_file = os.path.join(repo_path, "medaka_bpm.py")
+# python_cmd = [sys.executable, main_file] + cmd_line_arguments
+# p = subprocess.Popen(python_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+# p.wait()
 
 # copy algorithm file
+repo_path = os.path.dirname(os.path.abspath(__file__))
 algorithm_file = os.path.join(repo_path, "src/", "segment_heart.py")
 shutil.copy(algorithm_file, args.outdir)
 
 # run statistics on algorithm
+print(args.indir)
 path_ground_truths = [f for f in glob2.glob(args.indir + '*.csv')][0]
 indir = args.outdir
 outdir = os.path.join(args.outdir, "statistics/")
