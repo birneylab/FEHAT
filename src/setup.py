@@ -98,13 +98,11 @@ def process_arguments(args):
         args.outdir = args.indir
 
     # Get the experiment name and verify if there is cropp folder
-    if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
-        temp_name = os.path.dirname(os.path.normpath(args.indir))
-    else:
-        temp_name = os.path.basename(os.path.normpath(args.indir))
+    experiment_name = os.path.basename(os.path.normpath(args.indir))
+    if experiment_name == "croppedRAWTiff":
+        experiment_name = os.path.basename(os.path.dirname(os.path.normpath(args.indir)))
 
     # experiment_id: Number code for logfile and outfile respectively
-    experiment_name = os.path.basename(os.path.normpath(args.indir))
     args.outdir = os.path.join(
         args.outdir, experiment_name + "_medaka_bpm_out", '')
 
