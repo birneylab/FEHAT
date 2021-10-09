@@ -10,11 +10,14 @@
 ############################################################################################################
 import logging
 import os
-
+import numpy as np
 import csv
+
+import pathlib
 
 import glob2
 import cv2
+from matplotlib import pyplot as plt
 
 #from matplotlib import pyplot as plt
 
@@ -22,6 +25,8 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
 
 # Goes through all channels and loops and yields well data fields and paths to frames sorted by frame index.
+
+
 def well_video_generator(indir, channels, loops):
     # -A001--PO01--LO001--CO1--SL001--PX32500--PW0070--IN0020--TM280--X014600--Y011401--Z214683--T0000000000--WE00001.tif
 
@@ -58,14 +63,18 @@ def well_video_generator(indir, channels, loops):
                             'loop': loop, 'channel': channel}
                 yield well_frames_sorted, metadata
 
+
 def detect_experiment_directories(indir):
     subdirs = set()
-    subdir_list = {os.path.join(os.path.dirname(p), '') for p in glob2.glob(indir + '/*/')} # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
-    
+    subdir_list = {os.path.join(os.path.dirname(p), '') for p in glob2.glob(
+        indir + '/*/')}  # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
+
     # Condition: Tiffs inside or croppedRAWTifffolder
+    # The previous function seems not to work properly.
     for path in subdir_list:
         if os.path.basename(os.path.normpath(path)) == 'croppedRAWTiff':
-            continue
+            subdirs = [path]
+            return subdirs
 
         cond_1 = os.path.isdir(os.path.join(path, "croppedRAWTiff"))
         cond_2 = glob2.glob(path + '*.tif') + glob2.glob(path + '*.tiff')
@@ -75,18 +84,33 @@ def detect_experiment_directories(indir):
     # No subdirectories. Add indir as only folder
     if not subdirs:
         subdirs.add(indir)
-        
+
     return subdirs
 
 # TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
-def load_well_video(frame_paths_sorted, color_mode=cv2.IMREAD_COLOR):
-    LOGGER.info("Loading video")
-    video = []
-    for path in frame_paths_sorted:
-        frame = cv2.imread(path, flags=color_mode)
-        video.append(frame)
 
-    return video
+
+def load_well_video_8bits(frame_paths_sorted, max_frames=-1):
+    LOGGER.info("Loading video as 8 bits")
+    video8 = []
+    for index, path in enumerate(frame_paths_sorted):
+        # check if the function is supposed to read every frame (-1), otherwise, runs only the number of frames specified in max_frames argument
+        # it is usefull as if we need crop and save the images, we only need the first 5 frames to make the average of position.
+        if max_frames == -1 or index < max_frames:
+            frame = cv2.imread(path, 1)  # 1 flag to read image as rgb
+            video8.append(frame)
+    return video8
+
+
+def load_well_video_16bits(frame_paths_sorted):
+    LOGGER.info("Loading video as 16 bits")
+    video16 = []
+    for path in frame_paths_sorted:
+        # -1 flag to read image as it is (16 bits)
+        frame = cv2.imread(path, -1)
+        video16.append(frame)
+    return video16
+
 
 def extract_timestamps(sorted_frame_paths):
     # splits every path at '-T'. Picks first 10 chars of the string that starts with a number.
@@ -96,12 +120,15 @@ def extract_timestamps(sorted_frame_paths):
 
 # Get metadata about the directory that is read in
 # Number of videos and channels and loops present.
+
+
 def extract_data(indir):
     # -A001--PO01--LO001--CO1--SL001--PX32500--PW0070--IN0020--TM280--X014600--Y011401--Z214683--T0000000000--WE00001.tif
     LOGGER.info("### Extracting data from image names ###")
 
     # Grab first frame of all videos
-    tiffs = glob2.glob(indir + '*SL001' + '*.tif') + glob2.glob(indir + '*SL001' + '*.tiff')
+    tiffs = glob2.glob(indir + '*SL001' + '*.tif') + \
+        glob2.glob(indir + '*SL001' + '*.tiff')
     nr_of_videos = len(tiffs)
 
     if not tiffs:
@@ -120,11 +147,14 @@ def extract_data(indir):
     return nr_of_videos, channels, loops
 
 # From Tim-script
+
+
 def frameIdx(path):
     idx = path.split('-SL')[-1]
     idx = idx.split('-')[0]
     idx = int(idx)
     return idx
+
 
 def well_video_exists(indir, channel, loop, well_id):
     all_frames = glob2.glob(indir + '*.tif') + glob2.glob(indir + '*.tiff')
@@ -138,7 +168,9 @@ def well_video_exists(indir, channel, loop, well_id):
 
 # Results:
 # Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-#TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
+# TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
+
+
 def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
     outfile_name = "results_" + experiment_id + ".csv"
@@ -172,6 +204,93 @@ def write_to_spreadsheet(outdir, results, experiment_id):
             else:
                 bpm = str(bpm)
             writer.writerow([str(idx+1), well, loop, ch, bpm])
+
+
+def save_cropped(cut_images, args, images_path):
+    # function to save the cropped images
+    os.makedirs(os.path.join(
+        args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
+    for index, img in enumerate(cut_images):
+        final_part_path = pathlib.PurePath(images_path[0]).name
+        outfile_path = os.path.join(
+            args.outdir, 'cropped_by_EBI_script/', final_part_path)
+        # write the image
+        cv2.imwrite(outfile_path, img)
+        # get first image for saving as image offset
+        if index == 0:  # avoid plot more than the first frame
+            outfile_path = os.path.join(args.outdir, "offset_verifying.png")
+            cv2.imwrite(outfile_path, img)
+
+        # create a dictionary for the first cut image id it does not exist. If it exist, just append the cut image to the specific loop/channel.
+        # it is necessary because we want to replot after each well, that is, to be able to skip the crop script but have the partial results plotted
+
+
+def save_panel(resulting_dict_from_crop, args):
+
+    # function used to create ans save the panel with cropped images
+    for item in resulting_dict_from_crop.items():
+        if "positions_" not in item[0]:
+            axes = []  # will be used to plot the first image for each well bellow
+            rows = 8
+            cols = 12
+            fig = plt.figure(figsize=(10, 8))
+            suptitle = plt.suptitle(
+                'General view of every cropped well in ' + item[0], y=1.01, fontsize=14, color='blue')
+            counter = 1
+            for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
+                position_number = position[-2:]
+                formated_counter = '{:02d}'.format(counter)
+                while (position_number > formated_counter):  # do not save image
+                    axes.append(fig.add_subplot(rows, cols, counter))
+                    subplot_title = ("WE000" + str(formated_counter))
+                    axes[-1].set_title(subplot_title,
+                                       fontsize=11, color='blue')
+                    plt.xticks([], [])
+                    plt.yticks([], [])
+                    plt.tight_layout()
+                    # will not plot image but save figure anyway
+                    plt.imshow(np.zeros((0, 0)))
+                    outfile_path = os.path.join(
+                        args.outdir, item[0] + "_panel.png")
+                    counter += 1
+                    formated_counter = '{:02d}'.format(counter)
+
+                else:  # save image
+                    axes.append(fig.add_subplot(rows, cols, counter))
+                    subplot_title = (position)
+                    axes[-1].set_title(subplot_title,
+                                       fontsize=11, color='blue')
+                    plt.xticks([], [])
+                    plt.yticks([], [])
+                    plt.tight_layout()
+                    # plot in panel the last cropped image from the loop above
+                    plt.imshow(cut_image)
+                    # save figure
+                    outfile_path = os.path.join(
+                        args.outdir, item[0] + "_panel.png")
+                    counter += 1
+                    formated_counter = '{:02d}'.format(counter)
+
+            print("counter")
+            print(counter)
+
+            while (counter < 97):  # do not save image
+                axes.append(fig.add_subplot(rows, cols, counter))
+                subplot_title = ("WE000" + str(formated_counter))
+                axes[-1].set_title(subplot_title,
+                                   fontsize=11, color='blue')
+                plt.xticks([], [])
+                plt.yticks([], [])
+                plt.tight_layout()
+                # will not plot image but save figure anyway
+                plt.imshow(np.zeros((0, 0)))
+                outfile_path = os.path.join(
+                    args.outdir, item[0] + "_panel.png")
+                counter += 1
+                formated_counter = '{:02d}'.format(counter)
+
+            plt.savefig(outfile_path, bbox_extra_artists=(
+                        suptitle,), bbox_inches="tight")
 
 # def save_cropped_img(outdir, img, well_id, loop_id):
 #     name = loop_id + '-' + str(well_id)

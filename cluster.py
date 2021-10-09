@@ -27,24 +27,32 @@ args = setup.parse_arguments()
 tmp_dir = os.path.join(args.outdir, 'tmp')
 
 if args.lsf_index[0] == '\\':
-    args.lsf_index = args.lsf_index[1:] #this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here. 
+    # this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here.
+    args.lsf_index = args.lsf_index[1:]
 
 well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
 analysis_id = args.channels + '-' + args.loops + '-' + well_id
 
-# Check if video for well id exists before producting data.
+# check if there is a croppedRawTiff folder  ( I don´t know how to solve more elegantly, as the 'args = setup.parse_arguments()' above get the indir originally passed as argument, even if we change it later)
+subdir_list = os.listdir(args.indir)
+for n in subdir_list:
+    if 'croppedRAWTiff' in n:
+        args.indir = os.path.join(args.indir, 'croppedRAWTiff/', '')
+
+# Check if video for well id exists before producting data. Also check in CroppedRAWTiff folder.
 if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
     sys.exit()
 
 setup.config_logger(tmp_dir, (analysis_id + ".log"))
 
 # need to pass as list to generator
-channels    = [args.channels]
-loops       = [args.loops]
+channels = [args.channels]
+loops = [args.loops]
 
 # Run analysis
 results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-resulting_dict_from_crop = {} # NOTE: added for compatibility, not working at this moment.
+# NOTE: added for compatibility, not working at this moment.
+resulting_dict_from_crop = {}
 try:
     LOGGER.info("##### Analysis #####")
     bpm = None
