@@ -69,7 +69,7 @@ outdir = args.outdir
 # Need to split off, as in cluster mode p.wait() won't halt until the bsub job finished.
 if args.cluster:
     LOGGER.info("Statistics will be run when analysis finished.")
-    bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended("HRConsolidated")', '-M1000', '-R', 'rusage[mem=1000]']
+    bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended(HRConsolidate-*)', '-M1000', '-R', 'rusage[mem=1000]']
 
     if args.email == False:
         bsub_cmd += ['-o', '/dev/null']
