@@ -43,7 +43,7 @@ for n in subdir_list:
 if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
     sys.exit()
 
-setup.config_logger(tmp_dir, (analysis_id + ".log"))
+setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
 
 # need to pass as list to generator
 channels = [args.channels]
