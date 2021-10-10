@@ -12,12 +12,16 @@ import glob2
 import pandas as pd
 
 from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+
 import scipy.stats
 
 import argparse
 import logging
 import os
 import sys
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -115,7 +119,7 @@ def create_plots(dataframe, outdir, filename):
     #plt.show()
     fig.clf()
 
-def main(indir,outdir, path_ground_truths):
+def main(indir, outdir, path_ground_truths):
     LOGGER.info("######## Quality Control: Statistical Analysis ########")
     try:
         outdir = os.path.join(outdir, "statistics/")
@@ -141,6 +145,8 @@ def main(indir,outdir, path_ground_truths):
                 dataset_name = os.path.basename(os.path.normpath(path))
                 dataset_name = dataset_name[:-15]
 
+                LOGGER.info("Found results file for dataset " + dataset_name)
+
                 # add DATASET column for merge later
                 results = pd.read_csv(results_files[0], keep_default_na=False)
                 results.insert(0,'DATASET','')
@@ -160,12 +166,18 @@ def main(indir,outdir, path_ground_truths):
         #split 35C off, as unreliable for 13fps
         C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
         C35 = output_df[output_df['DATASET'].str.contains("35C")]
-        csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
-        csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
 
-        # create and store plots on disk
-        create_plots(C21_28, outdir, 'C21_28')
-        create_plots(C35, outdir, 'C35')
+        # create and store plots and csv files on disk
+        if not C21_28.empty:
+            csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
+            create_plots(C21_28, outdir, 'C21_28')
+
+        if not C35.empty:
+            csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
+            create_plots(C35, outdir, 'C35')
+
+
+        LOGGER.info("Done.")
     except Exception as e:
         LOGGER.exception("During creation of statistics on test set results")
     return

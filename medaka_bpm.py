@@ -93,9 +93,10 @@ def run_multifolder(args, dirs):
     cmd_list = []
     procs_list = []
 
+    print("### Directories to be analysed: ")
     # loop throw the folders
-    for path in dirs:
-
+    for idx, path in enumerate(dirs):
+        print(str(idx) + ": " + path)
         # get the indir and outdir arguments on the fly
         args.indir = path
 
