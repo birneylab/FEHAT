@@ -72,7 +72,11 @@ if args.cluster:
     bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended(HRConsolidate-*)', '-M1000', '-R', 'rusage[mem=1000]']
 
     if args.email == False:
-        bsub_cmd += ['-o', '/dev/null']
+        if args.debug:
+            outfile = os.path.join(outdir, 'bsub_HR_Acc_Test.log')
+            bsub_cmd += ['-o', outfile]
+        else:
+            bsub_cmd += ['-o', '/dev/null']
 
     exe_path = os.path.join(repo_path, 'src/', 'qc_statistics.py')
     python_cmd = ['python3', exe_path, '-i', indir, '-o', outdir, '-g', path_ground_truths]
