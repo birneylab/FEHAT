@@ -228,8 +228,12 @@ def main(args):
             # Create a dependent job for final report
             job_ids = [("ended(" + s + ")") for s in job_ids]
             w_condition = '&&'.join(job_ids)
-            # changed the job name so it can be seen in list of jobs
-            consolidate_cmd = ['bsub', '-J', 'HRConsolidated',
+            
+            # assign unique name. 
+            # Target completion of all experiment analysis with ended(HRConsolidate-*).
+            # Needed in test_accuracy when JOB_DEP_LAST_SUB = 1 in lsb.params.
+            unique_job_name = "HRConsolidate-" + str(job_ids[0])
+            consolidate_cmd = ['bsub', '-J', unique_job_name,
                                '-w', w_condition, '-M3000', '-R', 'rusage[mem=3000]']
 
             if args.email == False:

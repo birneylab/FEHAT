@@ -117,53 +117,57 @@ def create_plots(dataframe, outdir, filename):
 
 def main(indir,outdir, path_ground_truths):
     LOGGER.info("######## Quality Control: Statistical Analysis ########")
-    os.makedirs(outdir, exist_ok=True)
+    try:
+        outdir = os.path.join(outdir, "statistics/")
+        os.makedirs(outdir, exist_ok=True)
 
-    # Load in ground truth cvs into dataframe
-    ground_truths = pd.read_csv(path_ground_truths, keep_default_na=False)
+        # Load in ground truth cvs into dataframe
+        ground_truths = pd.read_csv(path_ground_truths, keep_default_na=False)
 
-    # Load result.csv files into dataframe
-    algorithm_results = []
+        # Load result.csv files into dataframe
+        algorithm_results = []
 
-    subdirs = {os.path.join(p, '') for p in glob2.glob(indir + '/*/')}
+        subdirs = {os.path.join(p, '') for p in glob2.glob(indir + '/*/')}
 
-    for path in subdirs:
-        if os.path.isdir(path):
-            results_files = [f for f in glob2.glob(path + '/*.csv')]
-            if not results_files:
-                continue
-            elif len(results_files) > 1:
-                print("Error: More than one results file found")
-                sys.exit()
+        for path in subdirs:
+            if os.path.isdir(path):
+                results_files = [f for f in glob2.glob(path + '/*.csv')]
+                if not results_files:
+                    continue
+                elif len(results_files) > 1:
+                    print("Error: More than one results file found")
+                    sys.exit()
 
-            dataset_name = os.path.basename(os.path.normpath(path))
-            dataset_name = dataset_name[:-15]
+                dataset_name = os.path.basename(os.path.normpath(path))
+                dataset_name = dataset_name[:-15]
 
-            # add DATASET column for merge later
-            results = pd.read_csv(results_files[0], keep_default_na=False)
-            results.insert(0,'DATASET','')
-            results["DATASET"] = dataset_name
+                # add DATASET column for merge later
+                results = pd.read_csv(results_files[0], keep_default_na=False)
+                results.insert(0,'DATASET','')
+                results["DATASET"] = dataset_name
 
-            algorithm_results.append(results)
+                algorithm_results.append(results)
 
-    algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
+        algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
 
-    # Merge the results
-    output_df = pd.merge(algorithm_results, ground_truths, how="left")
+        # Merge the results
+        output_df = pd.merge(algorithm_results, ground_truths, how="left")
 
-    # remove empty entries
-    output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
-    csv = output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
+        # remove empty entries
+        output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
+        csv = output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
 
-    #split 35C off, as unreliable for 13fps
-    C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
-    C35 = output_df[output_df['DATASET'].str.contains("35C")]
-    csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
-    csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
+        #split 35C off, as unreliable for 13fps
+        C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
+        C35 = output_df[output_df['DATASET'].str.contains("35C")]
+        csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
+        csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
 
-    # create and store plots on disk
-    create_plots(C21_28, outdir, 'C21_28')
-    create_plots(C35, outdir, 'C35')
+        # create and store plots on disk
+        create_plots(C21_28, outdir, 'C21_28')
+        create_plots(C35, outdir, 'C35')
+    except Exception as e:
+        LOGGER.exception("During creation of statistics on test set results")
     return
 
 # For cluster mode, runable as toplevel script

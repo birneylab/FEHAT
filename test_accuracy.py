@@ -43,7 +43,7 @@ dir_list = io_operations.detect_experiment_directories(args.indir)
 print("Running multifolder mode. Limited console feedback, check logfiles for process status")
 args_copy = copy.deepcopy(args)
 run_multifolder(args_copy, dir_list)
-, 
+
 # arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
 # arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
 # cmd_line_arguments = sum(arguments_variable, arguments_bool)
@@ -64,12 +64,12 @@ shutil.copy(algorithm_file, args.outdir)
 print(args.indir)
 path_ground_truths = [f for f in glob2.glob(args.indir + '*.csv')][0]
 indir = args.outdir
-outdir = os.path.join(args.outdir, "statistics/")
+outdir = args.outdir
 
 # Need to split off, as in cluster mode p.wait() won't halt until the bsub job finished.
 if args.cluster:
     LOGGER.info("Statistics will be run when analysis finished.")
-    bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended(HRConsolidated)', '-M1000', '-R', 'rusage[mem=1000]']
+    bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended("HRConsolidated")', '-M1000', '-R', 'rusage[mem=1000]']
 
     if args.email == False:
         bsub_cmd += ['-o', '/dev/null']
