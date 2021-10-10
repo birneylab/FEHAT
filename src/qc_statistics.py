@@ -54,6 +54,13 @@ def draw_classification_rate(dataframe, axes):
     axes.legend(patches, labels, loc="best")
     axes.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
+    LOGGER.info("--------- Classification Rate ---------")
+    LOGGER.info("Total               : " + str(nr_total))
+    LOGGER.info("No ground truth data: " + str(nr_no_ground_truth))
+    LOGGER.info("Not classified      : " + str(nr_couldnt_classify))
+    LOGGER.info("Classified          : " + str(nr_classified))
+    LOGGER.info("False Positives     : " + str(nr_false_positives))
+    LOGGER.info("True Negatives      : " + str(nr_true_negatives))
     return axes
 
 def draw_accuracy(dataframe, ax_line, ax_scatter):
@@ -86,6 +93,13 @@ def draw_accuracy(dataframe, ax_line, ax_scatter):
     ax_line.set(ylim=(0, 1), xlim=(0,100), yticks=[x/10.0 for x in range(0, 11)], xticks=list(range(0, 110, 10)))
     ax_line.grid()
 
+    LOGGER.info("-------------- Accuracy ---------------")
+    intervals = [2, 5, 10, 20, 30, 50, 75, 100]
+    for x in intervals:
+        LOGGER.info("Up to " + str(x).ljust(3-len(str(x))) + ": " + str(y[x-1]))
+
+    LOGGER.info("")
+    
     ###### SCATTER PLOT
     x = dataframe_classified['Heartrate (BPM)'].tolist()
     y = dataframe_classified['ground truth'].tolist()
@@ -102,6 +116,8 @@ def draw_accuracy(dataframe, ax_line, ax_scatter):
     ax_scatter.set(xlabel="Algorithm (BPM)", ylabel="Ground truth (BPM)", xlim=(0, max_value), ylim=(0, max_value) )
     ax_scatter.set_aspect('equal')
     ax_scatter.grid()
+
+    LOGGER.info("R2-Value: " + str(r2) + "\n")
 
     return ax_line, ax_scatter
 
@@ -168,11 +184,14 @@ def main(indir, outdir, path_ground_truths):
         C35 = output_df[output_df['DATASET'].str.contains("35C")]
 
         # create and store plots and csv files on disk
+        LOGGER.info("")
         if not C21_28.empty:
+            LOGGER.info("### 21C and 28C data ###")
             csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
             create_plots(C21_28, outdir, 'C21_28')
 
         if not C35.empty:
+            LOGGER.info("####### 35C data #######")
             csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
             create_plots(C35, outdir, 'C35')
 

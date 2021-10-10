@@ -343,37 +343,14 @@ def resizeFrames(frames, scale=50):
     return(resized_frames)
 
 # ## Function normVideo(frames)
-# Normalise across frames to harmonise intensities (& possibly remove flickering)
+# Normalise across frames to harmonise intensities
 # TODO: Streching should be done from the bottom as well.
 # TODO: Also, a single outlier will worsen the normalization
-# TODO: Could be done more efficient probably.
-
-
 def normVideo(frames):
-
-    # Start at first non-empty frame
-    #   first_frame = next(x for x, frame in enumerate(frames) if frame is not None)
-    #   for i in range(first_frame, len(frames)):
-    for i in range(len(frames)):
-
-        frame = frames[i]
-
-        if (frame is not None) and (frame.size > 0):
-
-            # Convert RGB to greyscale
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # Add to frame stack
-            try:
-                filtered_frames = np.dstack((filtered_frames, frame))
-            # Initiate as array if doesn't exist
-            except UnboundLocalError:
-                filtered_frames = np.asarray(frame)
-
     norm_frames = []
 
-    max_in_frames = np.max(filtered_frames)
-    # Divide by max to try and remove flickering between frames
+    max_in_frames = np.max(frames)
+
     for i in range(len(frames)):
 
         frame = frames[i]
@@ -398,8 +375,6 @@ def normVideo(frames):
 
 # ## Function processFrame(frame)
 # Pre-process frame
-
-
 def processFrame(frame):
     """Image pre-processing and illumination normalisation"""
 
