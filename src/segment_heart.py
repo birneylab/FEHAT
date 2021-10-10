@@ -30,7 +30,6 @@ import random
 import logging
 
 
-
 from statistics import mean
 
 import numpy as np
@@ -1515,7 +1514,7 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
     #embryo_size += 100
 
     video_cropped = []
-   
+
     for index, img in enumerate(video):
         try:
             cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
@@ -1527,24 +1526,25 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 
         video_cropped.append(cut_image)
 
-        #create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
+        # create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
         if index == 0:
             if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
                 resulting_dict_from_crop[video_metadata['channel'] +
-                                            '_' + video_metadata['loop']] = [cut_image]
+                                         '_' + video_metadata['loop']] = [cut_image]
                 resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                            '_' + video_metadata['loop']] = [video_metadata['well_id']]
+                                         '_' + video_metadata['loop']] = [video_metadata['well_id']]
             else:
                 resulting_dict_from_crop[video_metadata['channel'] +
-                                            '_' + video_metadata['loop']].append(cut_image)
+                                         '_' + video_metadata['loop']].append(cut_image)
                 resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                            '_' + video_metadata['loop']].append(video_metadata['well_id']) 
+                                         '_' + video_metadata['loop']].append(video_metadata['well_id'])
 
-       # return the cropped video array and the dictionary with data from every first cropped video updated     
+       # return the cropped video array and the dictionary with data from every first cropped video updated
     return video_cropped, resulting_dict_from_crop
 ############################################################################################################
 
 # DEPRECATED: substituted by crop_2 (above)
+
 
 def crop(video):
     LOGGER.info("Cropping video")
@@ -1648,8 +1648,10 @@ def run(video, args, video_metadata):
         total_time = (timestamp_final - timestamp0) / 1000
         # fps = int(len(sorted_times) / round(total_time))
         fps = len(sorted_times) / total_time
+        LOGGER.info("fps detected: " + str(fps))
     else:
         fps = args['fps']
+        LOGGER.info("fps informed: " + str(fps))
 
     # Remove duplicate time stamps,
     # same frame can have been saved more than once
@@ -1905,10 +1907,14 @@ def run(video, args, video_metadata):
     empty_frames = [i for i, x in enumerate(na_values) if x]
 
     ##############################################
-    # TODO: if fps is given, calculate differently
-    frame2frame = times[-1] / len(times)  # 1 / fps
-    final_time = frame2frame * len(times)
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
+    # if fps is given, calculate differently
+    if args['fps']:
+        frame2frame = 1 / fps
+        final_time = frame2frame * len(times)
+        times = np.arange(start=0, stop=final_time, step=frame2frame)
+    else:
+        times = np.asarray(times, dtype=float)
+        frame2frame = np.mean(np.diff(times))
 
     # Time domain for interpolation
     increment = frame2frame / 6
