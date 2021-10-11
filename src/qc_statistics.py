@@ -55,12 +55,12 @@ def draw_classification_rate(dataframe, axes):
     axes.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
 
     LOGGER.info("--------- Classification Rate ---------")
-    LOGGER.info("Total               : " + str(nr_total))
-    LOGGER.info("No ground truth data: " + str(nr_no_ground_truth))
-    LOGGER.info("Not classified      : " + str(nr_couldnt_classify))
-    LOGGER.info("Classified          : " + str(nr_classified))
-    LOGGER.info("False Positives     : " + str(nr_false_positives))
-    LOGGER.info("True Negatives      : " + str(nr_true_negatives))
+    LOGGER.info("Total               : " + str(round((nr_total/nr_total) * 100, 2)).rjust(6)             + "% - "+ str(nr_total))
+    LOGGER.info("No ground truth data: " + str(round((nr_no_ground_truth/nr_total) * 100, 2)).rjust(6)   + "% - "+ str(nr_no_ground_truth))
+    LOGGER.info("Classified          : " + str(round((nr_classified/nr_total) * 100, 2)).rjust(6)        + "% - "+ str(nr_classified))
+    LOGGER.info("Not classified      : " + str(round((nr_couldnt_classify/nr_total) * 100, 2)).rjust(6)  + "% - "+ str(nr_couldnt_classify))
+    LOGGER.info("False Positives     : " + str(round((nr_false_positives/nr_total) * 100, 2)).rjust(6)   + "% - "+ str(nr_false_positives))
+    LOGGER.info("True Negatives      : " + str(round((nr_true_negatives/nr_total) * 100, 2)).rjust(6)    + "% - "+ str(nr_true_negatives))
     return axes
 
 def draw_accuracy(dataframe, ax_line, ax_scatter):
