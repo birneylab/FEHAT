@@ -198,7 +198,7 @@ def main(args):
                     jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
                     bsub_cmd = ['bsub', '-J', jobname,
-                                '-M20000', '-R', 'rusage[mem=8000]']
+                                '-M40000', '-R', 'rusage[mem=16000]']
 
                     if args.email == False:
                         if args.debug:

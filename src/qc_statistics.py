@@ -84,7 +84,7 @@ def draw_accuracy(dataframe, ax_line, ax_scatter):
     differences = (dataframe_classified['ground truth'] - dataframe_classified['Heartrate (BPM)']).abs()
 
     y = [nr_true_negatives + differences[differences < i].count() for i in range(1,101)]
-    y = [round(i/nr_total, 2) for i in y]
+    y = [round(i/nr_total, 3) for i in y]
     x = list(range(1, 101))
 
     ax_line.plot(x,y)
@@ -131,7 +131,7 @@ def create_plots(dataframe, outdir, filename):
     # Line Plot - Accuracy within Error 
     ax2, ax3 = draw_accuracy(dataframe, ax2, ax3)
 
-    plt.savefig(os.path.join(outdir, filename + '.png'))
+    plt.savefig(os.path.join(outdir, filename + '.svg'))
     #plt.show()
     fig.clf()
 
