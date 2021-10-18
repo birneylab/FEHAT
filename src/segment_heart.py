@@ -1962,7 +1962,7 @@ def run(video, args, video_metadata):
             LOGGER.info("No bpm detected. Trying slowmode")
 
     # Run in slow mode, Fourier on every pixel
-    if args['slowmode'] or not bpm:
+    if args['slowmode']: #or not bpm:
         LOGGER.info("Running in slow mode")
         norm_frames_grey = greyFrames(norm_frames, stop_frame)
 
