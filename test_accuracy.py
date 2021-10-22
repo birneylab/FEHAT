@@ -44,17 +44,6 @@ print("Running multifolder mode. Limited console feedback, check logfiles for pr
 args_copy = copy.deepcopy(args)
 run_multifolder(args_copy, dir_list)
 
-# arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
-# arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
-# cmd_line_arguments = sum(arguments_variable, arguments_bool)
-
-# LOGGER.info("Running algorithm on datasets...")
-# main_file = os.path.join(repo_path, "medaka_bpm.py")
-# python_cmd = [sys.executable, main_file] + cmd_line_arguments
-# p = subprocess.Popen(python_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-# p.wait()
-
 # copy algorithm file
 repo_path = os.path.dirname(os.path.abspath(__file__))
 algorithm_file = os.path.join(repo_path, "src/", "segment_heart.py")
@@ -66,7 +55,6 @@ path_ground_truths = [f for f in glob2.glob(args.indir + '*.csv')][0]
 indir = args.outdir
 outdir = args.outdir
 
-# Need to split off, as in cluster mode p.wait() won't halt until the bsub job finished.
 if args.cluster:
     LOGGER.info("Statistics will be run when analysis finished.")
     bsub_cmd = ['bsub', '-J', 'HR_Acc_Test', '-w', 'ended(HRConsolidate-*)', '-M1000', '-R', 'rusage[mem=1000]']

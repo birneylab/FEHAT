@@ -33,8 +33,6 @@ def config_logger(logfile_path, logfile_name="medaka_outdir.log", in_debug_mode=
                         ])
 
 # TODO write extended help messages, store as string and pass to add_argument() help parameter
-
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Automated heart rate analysis of Medaka embryo videos')
@@ -84,7 +82,7 @@ def parse_arguments():
     parser.set_defaults(crop=False, only_crop=False, crop_and_save=False,
                         slowmode=False, cluster=False, email=False, debug=False)
     args = parser.parse_args()
-
+        
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
     if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
         args.indir = os.path.dirname(os.path.normpath(args.indir))
@@ -97,8 +95,6 @@ def parse_arguments():
     return args
 
 # Processing, done after the logger in the main file has been set up
-
-
 def process_arguments(args):
     will_crop = (args.only_crop or args.crop_and_save or args.crop)
 

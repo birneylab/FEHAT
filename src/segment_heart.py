@@ -1785,6 +1785,7 @@ def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
             # Create vector of the signal within the region of the heart
             # Flatten array (matrix) into a vector
             heart_values = np.ndarray.flatten(frame)
+
             # Remove zero elements
             heart_values = heart_values[np.nonzero(heart_values)]
 
@@ -1807,6 +1808,11 @@ def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
     # Time domain for interpolation
     increment = frame2frame_sec / 6
     td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
+
+    # interpolate_signal will throw error if nan values not indexed in empty_frames
+    nan_indices = np.argwhere(np.isnan(y))
+    nan_indices = nan_indices.flatten()
+    empty_frames = np.union1d(nan_indices, empty_frames).tolist()
 
     times_final, y_final, cs = interpolate_signal(times, y, empty_frames)
     meanY = np.mean(cs(td))
@@ -1897,9 +1903,15 @@ def run(video, args, video_metadata):
     masked_frames = []
     empty_frames = []
     for i, frame in enumerate(embryo):
-
         if frame is not None:
             masked_data = cv2.bitwise_and(frame, frame, mask=mask)
+
+            # Especially fluorescend recordings may get zeroed 
+            if not np.any(masked_data):
+                masked_frame = None
+                masked_grey = None
+                empty_frames.append(i)
+
             # TODO: Suspected source of errors. Check and inspect this for frames after the first.
             # embryo gets added 50 in greenchannel in HROI()->rolling_diff()->maskFrame() function
             masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)
@@ -1951,6 +1963,9 @@ def run(video, args, video_metadata):
     final_time = frame2frame * nr_of_frames
     times = np.arange(start=0, stop=final_time, step=frame2frame)
 
+    ################################################################################ Draw bpm-trace
+    bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
     bpm = None
@@ -1968,8 +1983,6 @@ def run(video, args, video_metadata):
 
         bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
-    ################################################################################ Draw bpm-trace
-    bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
 
     plt.close('all') # fixed memory leak
     return bpm

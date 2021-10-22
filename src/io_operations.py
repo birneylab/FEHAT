@@ -120,8 +120,6 @@ def extract_timestamps(sorted_frame_paths):
 
 # Get metadata about the directory that is read in
 # Number of videos and channels and loops present.
-
-
 def extract_data(indir):
     # -A001--PO01--LO001--CO1--SL001--PX32500--PW0070--IN0020--TM280--X014600--Y011401--Z214683--T0000000000--WE00001.tif
     LOGGER.info("### Extracting data from image names ###")
@@ -147,14 +145,11 @@ def extract_data(indir):
     return nr_of_videos, channels, loops
 
 # From Tim-script
-
-
 def frameIdx(path):
     idx = path.split('-SL')[-1]
     idx = idx.split('-')[0]
     idx = int(idx)
     return idx
-
 
 def well_video_exists(indir, channel, loop, well_id):
     all_frames = glob2.glob(indir + '*.tif') + glob2.glob(indir + '*.tiff')
@@ -169,8 +164,6 @@ def well_video_exists(indir, channel, loop, well_id):
 # Results:
 # Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 # TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
-
-
 def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
     outfile_name = "results_" + experiment_id + ".csv"

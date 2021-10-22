@@ -30,8 +30,6 @@ LOGGER = logging.getLogger(__name__)
 
 
 ################################## ALGORITHM ##################################
-
-
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
     LOGGER.info("Analysing video - "
                 + "Channel: " + str(video_metadata['channel'])
@@ -147,6 +145,8 @@ def main(args):
     arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
     setup.config_logger(
         args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
+
+    LOGGER.info("Program started with the following arguments: " + str(sys.argv[1:]))
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
