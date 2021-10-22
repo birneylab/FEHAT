@@ -157,3 +157,38 @@ If single server mode is used, the script will read one well at a time.
 Reading a whole 96-well plate can take a few of hours.
 
 Loading the images into memory is a major bottleneck at the moment.
+
+# Benchmarking algorithm performance:
+To assess accuracy and classification rate of the algorithm, test_accuracy.py can be used.
+
+It takes the same arguments as an input. The input directory should contain several folders with data to test upon. 
+In addition, next to the folders, a ground truth file called "ground_truths.csv" hast to be placed.
+
+Example folder structure:
+
+	.../input-directory/
+			├── Experiment-folder 1/
+			|		├── frame.tiff
+			|		├── frame.tiff
+			|		└── [...]
+			|
+			├── Experiment-folder 2/
+			|		├── frame.tiff
+			|		├── frame.tiff
+			|		└── [...]
+			|
+			└── ground_truths.csv
+
+The ground truth file has to follow the following format. 
+Matching is performed over all fields.
+"groundtruth" field will be used to compare with BPM in the respective result csv files.
+
+	| DATASET      			| Index			|	WellID		|	Loop		|	Channel	|	|	ground truth	|
+
+	| ----------- 			| ----------- 	| ----------- 	| ----------- 	| ----------- 	| ------------ 		|
+	| Experiment-folder 1   | 1       		| WE0001		| LO001			| CO6			| 104				|
+	| Experiment-folder 1   | 2        		| WE0002		| LO001			| CO6			| 83				|
+	| ...					| ...			| ...			| ...			|  ...			| ...				|
+	| Experiment-folder 2   | 1        		| WE0001		| LO001			| CO6			| NA				|
+	| Experiment-folder 2   | 2        		| WE0002		| LO001			| CO6			| 110				|
+	| ...					| ...			| ...			| ...			|  ...			| ...				|

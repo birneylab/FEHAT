@@ -26,3 +26,8 @@ Date: June 23, 2021
 - Cross platform support through python by removing dependencies with .sh files
 - Providing the loops as arguments is no longer a necessity
 - Noticable increase in analysis speed.
+
+Date: October 22, 2021
+
+- Added testing capeability for consistent benchmark analysis
+- Split the run() function in segment_heart.py into subfunction for easier algorithm refinement
