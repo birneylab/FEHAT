@@ -1361,9 +1361,6 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                     peaks, _ = find_peaks(squared_list, prominence=(0.05))
 
                 x_values = [xs[i] for i in peaks]
-                print(x_values)
-                for z in x_values:
-                    print(z * 60)
                 highest_value = max(x_values)
                 x_list = xs.tolist()
                 index_for_plotting = x_list.index(highest_value)
@@ -1540,7 +1537,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1823,7 +1820,6 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     # Signal per pixel
     pixel_signals = PixelSignal(masked_greys)
 
-    # print('not slow')
     # Perform Fourier Transform on each pixel in segmented area
     out_fourier = os.path.join(out_dir, "pixel_fourier.png")
     fig, ax = plt.subplots(figsize=(10, 7))
@@ -1840,7 +1836,7 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     out_kde = os.path.join(out_dir, "pixel_rate.png")
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
     ax, bpm_fourier = PixelFreqs(
-        highest_freqs, args['average'], peak_filter=True)
+        highest_freqs, args['average'], peak_filter=True, slow_mode=False)
     plt.savefig(out_kde)
     plt.close()
 
@@ -1867,7 +1863,7 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
     out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
     fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
     ax2, bpm_fourier = PixelFreqs(
-        highest_freqs2, args['average'], peak_filter=False)
+        highest_freqs2, args['average'], peak_filter=False, slow_mode=True)
     plt.savefig(out_kde2)
     plt.close()
 
