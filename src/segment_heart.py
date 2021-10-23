@@ -30,7 +30,6 @@ import random
 import logging
 
 
-
 from statistics import mean
 
 import numpy as np
@@ -346,6 +345,8 @@ def resizeFrames(frames, scale=50):
 # Normalise across frames to harmonise intensities
 # TODO: Streching should be done from the bottom as well.
 # TODO: Also, a single outlier will worsen the normalization
+
+
 def normVideo(frames):
     norm_frames = []
 
@@ -375,6 +376,8 @@ def normVideo(frames):
 
 # ## Function processFrame(frame)
 # Pre-process frame
+
+
 def processFrame(frame):
     """Image pre-processing and illumination normalisation"""
 
@@ -935,7 +938,7 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     psd = psd[freqs > 0]
     freqs = freqs[freqs > 0]
 
-    #TODO: This limits from 30 to 300bpm, which should not be done.
+    # TODO: This limits from 30 to 300bpm, which should not be done.
     # Calculate ylims for xrange 0.5 to 5 Hz
     heart_indices = np.where(np.logical_and(
         freqs >= heart_range[0], freqs <= heart_range[1]))[0]
@@ -1142,7 +1145,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
 
             # Index of largest spectrum in heart range
             index_max = np.argmax(heart_psd)
-            
+
             # Corresponding frequency
             highest_freq = heart_freqs[index_max]
             highest_freqs.append(highest_freq)
@@ -1202,7 +1205,7 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=F
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
 
 
-def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True):
+def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True, slow_mode=False):
 
     sns.set_style('white')
     ax = plt.subplot()
@@ -1268,72 +1271,159 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         # prominence filters out 'flat' KDEs,
         # these result from a noisy signal
         if peak_filter is True:
+            #squared_list = np.sqrt(ys)
+            #peaks, _ = find_peaks(squared_list, prominence=(0.05))
             peaks, _ = find_peaks(ys, prominence=0.5)
+            print("filter peak")
         else:
             peaks, _ = find_peaks(ys, prominence=0.1)
 
-        if len(peaks) == 1:
-            LOGGER.info("Found 1 peak")
-            bpm = max_x * 60
-            bpm = np.around(bpm, decimals=2)
-
-            # Prepare label for plot
-            bpm_label = str(int(bpm)) + " bpm"
-
-            # Label plot with bpm
-            _ = ax.plot(max_x, max_y, 'bo', ms=10)
-            _ = ax.annotate(bpm_label, xy=(max_x, max_y), xytext=(
-                max_x + (max_x * 0.1), max_y + (max_y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-        elif len(peaks) > 1:
-            # verify if user has inserted a average argument -a. 0 means No parameters inserted
-            if not average_values:
-                LOGGER.info("found " + str(len(peaks)) +
-                            " peak(s), selected the highest one")
-                LOGGER.info(
-                    "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+        if slow_mode == False:
+            if len(peaks) == 1:
+                LOGGER.info("Found 1 peak")
                 bpm = max_x * 60
                 bpm = np.around(bpm, decimals=2)
 
+                # Prepare label for plot
                 bpm_label = str(int(bpm)) + " bpm"
+
                 # Label plot with bpm
                 _ = ax.plot(max_x, max_y, 'bo', ms=10)
                 _ = ax.annotate(bpm_label, xy=(max_x, max_y), xytext=(
                     max_x + (max_x * 0.1), max_y + (max_y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
-            else:
-                # the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average
+            elif len(peaks) > 1:
+                # verify if user has inserted a average argument -a. 0 means No parameters inserted
+                if not average_values:
+                    LOGGER.info("found " + str(len(peaks)) +
+                                " peak(s), selected the one which represents the lower BPM")
+                    LOGGER.info(
+                        "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
 
-                # list_from_array = xs.tolist()
-                # list_from_array_y_index = [x for x in range(len(ys)) if ys[x] in list_from_array_y]
+                    x_values = [xs[i] for i in peaks]
+                    lowest_value = min(x_values)
+                    x_list = xs.tolist()
+                    index_for_plotting = x_list.index(lowest_value)
+                    bpm = lowest_value * 60
+                    bpm = np.around(bpm, decimals=2)
+                    bpm_label = str(int(bpm)) + " bpm"
+
+                    # Label plot with bpm
+                    _ = ax.plot(xs[index_for_plotting],
+                                ys[index_for_plotting], 'bo', ms=10)
+                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
+                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+
+                else:
+                    # the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average
+
+                    # list_from_array = xs.tolist()
+                    # list_from_array_y_index = [x for x in range(len(ys)) if ys[x] in list_from_array_y]
+
+                    x_values = [xs[i] for i in peaks]
+
+                    def absolute_difference_function(list_value): return abs(
+                        list_value - average_values/60)
+                    closest_value = min(
+                        x_values, key=absolute_difference_function)
+
+                    x_list = xs.tolist()
+
+                    index_for_plotting = x_list.index(closest_value)
+
+                    bpm = closest_value * 60
+                    bpm = np.around(bpm, decimals=2)
+
+                    bpm_label = str(int(bpm)) + " bpm"
+                    # Label plot with bpm
+                    _ = ax.plot(xs[index_for_plotting],
+                                ys[index_for_plotting], 'bo', ms=10)
+                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
+                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+
+                    LOGGER.info("found " + str(len(peaks)) + " peak(s), and selected the closest to " +
+                                str(average_values) + ', as requested in the argument -a')
+
+            else:
+                bpm = None
+                LOGGER.info('No peaks detected')
+
+        else:  # slow mode is True
+            if len(peaks) == 1:
+                LOGGER.info("Found 1 peak in slow mode")
+                average_peaks = statistics.mean(ys)
+                max_peak = np.argmax(ys)
+
+                if max_peak > (average_peaks*2):
+                    LOGGER.info(
+                        "The peak is very higher than the average values, trying to detected hidden peaks by square rooting the values")
+                    squared_list = np.sqrt(ys)
+                    peaks, _ = find_peaks(squared_list, prominence=(0.05))
 
                 x_values = [xs[i] for i in peaks]
-
-                def absolute_difference_function(list_value): return abs(
-                    list_value - average_values/60)
-                closest_value = min(x_values, key=absolute_difference_function)
-
+                print(x_values)
+                for z in x_values:
+                    print(z * 60)
+                highest_value = max(x_values)
                 x_list = xs.tolist()
-
-                index_for_plotting = x_list.index(closest_value)
-
-                bpm = closest_value * 60
+                index_for_plotting = x_list.index(highest_value)
+                bpm = xs[index_for_plotting] * 60
                 bpm = np.around(bpm, decimals=2)
 
+                # plot with the correct peak index
                 bpm_label = str(int(bpm)) + " bpm"
-                # Label plot with bpm
                 _ = ax.plot(xs[index_for_plotting],
                             ys[index_for_plotting], 'bo', ms=10)
                 _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
                     xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
-                LOGGER.info("found " + str(len(peaks)) + " peak(s), and selected the closest to " +
-                            str(average_values) + ', as requested in the argument -a')
+            elif len(peaks) == 2:
+                LOGGER.info("Found 2 peaks in slow mode")
+                x_values = [xs[i] for i in peaks]
+                if x_values[0] < (x_values[1]/3):
+                    bpm = x_values[1] * 60
+                    bpm = np.around(bpm, decimals=2)
+                    x_list = xs.tolist()
+                    index_for_plotting = x_list.index(x_values[1])
+                else:
+                    bpm = x_values[0] * 60
+                    bpm = np.around(bpm, decimals=2)
+                    x_list = xs.tolist()
+                    index_for_plotting = x_list.index(x_values[0])
 
-        else:
-            bpm = None
-            LOGGER.info('No peaks detected, as prominence is < 0.1')
-            # print('ERROR code 3')
+                # plot with the correct peak index
+                bpm_label = str(int(bpm)) + " bpm"
+                _ = ax.plot(xs[index_for_plotting],
+                            ys[index_for_plotting], 'bo', ms=10)
+                _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
+                    xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+
+            else:  # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
+                LOGGER.info("Found more than 2 peaks in slow mode")
+                averaged_peak = statistics.mean(peaks)
+                x_values = [xs[i] for i in peaks]
+                def absolute_difference_function(list_value): return abs(
+                    list_value - averaged_peak)
+                farthest_value = max(
+                    x_values, key=absolute_difference_function)
+                x_list = xs.tolist()
+                index_for_deletion = x_list.index(farthest_value)
+                del peaks[index_for_deletion]
+
+                # now, with a correct peak list, calculate again using the peak that represents the lower bpm
+                x_values = [xs[i] for i in peaks]
+                lowest_value = min(x_values)
+                x_list = xs.tolist()
+                index_for_plotting = x_list.index(lowest_value)
+                bpm = lowest_value * 60
+                bpm = np.around(bpm, decimals=2)
+
+                # Label plot with peak representing the lowest bpm
+                bpm_label = str(int(bpm)) + " bpm"
+                _ = ax.plot(xs[index_for_plotting],
+                            ys[index_for_plotting], 'bo', ms=10)
+                _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
+                    xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
     return(ax, bpm)
 
@@ -1450,7 +1540,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1492,7 +1582,7 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
     #embryo_size += 100
 
     video_cropped = []
-   
+
     for index, img in enumerate(video):
         try:
             cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
@@ -1504,24 +1594,25 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 
         video_cropped.append(cut_image)
 
-        #create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
+        # create a dictionary with all first image from every well. This dictionary will be persistent across the functions calls
         if index == 0:
             if video_metadata['channel'] + '_' + video_metadata['loop'] not in resulting_dict_from_crop:
                 resulting_dict_from_crop[video_metadata['channel'] +
-                                            '_' + video_metadata['loop']] = [cut_image]
+                                         '_' + video_metadata['loop']] = [cut_image]
                 resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                            '_' + video_metadata['loop']] = [video_metadata['well_id']]
+                                         '_' + video_metadata['loop']] = [video_metadata['well_id']]
             else:
                 resulting_dict_from_crop[video_metadata['channel'] +
-                                            '_' + video_metadata['loop']].append(cut_image)
+                                         '_' + video_metadata['loop']].append(cut_image)
                 resulting_dict_from_crop['positions_' + video_metadata['channel'] +
-                                            '_' + video_metadata['loop']].append(video_metadata['well_id']) 
+                                         '_' + video_metadata['loop']].append(video_metadata['well_id'])
 
-       # return the cropped video array and the dictionary with data from every first cropped video updated     
+       # return the cropped video array and the dictionary with data from every first cropped video updated
     return video_cropped, resulting_dict_from_crop
 ############################################################################################################
 
 # DEPRECATED: substituted by crop_2 (above)
+
 
 def crop(video):
     LOGGER.info("Cropping video")
@@ -1587,6 +1678,7 @@ def crop(video):
 
     return video_cropped
 
+
 def save_video(video, fps, outdir, filename):
     vid_frames = [frame for frame in video if frame is not None]
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -1604,6 +1696,8 @@ def save_video(video, fps, outdir, filename):
     out.release()
 
 # Detect heart region of interest (HROI)
+
+
 def HROI(sorted_frames, norm_frames, hroi_ax):
     # Only process if less than 5% frames are empty
     if sum(frame is None for frame in sorted_frames) > len(sorted_frames) * 0.05:
@@ -1712,7 +1806,8 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
                               alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
 
     # Generate figure showing with potential heart region highlighted
-    hroi_ax = heartQC_plot(hroi_ax, f0_grey, heart_roi, heart_roi_clean, overlay)
+    hroi_ax = heartQC_plot(hroi_ax, f0_grey, heart_roi,
+                           heart_roi_clean, overlay)
 
     # Check if heart region was detected, i.e. if sum(masked) > 0
     # and limit number of possible heart regions to 3 or fewer
@@ -1732,7 +1827,8 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     # Perform Fourier Transform on each pixel in segmented area
     out_fourier = os.path.join(out_dir, "pixel_fourier.png")
     fig, ax = plt.subplots(figsize=(10, 7))
-    ax, highest_freqs = PixelFourier(pixel_signals, times, empty_frames, frame2frame_sec, args['threads'], pixel_num=1000, plot=True)
+    ax, highest_freqs = PixelFourier(
+        pixel_signals, times, empty_frames, frame2frame_sec, args['threads'], pixel_num=1000, plot=True)
     plt.savefig(out_fourier)
 
     # plt.imshow(ax)
@@ -1743,13 +1839,16 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     # Plot the density of fourier transform global maxima across pixels
     out_kde = os.path.join(out_dir, "pixel_rate.png")
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-    ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter=True)
+    ax, bpm_fourier = PixelFreqs(
+        highest_freqs, args['average'], peak_filter=True)
     plt.savefig(out_kde)
     plt.close()
 
     return bpm_fourier
 
 # Run in slow mode, Fourier on every pixel
+
+
 def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args, out_dir):
 
     # Resize frames to make faster
@@ -1761,16 +1860,19 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     # Perform Fourier Transform on every pixel
     # NOTE: plot=True too expensive and won't finish at the moment
-    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
+    highest_freqs2 = PixelFourier(
+        all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
 
     # Plot the density of fourier transform global maxima across pixels
     out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
     fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
-    ax2, bpm_fourier = PixelFreqs(highest_freqs2, args['average'], peak_filter=False)
+    ax2, bpm_fourier = PixelFreqs(
+        highest_freqs2, args['average'], peak_filter=False)
     plt.savefig(out_kde2)
     plt.close()
 
     return bpm_fourier
+
 
 def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
 
@@ -1836,9 +1938,11 @@ def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
 
 # run the algorithm on a well video
 # TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
+
+
 def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
-    ################################################################################ Create Outdir for pictures
+    # Create Outdir for pictures
     # Add well position to output directory path
     out_dir = os.path.join(args['outdir'], video_metadata['channel'],
                            video_metadata['loop'] + '-' + video_metadata['well_id'])
@@ -1846,8 +1950,8 @@ def run(video, args, video_metadata):
     os.makedirs(out_dir, exist_ok=True)
     sorted_frames = video
 
-    ################################################################################ timestamp-frame dictionary
-    ################################################################################ Remove duplicated Frames
+    # timestamp-frame dictionary
+    # Remove duplicated Frames
     frame_dict = {}
     sorted_times = video_metadata['timestamps']
 
@@ -1862,7 +1966,7 @@ def run(video, args, video_metadata):
     sorted_times = list(OrderedDict.fromkeys(sorted_times))
     sorted_frames = [frame_dict[time] for time in sorted_times]
 
-    ################################################################################ Determine FPS
+    # Determine FPS
     # Determine frame rate from time-stamps if unspecified
     if not args['fps']:
         # total time acquiring frames in seconds
@@ -1874,7 +1978,7 @@ def run(video, args, video_metadata):
     else:
         fps = args['fps']
 
-    ################################################################################ Normalize Frames
+    # Normalize Frames
     LOGGER.info("Normalizing frames")
     # Normalize frames
     norm_frames = normVideo(sorted_frames)
@@ -1882,7 +1986,7 @@ def run(video, args, video_metadata):
     LOGGER.info("Writing video")
     save_video(norm_frames, fps, out_dir, "embryo.mp4")
 
-    ################################################################################ Detect HROI
+    # Detect HROI
     # needs: sorted_frames
     LOGGER.info("Detecting HROI")
 
@@ -1891,22 +1995,23 @@ def run(video, args, video_metadata):
     fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
 
     # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
-    embryo, mask, hroi_ax, stop_frame = HROI(sorted_frames, norm_frames, hroi_ax)
+    embryo, mask, hroi_ax, stop_frame = HROI(
+        sorted_frames, norm_frames, hroi_ax)
 
     # Save Figure
     plt.savefig(out_fig, bbox_inches='tight')
     plt.show()
     plt.close()
 
-    ################################################################################ Mask frames
-    masked_greys= []
+    # Mask frames
+    masked_greys = []
     masked_frames = []
     empty_frames = []
     for i, frame in enumerate(embryo):
         if frame is not None:
             masked_data = cv2.bitwise_and(frame, frame, mask=mask)
 
-            # Especially fluorescend recordings may get zeroed 
+            # Especially fluorescend recordings may get zeroed
             if not np.any(masked_data):
                 masked_frame = None
                 masked_grey = None
@@ -1951,11 +2056,12 @@ def run(video, args, video_metadata):
 
     save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
-    ################################################################################  Get frame timestamps, from 0, in seconds for fourier transform
+    # Get frame timestamps, from 0, in seconds for fourier transform
     frame2frame = 0
     nr_of_frames = len(masked_greys)
     if not args['fps']:
-        timespan = (int(sorted_times[nr_of_frames-1]) - int(sorted_times[0])) / 1000
+        timespan = (int(sorted_times[nr_of_frames-1]
+                        ) - int(sorted_times[0])) / 1000
         frame2frame = timespan / nr_of_frames  # 1 / fps
     else:
         frame2frame = 1/args['fps']
@@ -1963,26 +2069,27 @@ def run(video, args, video_metadata):
     final_time = frame2frame * nr_of_frames
     times = np.arange(start=0, stop=final_time, step=frame2frame)
 
-    ################################################################################ Draw bpm-trace
+    # Draw bpm-trace
     bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
 
-    ################################################################################ Fourier Frequency estimation
+    # Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
     bpm = None
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
-        bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm(masked_greys, times, empty_frames,
+                          frame2frame, args, out_dir)
 
         if not bpm:
             LOGGER.info("No bpm detected. Trying slowmode")
 
     # Run in slow mode, Fourier on every pixel
-    if args['slowmode']: #or not bpm:
+    if args['slowmode']:  # or not bpm:
         LOGGER.info("Running in slow mode")
         norm_frames_grey = greyFrames(norm_frames, stop_frame)
 
-        bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm_slowmode(
+            norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
-
-    plt.close('all') # fixed memory leak
+    plt.close('all')  # fixed memory leak
     return bpm
