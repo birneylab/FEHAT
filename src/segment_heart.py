@@ -1389,9 +1389,16 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
                 if max_peak > (average_peaks*2):
                     LOGGER.info(
-                        "The peak is very higher than the average values, trying to detected hidden peaks by square rooting the values")
+                        "The peak is very higher than the average values and can be abnormal. We will try to detected hidden peaks by square rooting the values")
                     squared_list = np.sqrt(ys)
                     peaks, _ = find_peaks(squared_list, prominence=(0.05))
+
+                    if len(peaks) > 1:
+                        LOGGER.info(
+                            "Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
+                    else:
+                        LOGGER.info(
+                            "No aditional peak detected, using the unique peak to detect bpm")
 
                 x_values = [xs[i] for i in peaks]
                 highest_value = max(x_values)
@@ -1570,7 +1577,8 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
+                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
