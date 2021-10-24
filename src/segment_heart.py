@@ -287,6 +287,13 @@ def detectEmbryo(frame):
 
 def greyFrames(frames, stop_frame=0):
 
+    for frame in frames:
+        if frame is not None:
+            lines = frame.shape[0]
+            collums = frame.shape[1]
+
+            array_replacement = np.zeros(
+                shape=[lines, collums], dtype=np.uint8)
     grey_frames = []
     frame_number = 0
     for frame in frames:
@@ -298,7 +305,7 @@ def greyFrames(frames, stop_frame=0):
             grey_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         else:
-            grey_frame = frame
+            grey_frame = array_replacement
 
         grey_frames.append(grey_frame)
         frame_number += 1
@@ -348,10 +355,30 @@ def resizeFrames(frames, scale=50):
 
 
 def normVideo(frames):
+
+    # Start at first non-empty frame
+    #   first_frame = next(x for x, frame in enumerate(frames) if frame is not None)
+    #   for i in range(first_frame, len(frames)):
+    for i in range(len(frames)):
+
+        frame = frames[i]
+
+        if (frame is not None) and (frame.size > 0):
+
+            # Convert RGB to greyscale
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # Add to frame stack
+            try:
+                filtered_frames = np.dstack((filtered_frames, frame))
+            # Initiate as array if doesn't exist
+            except UnboundLocalError:
+                filtered_frames = np.asarray(frame)
+
     norm_frames = []
 
-    max_in_frames = np.max(frames)
-
+    max_in_frames = np.max(filtered_frames)
+    # Divide by max to try and remove flickering between frames
     for i in range(len(frames)):
 
         frame = frames[i]
@@ -571,6 +598,9 @@ def rolling_diff(index, frames, win_size=5, direction="forward", min_area=300):
                 else:
                     movement = False
 
+            else:
+                movement = False
+
     # Filter mask by area
     # Opening to remove noise
     # thresh = cv2.morphologyEx(abs_diffs, cv2.MORPH_OPEN, kernel)
@@ -772,7 +802,6 @@ def new2_qc_mask_contours(heart_roi):
 
 
 def iqrFilter(times, signal):
-
     # Calculate interquartile range from signal
     q3, q1 = np.percentile(signal, [75, 25])
     iqr = q3 - q1
@@ -1040,6 +1069,7 @@ def PixelSignal(grey_frames):
     """
         Extract individual pixel signal across all frames
     """
+
   # pixel_num = 0
     # pixel_signals = {}
 
@@ -1066,7 +1096,9 @@ def PixelSignal(grey_frames):
     #         pixel_num += 1
 
     # #TODO Remove dictionary backwards compatibility, as it's just unneccassarily slow
+
     as_array = np.asarray(grey_frames)
+
     pixel_signals = np.transpose(
         as_array, axes=[1, 2, 0]).reshape(-1, as_array.shape[0])
     pixel_signals = dict(enumerate(pixel_signals.tolist()))
@@ -1129,6 +1161,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
             times_filtered = np.delete(times, empty_frames)
 
             # Cubic Spline Interpolation
+
             cs = CubicSpline(times_filtered, signal_filtered)
             norm_cs = detrendSignal(cs, td, window_size=27)   # 27
 
@@ -1170,6 +1203,7 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=F
     pixel_signal = pixel_signals[pixel]
 
     # Remove values from empty frames
+
     signal_filtered = np.delete(pixel_signal, empty_frames)
     times_filtered = np.delete(times, empty_frames)
 
@@ -1274,7 +1308,6 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
             #squared_list = np.sqrt(ys)
             #peaks, _ = find_peaks(squared_list, prominence=(0.05))
             peaks, _ = find_peaks(ys, prominence=0.5)
-            print("filter peak")
         else:
             peaks, _ = find_peaks(ys, prominence=0.1)
 
@@ -1537,7 +1570,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1846,7 +1879,6 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
 
 
 def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args, out_dir):
-
     # Resize frames to make faster
     # TODO: That just results in wrong measurements, as the heart may be cut.
     norm_frames = resizeFrames(norm_frames, scale=50)
@@ -1858,7 +1890,6 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
     # NOTE: plot=True too expensive and won't finish at the moment
     highest_freqs2 = PixelFourier(
         all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
-
     # Plot the density of fourier transform global maxima across pixels
     out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
     fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
@@ -2061,27 +2092,34 @@ def run(video, args, video_metadata):
         frame2frame = timespan / nr_of_frames  # 1 / fps
     else:
         frame2frame = 1/args['fps']
-
     final_time = frame2frame * nr_of_frames
     times = np.arange(start=0, stop=final_time, step=frame2frame)
 
-    # Draw bpm-trace
+    # bellow is to correct a bad behaviour of time array lengh being bigger than the number of frames
+    # This error occurs because the fps is not always 100% acurate, then calculation of the timesteps can be 1 or more points bigger
+    while nr_of_frames < times.shape[0]:
+        times = times[:-1]
+
+        # Draw bpm-trace
     bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
 
     # Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
     bpm = None
     # Run normally, Fourier in segemented area
-    if not args['slowmode']:
+
+    try:
         bpm = fourier_bpm(masked_greys, times, empty_frames,
                           frame2frame, args, out_dir)
+    except:
+        LOGGER.info("A error occurred trying Fourier in segemented area")
 
-        if not bpm:
-            LOGGER.info("No bpm detected. Trying slowmode")
+    if not bpm:
+        LOGGER.info("No bpm detected")
 
     # Run in slow mode, Fourier on every pixel
-    if args['slowmode']:  # or not bpm:
-        LOGGER.info("Running in slow mode")
+    if args['slowmode'] and not bpm:  # or not bpm:
+        LOGGER.info("Trying in slow mode")
         norm_frames_grey = greyFrames(norm_frames, stop_frame)
 
         bpm = fourier_bpm_slowmode(
