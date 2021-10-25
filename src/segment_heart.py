@@ -285,7 +285,7 @@ def detectEmbryo(frame):
 # Convert all frames in a list into greyscale
 
 
-def greyFrames(frames, stop_frame=0):
+def greyFrames(frames, stop_frame=0):  # stop_frame is not used anymore
 
     for frame in frames:
         if frame is not None:
@@ -310,10 +310,10 @@ def greyFrames(frames, stop_frame=0):
         grey_frames.append(grey_frame)
         frame_number += 1
 
-        # if stop_frame in greater than ), it means that the embrio flipped around, then we need to skip frames beyond the frame which the embryo mopves
-        if (stop_frame > 0) and (frame_number >= stop_frame):
+        # if stop_frame in greater than 0, it means that the embryo flipped around, then we need to skip frames beyond the frame which the embryo moves
+        if (stop_frame > 0) and (frame_number >= stop_frame):   # stop_frame is not used anymore
             break
-
+    #grey_frames = grey_frames[100:]
     return(grey_frames)
 
 # ## Function resizeFrames(frames, scale = 50)
@@ -1465,8 +1465,30 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                     xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
             else:
-                LOGGER.info("no peaks detected")
-                bpm = None
+                LOGGER.info("No peaks detected, trying power over the peaks")
+                powered_list = np.power(ys, 2)
+                peaks, _ = find_peaks(powered_list)
+
+                if len(peaks) > 0:
+                    LOGGER.info(
+                        "Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
+                    x_values = [xs[i] for i in peaks]
+                    highest_value = max(x_values)
+                    x_list = xs.tolist()
+                    index_for_plotting = x_list.index(highest_value)
+                    bpm = xs[index_for_plotting] * 60
+                    bpm = np.around(bpm, decimals=2)
+
+                    # plot with the correct peak index
+                    bpm_label = str(int(bpm)) + " bpm"
+                    _ = ax.plot(xs[index_for_plotting],
+                                ys[index_for_plotting], 'bo', ms=10)
+                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
+                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+                else:
+                    LOGGER.info(
+                        "No peaks detected anyway")
+                    bpm = None
 
     return(ax, bpm)
 
@@ -1583,7 +1605,8 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
+                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1776,7 +1799,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
     j = start_frame + 1
-    stop_frame = 0
+    stop_frame = 0    # stop_frame is not used anymore
     while j < len(norm_frames):
 
         frame = norm_frames[j]
@@ -1858,6 +1881,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     if (final_mask.sum() <= 0):
         raise RuntimeError("Couldn't detect a HROI")
 
+    # stop_frame is not used anymore
     return embryo, final_mask, hroi_ax, stop_frame
 
 
@@ -1915,7 +1939,6 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
 
 def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
-
     LOGGER.info("Statistical analysis")
 
     # Coefficient of variation
@@ -1982,6 +2005,7 @@ def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
 
 def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
+    bpm = None
     # Create Outdir for pictures
     # Add well position to output directory path
     out_dir = os.path.join(args['outdir'], video_metadata['channel'],
@@ -2034,9 +2058,30 @@ def run(video, args, video_metadata):
     out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
     fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
 
+    # Get frame timestamps, from 0, in seconds for fourier transform
+    frame2frame = 0
+    nr_of_frames = len(video)
+    if not args['fps']:
+        timespan = (int(sorted_times[nr_of_frames-1]
+                        ) - int(sorted_times[0])) / 1000
+        frame2frame = timespan / nr_of_frames  # 1 / fps
+    else:
+        frame2frame = 1/args['fps']
+    final_time = frame2frame * nr_of_frames
+    times = np.arange(start=0, stop=final_time, step=frame2frame)
+
     # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
-    embryo, mask, hroi_ax, stop_frame = HROI(
-        sorted_frames, norm_frames, hroi_ax)
+    try:
+        embryo, mask, hroi_ax, stop_frame = HROI(
+            sorted_frames, norm_frames, hroi_ax)
+    except:
+        if args['slowmode'] and not bpm:  # or not bpm:
+            LOGGER.info("Trying in slow mode2")
+            norm_frames_grey = greyFrames(norm_frames, 0)
+
+            bpm = fourier_bpm_slowmode(
+                norm_frames_grey, times, [], frame2frame, args, out_dir)
+            return bpm
 
     # Save Figure
     plt.savefig(out_fig, bbox_inches='tight')
@@ -2096,29 +2141,20 @@ def run(video, args, video_metadata):
 
     save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
-    # Get frame timestamps, from 0, in seconds for fourier transform
-    frame2frame = 0
-    nr_of_frames = len(masked_greys)
-    if not args['fps']:
-        timespan = (int(sorted_times[nr_of_frames-1]
-                        ) - int(sorted_times[0])) / 1000
-        frame2frame = timespan / nr_of_frames  # 1 / fps
-    else:
-        frame2frame = 1/args['fps']
-    final_time = frame2frame * nr_of_frames
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
-
     # bellow is to correct a bad behaviour of time array lengh being bigger than the number of frames
     # This error occurs because the fps is not always 100% acurate, then calculation of the timesteps can be 1 or more points bigger
     while nr_of_frames < times.shape[0]:
         times = times[:-1]
 
-        # Draw bpm-trace
-    bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+    # Draw bpm-trace
+    try:
+        bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+    except:
+        LOGGER.info("A error occurred trying Fourier in bpm_trace function")
 
     # Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
-    bpm = None
+
     # Run normally, Fourier in segemented area
 
     try:
@@ -2132,9 +2168,9 @@ def run(video, args, video_metadata):
 
     # Run in slow mode, Fourier on every pixel
     if args['slowmode'] and not bpm:  # or not bpm:
-        LOGGER.info("Trying in slow mode")
-        norm_frames_grey = greyFrames(norm_frames, stop_frame)
-
+        LOGGER.info("Trying in slow mode1")
+        # stop_frame is not used anymore
+        norm_frames_grey = greyFrames(norm_frames, stop_frame=0)
         bpm = fourier_bpm_slowmode(
             norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
