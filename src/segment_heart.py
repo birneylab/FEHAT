@@ -285,7 +285,7 @@ def detectEmbryo(frame):
 # Convert all frames in a list into greyscale
 
 
-def greyFrames(frames, stop_frame=0):  # stop_frame is not used anymore
+def greyFrames(frames):  # stop_frame is not used anymore
 
     for frame in frames:
         if frame is not None:
@@ -310,9 +310,7 @@ def greyFrames(frames, stop_frame=0):  # stop_frame is not used anymore
         grey_frames.append(grey_frame)
         frame_number += 1
 
-        # if stop_frame in greater than 0, it means that the embryo flipped around, then we need to skip frames beyond the frame which the embryo moves
-        if (stop_frame > 0) and (frame_number >= stop_frame):   # stop_frame is not used anymore
-            break
+       
     #grey_frames = grey_frames[100:]
     return(grey_frames)
 
@@ -1799,7 +1797,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
     j = start_frame + 1
-    stop_frame = 0    # stop_frame is not used anymore
+    
     while j < len(norm_frames):
 
         frame = norm_frames[j]
@@ -1807,14 +1805,11 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
         if frame is not None:
 
             masked_frame, triangle_thresh, thresh, movement = rolling_diff(
-                j, norm_frames, win_size=2, direction="reverse", min_area=150)  # I´ve added thresh just to test
+                j, norm_frames, win_size=2, direction="reverse", min_area=150)  # I´ve added thresh just to test; "movement" is not used anymore
 
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
             # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
-            if movement == True:
-                stop_frame = j
-                break
-
+            
             heart_roi = cv2.add(heart_roi, triangle_thresh)
             embryo.append(masked_frame)
             cv2.add(thresh, blue_print)
@@ -1882,7 +1877,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
         raise RuntimeError("Couldn't detect a HROI")
 
     # stop_frame is not used anymore
-    return embryo, final_mask, hroi_ax, stop_frame
+    return embryo, final_mask, hroi_ax
 
 
 # Run normally, Fourier in segemented area
@@ -2072,7 +2067,7 @@ def run(video, args, video_metadata):
 
     # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
     try:
-        embryo, mask, hroi_ax, stop_frame = HROI(
+        embryo, mask, hroi_ax = HROI(
             sorted_frames, norm_frames, hroi_ax)
     except:
         if args['slowmode'] and not bpm:  # or not bpm:
@@ -2170,7 +2165,7 @@ def run(video, args, video_metadata):
     if args['slowmode'] and not bpm:  # or not bpm:
         LOGGER.info("Trying in slow mode1")
         # stop_frame is not used anymore
-        norm_frames_grey = greyFrames(norm_frames, stop_frame=0)
+        norm_frames_grey = greyFrames(norm_frames)
         bpm = fourier_bpm_slowmode(
             norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
