@@ -1435,24 +1435,26 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                 _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
                     xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
-            else:  # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
+            # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
+            elif len(peaks) > 2:
                 LOGGER.info("Found more than 2 peaks in slow mode")
-                averaged_peak = statistics.mean(peaks)
                 x_values = [xs[i] for i in peaks]
+                averaged_peak_values = statistics.mean(x_values)
                 def absolute_difference_function(list_value): return abs(
-                    list_value - averaged_peak)
+                    list_value - averaged_peak_values)
                 farthest_value = max(
                     x_values, key=absolute_difference_function)
-                x_list = xs.tolist()
-                index_for_deletion = x_list.index(farthest_value)
-                del peaks[index_for_deletion]
+                #x_list = xs.tolist()
+                index_for_deletion = x_values.index(farthest_value)
+                peaks = np.delete(peaks, index_for_deletion)
 
-                # now, with a correct peak list, calculate again using the peak that represents the lower bpm
-                x_values = [xs[i] for i in peaks]
-                lowest_value = min(x_values)
+                # now, with a correct peak list, calculate again using the higher peak
+                y_values = [ys[i] for i in peaks]
+                highest_value = max(y_values)
+                y_list = ys.tolist()
                 x_list = xs.tolist()
-                index_for_plotting = x_list.index(lowest_value)
-                bpm = lowest_value * 60
+                index_for_plotting = y_list.index(highest_value)
+                bpm = x_list[index_for_plotting] * 60
                 bpm = np.around(bpm, decimals=2)
 
                 # Label plot with peak representing the lowest bpm
@@ -1461,6 +1463,10 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                             ys[index_for_plotting], 'bo', ms=10)
                 _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
                     xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+
+            else:
+                LOGGER.info("no peaks detected")
+                bpm = None
 
     return(ax, bpm)
 
@@ -1577,8 +1583,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
-                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9)                         :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
