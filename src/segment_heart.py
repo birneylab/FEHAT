@@ -2037,8 +2037,11 @@ def run(video, args, video_metadata):
         total_time = (timestamp_final - timestamp0) / 1000
         # fps = int(len(sorted_times) / round(total_time))
         fps = len(sorted_times) / total_time
+        LOGGER.info("Calculated fps: " + str(round(fps, 2)))
     else:
         fps = args['fps']
+        LOGGER.info("Defined fps: " + str(round(fps, 2)))
+
 
     # Normalize Frames
     LOGGER.info("Normalizing frames")
