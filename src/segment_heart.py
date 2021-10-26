@@ -310,7 +310,6 @@ def greyFrames(frames):  # stop_frame is not used anymore
         grey_frames.append(grey_frame)
         frame_number += 1
 
-       
     #grey_frames = grey_frames[100:]
     return(grey_frames)
 
@@ -1327,15 +1326,20 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                 # verify if user has inserted a average argument -a. 0 means No parameters inserted
                 if not average_values:
                     LOGGER.info("found " + str(len(peaks)) +
-                                " peak(s), selected the one which represents the lower BPM")
+                                " peak(s), selected the one which represents the lower BPM, but above 50")
                     LOGGER.info(
                         "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
 
                     x_values = [xs[i] for i in peaks]
                     lowest_value = min(x_values)
+                    highest_value = max(x_values)
                     x_list = xs.tolist()
                     index_for_plotting = x_list.index(lowest_value)
                     bpm = lowest_value * 60
+                    # invert peaks if final bpm is lower than 50 (unreal)
+                    if bpm < 50:
+                        bpm = highest_value * 60
+                        index_for_plotting = x_list.index(highest_value)
                     bpm = np.around(bpm, decimals=2)
                     bpm_label = str(int(bpm)) + " bpm"
 
@@ -1603,8 +1607,7 @@ def embryo_detection(video):
         # clear 10% of the image' borders as some dark areas may exists
         thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
                          0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9)
-                             :thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
+        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
 
         thresh_img_final[0:thresh_img_final.shape[1],
                          0:int(thresh_img_final.shape[0]*0.1)] = 255
@@ -1797,7 +1800,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
     j = start_frame + 1
-    
+
     while j < len(norm_frames):
 
         frame = norm_frames[j]
@@ -1809,7 +1812,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
 
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
             # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
-            
+
             heart_roi = cv2.add(heart_roi, triangle_thresh)
             embryo.append(masked_frame)
             cv2.add(thresh, blue_print)
