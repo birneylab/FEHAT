@@ -1076,8 +1076,6 @@ def PixelSignal(grey_frames):
     return(pixel_signals)
 
 # Plot multiple pixel signal intensities on same graph
-
-
 def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel_num=None, heart_range=(0.5, 5), plot=False):
     """
     Plot multiple pixel signal intensities on same graph
@@ -1475,7 +1473,6 @@ def embryo_detection(video):
 
     return XY_average
 
-
 def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_metadata):
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
@@ -1653,6 +1650,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
             # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
             if movement == True:
                 stop_frame = j
+                LOGGER.debug("Movement detected, stopping at frame " + str(j))
                 break
 
             heart_roi = cv2.add(heart_roi, triangle_thresh)
@@ -1721,7 +1719,6 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
         raise RuntimeError("Couldn't detect a HROI")
 
     return embryo, final_mask, hroi_ax, stop_frame
-
 
 # Run normally, Fourier in segemented area
 def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_dir):
@@ -1871,8 +1868,10 @@ def run(video, args, video_metadata):
         total_time = (timestamp_final - timestamp0) / 1000
         # fps = int(len(sorted_times) / round(total_time))
         fps = len(sorted_times) / total_time
+        LOGGER.info("Deduced fps: " + str(fps))
     else:
         fps = args['fps']
+        LOGGER.debug("fps set to: " + str(fps))
 
     ################################################################################ Normalize Frames
     LOGGER.info("Normalizing frames")
@@ -1890,7 +1889,8 @@ def run(video, args, video_metadata):
     out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
     fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
 
-    # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
+    # Detect HROI and write into figure. 
+    # stop_frame = 0 if no movement detected, otherwise set to frame index
     embryo, mask, hroi_ax, stop_frame = HROI(sorted_frames, norm_frames, hroi_ax)
 
     # Save Figure
@@ -1945,13 +1945,12 @@ def run(video, args, video_metadata):
     # Save first frame with the ROI highlighted
     out_fig = os.path.join(out_dir, "masked_frame.png")
     cv2.imwrite(out_fig, masked_frames[0])
+    save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
     out_fig = os.path.join(out_dir, "masked_grey.png")
     cv2.imwrite(out_fig, masked_greys[0])
 
-    save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
-
-    ################################################################################  Get frame timestamps, from 0, in seconds for fourier transform
+    ################################################################################  Get evenly spaced frame timestamps, from 0, in seconds for fourier transform
     frame2frame = 0
     nr_of_frames = len(masked_greys)
     if not args['fps']:
@@ -1961,7 +1960,7 @@ def run(video, args, video_metadata):
         frame2frame = 1/args['fps']
 
     final_time = frame2frame * nr_of_frames
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
+    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
 
     ################################################################################ Draw bpm-trace
     bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
@@ -1973,16 +1972,12 @@ def run(video, args, video_metadata):
     if not args['slowmode']:
         bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
 
-        if not bpm:
-            LOGGER.info("No bpm detected. Trying slowmode")
-
     # Run in slow mode, Fourier on every pixel
     if args['slowmode']: #or not bpm:
         LOGGER.info("Running in slow mode")
         norm_frames_grey = greyFrames(norm_frames, stop_frame)
 
         bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
-
 
     plt.close('all') # fixed memory leak
     return bpm
