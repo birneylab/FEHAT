@@ -1961,7 +1961,7 @@ def run(video, args, video_metadata):
         frame2frame = 1/args['fps']
 
     final_time = frame2frame * nr_of_frames
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
+    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
 
     ################################################################################ Draw bpm-trace
     bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
