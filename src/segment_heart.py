@@ -910,8 +910,6 @@ def rolling_window(signal, win_size=20, win_step=5, direction="forward"):
 
 # ## Function fourierHR(interpolated_signal, time_domain, heart_range = (0.5, 5))
 # Perform a Fourier Transform on interpolated signal from heart region
-
-
 def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     """
     When 3 or less peaks detected is Fourier,
@@ -993,8 +991,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
 
 # ## Function plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc = 211)
 # Plot Fourier Transform
-
-
 def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc=211):
 
     # Prepare label for plot
@@ -1030,64 +1026,35 @@ def plotFourier(psd, freqs, peak, bpm, heart_range, figure_loc=211):
 
     return(ax)
 
-# ## Function def PixelSignal(grey_frames)
-
-
-def PixelSignal(grey_frames):
+# ## Function def PixelSignal(hroi_pixels)
+def PixelSignal(hroi_pixels):
     """
         Extract individual pixel signal across all frames
     """
-  # pixel_num = 0
-    # pixel_signals = {}
+    pixel_signals = np.transpose(hroi_pixels, axes=[1, 0])
 
-    # #First non-empty frame
-    # first = next(x for x, frame in enumerate(grey_frames) if frame is not None)
-    # rows, cols = grey_frames[first].shape
-    # for i in range(rows):
-    #     for j in range(cols):
-    #         pixel_vals = []
-    #         for frame in grey_frames:
-    #             if frame is not None:
-    #                 pixel = frame[i,j]
-    #                 pixel_vals.append(pixel)
-
-    #             else:
-    #                 pixel_vals.append(np.nan)
-
-    #         #Filter out masked pixels,
-    #         #i.e. those with a sum of zero
-    #         pixel_sum = np.nansum(pixel_vals)
-    #         if pixel_sum > 0:
-    #             pixel_signals[pixel_num] = pixel_vals
-
-    #         pixel_num += 1
-
-    # #TODO Remove dictionary backwards compatibility, as it's just unneccassarily slow
-    as_array = np.asarray(grey_frames)
-    pixel_signals = np.transpose(
-        as_array, axes=[1, 2, 0]).reshape(-1, as_array.shape[0])
-    pixel_signals = dict(enumerate(pixel_signals.tolist()))
-
-    remove = [k for k in pixel_signals if all(
-        v == 0 for v in pixel_signals[k])]
-    for k in remove:
-        del pixel_signals[k]
+    empty_pixels = np.where(np.all(pixel_signals==0))
+    pixel_signals = np.delete(pixel_signals, empty_pixels, 0)
 
     return(pixel_signals)
 
 # Plot multiple pixel signal intensities on same graph
 def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel_num=None, heart_range=(0.5, 5), plot=False):
     """
-    Plot multiple pixel signal intensities on same graph
-    * pixel_signals DICT
-        Dictionary of pixel signal intensities
+    Detect BPM from pixel signals. Plot multiple pixel signal intensities on same graph
+    * pixel_signals LIST
+        List of pixel signal intensities
     """
-
     increment = frame2frame / 6
     td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
 
+    # Convert from ndarray to list
+    pixel_signals = pixel_signals.tolist()
+
     # Randomly select N pixels in to determine heart-rate from
     # Limit to N pixels in interest of speed
+    selected_pixels = pixel_signals
+
     if pixel_num is not None:
         if len(pixel_signals) >= pixel_num:
 
@@ -1095,14 +1062,9 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
             random.seed(42)
 
             # Select 1000 (pseudo-)random pixels
-            selected_pixels = random.sample(list(pixel_signals.keys()), k=1000)
-        else:
-            selected_pixels = list(pixel_signals.keys())
+            selected_pixels = random.sample(pixel_signals, k=1000)
 
-    # If number of pixels not specified, calculate for all pixels
-    else:
-        selected_pixels = list(pixel_signals.keys())
-
+    # Setup plotting
     if plot is True:
 
         ax = plt.subplot()
@@ -1113,93 +1075,44 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         _ = ax.set_xlabel('Frequency (Hz)')
         _ = ax.set_ylabel('Power Spectra')
 
-        highest_freqs = []
-        # Plot signals for selected pixels
-        for pixel in selected_pixels:
+    # Analyze frequency
+    highest_freqs = []
+    
+    for pixel_signal in selected_pixels:
 
-            pixel_signal = pixel_signals[pixel]
+        # Remove values from empty frames
+        signal_filtered = np.delete(pixel_signal, empty_frames)
+        times_filtered = np.delete(times, empty_frames)
 
-            # Remove values from empty frames
-            signal_filtered = np.delete(pixel_signal, empty_frames)
-            times_filtered = np.delete(times, empty_frames)
+        # Cubic Spline Interpolation
+        cs = CubicSpline(times_filtered, signal_filtered)
+        norm_cs = detrendSignal(cs, td, window_size=27)   # 27
 
-            # Cubic Spline Interpolation
-            cs = CubicSpline(times_filtered, signal_filtered)
-            norm_cs = detrendSignal(cs, td, window_size=27)   # 27
+        # Fourier on interpolated pixel signal
+        psd, freqs, _, _ = fourierHR(norm_cs, td)
 
-            # Fourier on interpolated pixel signal
-            psd, freqs, _, _ = fourierHR(norm_cs, td)
+        # Determine the peak within the heart range
+        heart_indices = np.where(np.logical_and(
+            freqs >= heart_range[0], freqs <= heart_range[1]))[0]
 
-            # Determine the peak within the heart range
-            heart_indices = np.where(np.logical_and(
-                freqs >= heart_range[0], freqs <= heart_range[1]))[0]
+        # Spectra within heart range
+        heart_psd = psd[heart_indices]
+        heart_freqs = freqs[heart_indices]
 
-            # Spectra within heart range
-            heart_psd = psd[heart_indices]
-            heart_freqs = freqs[heart_indices]
+        # Index of largest spectrum in heart range
+        index_max = np.argmax(heart_psd)
+        
+        # Corresponding frequency
+        highest_freq = heart_freqs[index_max]
+        highest_freqs.append(highest_freq)
 
-            # Index of largest spectrum in heart range
-            index_max = np.argmax(heart_psd)
-            
-            # Corresponding frequency
-            highest_freq = heart_freqs[index_max]
-            highest_freqs.append(highest_freq)
-
-            # Plot frequency of Fourier Power Spectra
+        # Plot frequency of Fourier Power Spectra
+        if plot is True:
             _ = ax.plot(freqs, psd, color='grey', alpha=0.5)
 
-        return(ax, highest_freqs)
-
-    # Run all pixels without plotting them individually
-    else:
-        highest_freqs = Parallel(n_jobs=threads, prefer="threads")(delayed(PixelNorm)(
-            pixel, pixel_signals, times, empty_frames, heart_range, td) for pixel in selected_pixels)
-
-        return(highest_freqs)
-
-# ## Function PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
-
-
-def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=False):
-
-    pixel_signal = pixel_signals[pixel]
-
-    # Remove values from empty frames
-    signal_filtered = np.delete(pixel_signal, empty_frames)
-    times_filtered = np.delete(times, empty_frames)
-
-    # Cubic Spline Interpolation
-    cs = CubicSpline(times_filtered, signal_filtered)
-    norm_cs = detrendSignal(cs, td, window_size=27)  # 27
-
-    # Fourier on interpolated pixel signal
-    psd, freqs, _, _ = fourierHR(norm_cs, td)
-
-    # Determine the peak within the heart range
-    heart_indices = np.where(np.logical_and(
-        freqs >= heart_range[0], freqs <= heart_range[1]))[0]
-
-    # Spectra within heart range
-    heart_psd = psd[heart_indices]
-    heart_freqs = freqs[heart_indices]
-
-    # Index of largest spectrum in heart range
-    index_max = np.argmax(heart_psd)
-    # Corresponding frequency
-    highest_freq = heart_freqs[index_max]
-
-#   cs_psd = CubicSpline(freqs, psd)
-
-    # Plot pixel PSD
-#   if plot is True:
-    # Plot pixel PSD
-#       _ = ax.plot(freqs, psd, color='grey', alpha=0.5)
-
-    return(highest_freq)
+    return(ax, highest_freqs)
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
-
-
 def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True):
 
     sns.set_style('white')
@@ -1359,8 +1272,6 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
 # ## Function final_dist_graph(bpm_fourier)
 # Create an graph and plot averages from final report (overwrite and update if alreadye exists)
-
-
 def final_dist_graph(bpm_fourier,  out_dir):
     data_file = os.path.join(out_dir, "general_report.csv")
     output_dir = os.path.join(out_dir, "data_dist_plot.jpg")
@@ -1721,9 +1632,9 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     return embryo, final_mask, hroi_ax, stop_frame
 
 # Run normally, Fourier in segemented area
-def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_dir):
+def fourier_bpm(hroi_pixels, times, empty_frames, frame2frame_sec, args, out_dir):
     # Signal per pixel
-    pixel_signals = PixelSignal(masked_greys)
+    pixel_signals = PixelSignal(hroi_pixels)
 
     # print('not slow')
     # Perform Fourier Transform on each pixel in segmented area
@@ -1734,7 +1645,6 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
 
     # plt.imshow(ax)
     plt.show()
-
     plt.close()
 
     # Plot the density of fourier transform global maxima across pixels
@@ -1769,22 +1679,18 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     return bpm_fourier
 
-def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
+def bpm_trace(hroi_pixels, frame2frame_sec, times, empty_frames, out_dir):
 
     LOGGER.info("Statistical analysis")
 
     # Coefficient of variation
     cvs = {}
 
-    for i, frame in enumerate(masked_greys):
+    for i, frame in enumerate(hroi_pixels):
 
         if frame is not None:
-            # Create vector of the signal within the region of the heart
-            # Flatten array (matrix) into a vector
-            heart_values = np.ndarray.flatten(frame)
-
             # Remove zero elements
-            heart_values = heart_values[np.nonzero(heart_values)]
+            heart_values = frame[np.nonzero(frame)]
 
             # Mean signal in region
             heart_mean = np.mean(heart_values)
@@ -1947,9 +1853,6 @@ def run(video, args, video_metadata):
     cv2.imwrite(out_fig, masked_frames[0])
     save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
-    out_fig = os.path.join(out_dir, "masked_grey.png")
-    cv2.imwrite(out_fig, masked_greys[0])
-
     ################################################################################  Get evenly spaced frame timestamps, from 0, in seconds for fourier transform
     frame2frame = 0
     nr_of_frames = len(masked_greys)
@@ -1961,16 +1864,22 @@ def run(video, args, video_metadata):
 
     final_time = frame2frame * nr_of_frames
     times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
+    
+    ################################################################################ Keep only pixels in HROI
+    # delete pixels outside of mask (=HROI)
+    # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
+    mask = np.invert(mask)
+    hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in masked_greys])
 
     ################################################################################ Draw bpm-trace
-    bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+    bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
 
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
     bpm = None
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
-        bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
     # Run in slow mode, Fourier on every pixel
     if args['slowmode']: #or not bpm:
