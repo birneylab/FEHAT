@@ -1142,7 +1142,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
     return(ax, highest_freqs)
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
-def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True):
+def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True, slow_mode=False):
 
     sns.set_style('white')
     ax = plt.subplot()
@@ -1714,8 +1714,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
             # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
             if movement == True:
-                LOGGER.debug("Movement detected, stopping at frame " + str(j))
-                break
+                raise RuntimeError("Movement detected")
 
             heart_roi = cv2.add(heart_roi, triangle_thresh)
             embryo.append(masked_frame)
@@ -1833,7 +1832,7 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     return bpm_fourier
 
-def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
+def bpm_trace(hroi_pixels, frame2frame_sec, times, empty_frames, out_dir):
     LOGGER.info("Statistical analysis")
 
     # Coefficient of variation
@@ -2034,7 +2033,7 @@ def run(video, args, video_metadata):
     
     # Draw bpm-trace
     try:
-        bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
+        bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
     except Exception as e:
         LOGGER.exception("Whilst drawing the bpm trace")
         
@@ -2043,7 +2042,7 @@ def run(video, args, video_metadata):
 
     # Run normally, Fourier in segemented area
     try:
-        bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
     except Exception as e:
         LOGGER.exception("Whilst trying Fourier analysis of segemented area")
 
