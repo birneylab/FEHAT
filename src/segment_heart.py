@@ -2044,8 +2044,9 @@ def run(video, args, video_metadata):
         frame2frame = timespan / nr_of_frames  # 1 / fps
     else:
         frame2frame = 1/args['fps']
+        
     final_time = frame2frame * nr_of_frames
-    times = np.arange(start=0, stop=final_time, step=frame2frame)
+    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
 
     ################################ Detect HROI and write into figure. 
     # Prepare outfigure
@@ -2123,17 +2124,12 @@ def run(video, args, video_metadata):
 
     save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
-    # bellow is to correct a bad behaviour of time array lengh being bigger than the number of frames
-    # This error occurs because the fps is not always 100% acurate, then calculation of the timesteps can be 1 or more points bigger
-    while nr_of_frames < times.shape[0]:
-        times = times[:-1]
-
     # Draw bpm-trace
     try:
         bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
     except Exception as e:
-        LOGGER.exception("Whislst drawing the bpm trace")
-
+        LOGGER.exception("Whilst drawing the bpm trace")
+        
     ################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
 
