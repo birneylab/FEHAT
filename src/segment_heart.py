@@ -1108,8 +1108,6 @@ def PixelSignal(grey_frames):
     return(pixel_signals)
 
 # Plot multiple pixel signal intensities on same graph
-
-
 def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel_num=None, heart_range=(0.5, 5), plot=False):
     """
     Plot multiple pixel signal intensities on same graph
@@ -1193,8 +1191,6 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         return(highest_freqs)
 
 # ## Function PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, plot = False):
-
-
 def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=False):
 
     pixel_signal = pixel_signals[pixel]
@@ -1234,10 +1230,7 @@ def PixelNorm(pixel, pixel_signals, times, empty_frames, heart_range, td, plot=F
     return(highest_freq)
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
-
-
 def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True, slow_mode=False):
-
     sns.set_style('white')
     ax = plt.subplot()
 
@@ -1261,8 +1254,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
             frequencies, stat='density', bins=500).patches])
 
         # Plot Histogram
-        _ = sns.histplot(frequencies, ax=ax, fill=True,
-                         stat='density', bins=500)
+        _ = sns.histplot(frequencies, ax=ax, fill=True, stat='density', bins=500)
 
         _ = ax.set_title("Pixel Fourier Transform Maxima")
         _ = ax.set_xlabel('Frequency (Hz)')
@@ -1434,18 +1426,21 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                 bpm_label = str(int(bpm)) + " bpm"
                 _ = ax.plot(xs[index_for_plotting],
                             ys[index_for_plotting], 'bo', ms=10)
-                _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                    xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+                _ = ax.annotate(bpm_label, 
+                                xy=(xs[index_for_plotting], ys[index_for_plotting]), 
+                                xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), 
+                                arrowprops=dict(facecolor='black', shrink=0.05))
 
             # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
             elif len(peaks) > 2:
                 LOGGER.info("Found more than 2 peaks in slow mode")
                 x_values = [xs[i] for i in peaks]
                 averaged_peak_values = statistics.mean(x_values)
-                def absolute_difference_function(list_value): return abs(
-                    list_value - averaged_peak_values)
-                farthest_value = max(
-                    x_values, key=absolute_difference_function)
+
+                def absolute_difference_function(list_value): 
+                    return abs(list_value - averaged_peak_values)
+                farthest_value = max(x_values, key=absolute_difference_function)
+
                 #x_list = xs.tolist()
                 index_for_deletion = x_values.index(farthest_value)
                 peaks = np.delete(peaks, index_for_deletion)
@@ -1463,8 +1458,10 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                 bpm_label = str(int(bpm)) + " bpm"
                 _ = ax.plot(xs[index_for_plotting],
                             ys[index_for_plotting], 'bo', ms=10)
-                _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                    xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+                _ = ax.annotate(bpm_label, 
+                                xy=(xs[index_for_plotting], ys[index_for_plotting]), 
+                                xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), 
+                                arrowprops=dict(facecolor='black', shrink=0.05))
 
             else:
                 LOGGER.info("No peaks detected, trying power over the peaks")
@@ -1472,8 +1469,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                 peaks, _ = find_peaks(powered_list)
 
                 if len(peaks) > 0:
-                    LOGGER.info(
-                        "Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
+                    LOGGER.info("Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
                     x_values = [xs[i] for i in peaks]
                     highest_value = max(x_values)
                     x_list = xs.tolist()
@@ -1483,10 +1479,11 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
                     # plot with the correct peak index
                     bpm_label = str(int(bpm)) + " bpm"
-                    _ = ax.plot(xs[index_for_plotting],
-                                ys[index_for_plotting], 'bo', ms=10)
-                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+                    _ = ax.plot(xs[index_for_plotting], ys[index_for_plotting], 'bo', ms=10)
+                    _ = ax.annotate(bpm_label, 
+                                    xy=(xs[index_for_plotting], ys[index_for_plotting]), 
+                                    xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)),
+                                    arrowprops=dict(facecolor='black', shrink=0.05))
                 else:
                     LOGGER.info(
                         "No peaks detected anyway")
@@ -1576,7 +1573,7 @@ def final_dist_graph(bpm_fourier,  out_dir):
         fig.savefig(output_dir)
         plt.close(fig)
 
-    except:
+    except Exception as e:
         pass
 
 # final_dist_graph(bpm_fourier)    ## debug
@@ -1654,7 +1651,7 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
         try:
             cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
                             embryo_size, int(embryo_coordinates[1])-embryo_size: int(embryo_coordinates[1])+embryo_size]
-        except:
+        except Exception as e:
             cut_image = img
             LOGGER.info(
                 "Problems cropping image (image dimensions in -s paramter)")
@@ -1679,72 +1676,69 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 ############################################################################################################
 
 # DEPRECATED: substituted by crop_2 (above)
+# def crop(video):
+#     LOGGER.info("Cropping video")
+#     circle_x = []
+#     circle_y = []
+#     circle_radii = []
 
+#     video_cropped = []
 
-def crop(video):
-    LOGGER.info("Cropping video")
-    circle_x = []
-    circle_y = []
-    circle_radii = []
+#     success_count = 0
+#     for frame, i in zip(video, range(5)):
+#         # Detect embryo with Hough Circle Detection
+#         # Circle coords, can be used as cropping parameters
+#         circle, x1, y1, x2, y2 = detectEmbryo(frame)
 
-    video_cropped = []
+#         if circle is not None:
+#             circle_x.append(circle[0])
+#             circle_y.append(circle[1])
+#             circle_radii.append(circle[2])
 
-    success_count = 0
-    for frame, i in zip(video, range(5)):
-        # Detect embryo with Hough Circle Detection
-        # Circle coords, can be used as cropping parameters
-        circle, x1, y1, x2, y2 = detectEmbryo(frame)
+#     # Embryo Circle
+#     if len(circle_x) > 0:
+#         for x, y, r in zip(circle_x, circle_y, circle_radii):
 
-        if circle is not None:
-            circle_x.append(circle[0])
-            circle_y.append(circle[1])
-            circle_radii.append(circle[2])
+#             x_coord = x
+#             y_coord = y
+#             radius = r
 
-    # Embryo Circle
-    if len(circle_x) > 0:
-        for x, y, r in zip(circle_x, circle_y, circle_radii):
+#             if x_coord is not None:
 
-            x_coord = x
-            y_coord = y
-            radius = r
+#                 x_counts = Counter(x_coord)
+#                 y_counts = Counter(y_coord)
+#                 rad_counts = Counter(radius)
 
-            if x_coord is not None:
+#         # Use most common circle coords for the embryo
+#         embryo_x, _ = x_counts.most_common(1)[0]
+#         embryo_y, _ = y_counts.most_common(1)[0]
+#         embryo_rad, _ = rad_counts.most_common(1)[0]
 
-                x_counts = Counter(x_coord)
-                y_counts = Counter(y_coord)
-                rad_counts = Counter(radius)
+#     else:
+#         embryo_x = None
+#         embryo_y = None
+#         embryo_rad = None
 
-        # Use most common circle coords for the embryo
-        embryo_x, _ = x_counts.most_common(1)[0]
-        embryo_y, _ = y_counts.most_common(1)[0]
-        embryo_rad, _ = rad_counts.most_common(1)[0]
+#     if embryo_x and embryo_y and embryo_rad:
+#         y1 = embryo_y - embryo_rad - 50
+#         y2 = embryo_y + embryo_rad + 50
+#         x1 = embryo_x - embryo_rad - 50
+#         x2 = embryo_x + embryo_rad + 50
 
-    else:
-        embryo_x = None
-        embryo_y = None
-        embryo_rad = None
+#     else:
+#         LOGGER.warning(
+#             "Couldn't detect circles in video. Cutting approximately around edges.")
+#         shape = video[0].shape
 
-    if embryo_x and embryo_y and embryo_rad:
-        y1 = embryo_y - embryo_rad - 50
-        y2 = embryo_y + embryo_rad + 50
-        x1 = embryo_x - embryo_rad - 50
-        x2 = embryo_x + embryo_rad + 50
+#         y1 = int(shape[0] * 0.3)
+#         y2 = int(shape[0] * 0.7)
+#         x1 = int(shape[1] * 0.3)
+#         x2 = int(shape[1] * 0.7)
+#     for frame in video:
+#         # crop_img = img[y1 : y2, x1: x2]
+#         video_cropped.append(frame[y1: y2, x1: x2])
 
-    else:
-        LOGGER.warning(
-            "Couldn't detect circles in video. Cutting approximately around edges.")
-        shape = video[0].shape
-
-        y1 = int(shape[0] * 0.3)
-        y2 = int(shape[0] * 0.7)
-        x1 = int(shape[1] * 0.3)
-        x2 = int(shape[1] * 0.7)
-    for frame in video:
-        # crop_img = img[y1 : y2, x1: x2]
-        video_cropped.append(frame[y1: y2, x1: x2])
-
-    return video_cropped
-
+#     return video_cropped
 
 def save_video(video, fps, outdir, filename):
     vid_frames = [frame for frame in video if frame is not None]
@@ -1763,8 +1757,6 @@ def save_video(video, fps, outdir, filename):
     out.release()
 
 # Detect heart region of interest (HROI)
-
-
 def HROI(sorted_frames, norm_frames, hroi_ax):
     # Only process if less than 5% frames are empty
     if sum(frame is None for frame in sorted_frames) > len(sorted_frames) * 0.05:
@@ -1870,8 +1862,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
                               alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
 
     # Generate figure showing with potential heart region highlighted
-    hroi_ax = heartQC_plot(hroi_ax, f0_grey, heart_roi,
-                           heart_roi_clean, overlay)
+    hroi_ax = heartQC_plot(hroi_ax, f0_grey, heart_roi, heart_roi_clean, overlay)
 
     # Check if heart region was detected, i.e. if sum(masked) > 0
     # and limit number of possible heart regions to 3 or fewer
@@ -1882,7 +1873,6 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # stop_frame is not used anymore
     return embryo, final_mask, hroi_ax
 
-
 # Run normally, Fourier in segemented area
 def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_dir):
     # Signal per pixel
@@ -1891,8 +1881,7 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     # Perform Fourier Transform on each pixel in segmented area
     out_fourier = os.path.join(out_dir, "pixel_fourier.png")
     fig, ax = plt.subplots(figsize=(10, 7))
-    ax, highest_freqs = PixelFourier(
-        pixel_signals, times, empty_frames, frame2frame_sec, args['threads'], pixel_num=1000, plot=True)
+    ax, highest_freqs = PixelFourier(pixel_signals, times, empty_frames, frame2frame_sec, args['threads'], pixel_num=1000, plot=True)
     plt.savefig(out_fourier)
 
     # plt.imshow(ax)
@@ -1903,16 +1892,13 @@ def fourier_bpm(masked_greys, times, empty_frames, frame2frame_sec, args, out_di
     # Plot the density of fourier transform global maxima across pixels
     out_kde = os.path.join(out_dir, "pixel_rate.png")
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-    ax, bpm_fourier = PixelFreqs(
-        highest_freqs, args['average'], peak_filter=True, slow_mode=False)
+    ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter=True, slow_mode=False)
     plt.savefig(out_kde)
     plt.close()
 
     return bpm_fourier
 
 # Run in slow mode, Fourier on every pixel
-
-
 def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args, out_dir):
     # Resize frames to make faster
     # TODO: That just results in wrong measurements, as the heart may be cut.
@@ -1923,18 +1909,18 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     # Perform Fourier Transform on every pixel
     # NOTE: plot=True too expensive and won't finish at the moment
-    highest_freqs2 = PixelFourier(
-        all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
+    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
+    
     # Plot the density of fourier transform global maxima across pixels
     out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
     fig2, ax2 = plt.subplots(1, 1, figsize=(10, 7))
-    ax2, bpm_fourier = PixelFreqs(
-        highest_freqs2, args['average'], peak_filter=False, slow_mode=True)
+    
+    ax2, bpm_fourier = PixelFreqs(highest_freqs2, args['average'], peak_filter=False, slow_mode=True)
+    
     plt.savefig(out_kde2)
     plt.close()
 
     return bpm_fourier
-
 
 def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
     LOGGER.info("Statistical analysis")
@@ -1999,12 +1985,11 @@ def bpm_trace(masked_greys, frame2frame_sec, times, empty_frames, out_dir):
 
 # run the algorithm on a well video
 # TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
-
-
 def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
     bpm = None
-    # Create Outdir for pictures
+
+    ################################ Pre-Processing
     # Add well position to output directory path
     out_dir = os.path.join(args['outdir'], video_metadata['channel'],
                            video_metadata['loop'] + '-' + video_metadata['well_id'])
@@ -2043,7 +2028,7 @@ def run(video, args, video_metadata):
         LOGGER.info("Defined fps: " + str(round(fps, 2)))
 
 
-    # Normalize Frames
+    ################################# Normalize Frames
     LOGGER.info("Normalizing frames")
     # Normalize frames
     norm_frames = normVideo(sorted_frames)
@@ -2051,37 +2036,33 @@ def run(video, args, video_metadata):
     LOGGER.info("Writing video")
     save_video(norm_frames, fps, out_dir, "embryo.mp4")
 
-    # Detect HROI
-    # needs: sorted_frames
-    LOGGER.info("Detecting HROI")
-
-    # Prepare outfigure
-    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
-    fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
-
-    # Get frame timestamps, from 0, in seconds for fourier transform
+    ################################ Get frame timestamps, from 0, in seconds for fourier transform
     frame2frame = 0
     nr_of_frames = len(video)
     if not args['fps']:
-        timespan = (int(sorted_times[nr_of_frames-1]
-                        ) - int(sorted_times[0])) / 1000
+        timespan = (int(sorted_times[nr_of_frames-1]) - int(sorted_times[0])) / 1000
         frame2frame = timespan / nr_of_frames  # 1 / fps
     else:
         frame2frame = 1/args['fps']
     final_time = frame2frame * nr_of_frames
     times = np.arange(start=0, stop=final_time, step=frame2frame)
 
-    # Detect HROI and write into figure. stop_frame = 0, if not movement detected, otherwise set to frame index
+    ################################ Detect HROI and write into figure. 
+    # Prepare outfigure
+    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
+    fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
+
+    # stop_frame = 0, if not movement detected, otherwise set to frame index
+    # Detect HROI
+    LOGGER.info("Detecting HROI")
     try:
-        embryo, mask, hroi_ax = HROI(
-            sorted_frames, norm_frames, hroi_ax)
-    except:
-        if args['slowmode'] and not bpm:  # or not bpm:
+        embryo, mask, hroi_ax = HROI(sorted_frames, norm_frames, hroi_ax)
+    except Exception as e:
+        if args['slowmode']:
             LOGGER.info("Trying in slow mode2")
             norm_frames_grey = greyFrames(norm_frames, 0)
 
-            bpm = fourier_bpm_slowmode(
-                norm_frames_grey, times, [], frame2frame, args, out_dir)
+            bpm = fourier_bpm_slowmode(norm_frames_grey, times, [], frame2frame, args, out_dir)
             return bpm
 
     # Save Figure
@@ -2089,7 +2070,7 @@ def run(video, args, video_metadata):
     plt.show()
     plt.close()
 
-    # Mask frames
+    ################################ Mask frames
     masked_greys = []
     masked_frames = []
     empty_frames = []
@@ -2150,30 +2131,27 @@ def run(video, args, video_metadata):
     # Draw bpm-trace
     try:
         bpm_trace(masked_greys, frame2frame, times, empty_frames, out_dir)
-    except:
-        LOGGER.info("A error occurred trying Fourier in bpm_trace function")
+    except Exception as e:
+        LOGGER.exception("Whislst drawing the bpm trace")
 
-    # Fourier Frequency estimation
+    ################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
 
     # Run normally, Fourier in segemented area
-
     try:
-        bpm = fourier_bpm(masked_greys, times, empty_frames,
-                          frame2frame, args, out_dir)
-    except:
-        LOGGER.info("A error occurred trying Fourier in segemented area")
+        bpm = fourier_bpm(masked_greys, times, empty_frames, frame2frame, args, out_dir)
+    except Exception as e:
+        LOGGER.exception("Whilst trying Fourier analysis of segemented area")
 
     if not bpm:
         LOGGER.info("No bpm detected")
 
     # Run in slow mode, Fourier on every pixel
-    if args['slowmode'] and not bpm:  # or not bpm:
+    if args['slowmode'] and not bpm:
         LOGGER.info("Trying in slow mode1")
         # stop_frame is not used anymore
         norm_frames_grey = greyFrames(norm_frames)
-        bpm = fourier_bpm_slowmode(
-            norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
     plt.close('all')  # fixed memory leak
     return bpm

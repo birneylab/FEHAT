@@ -264,8 +264,7 @@ def main(args):
                 consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
-            LOGGER.exception(
-                "During dispatching of jobs onto the cluster")
+            LOGGER.exception("During dispatching of jobs onto the cluster")
 
     elif args.only_crop == False:
         bpm = None
