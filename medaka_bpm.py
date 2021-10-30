@@ -146,7 +146,8 @@ def main(args):
     setup.config_logger(
         args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
-    LOGGER.info("Program started with the following arguments: " + str(sys.argv[1:]))
+    LOGGER.info("Program started with the following arguments: " +
+                str(sys.argv[1:]))
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -186,8 +187,10 @@ def main(args):
                     args.channels = channel
                     args.loops = loop
 
-                    arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
-                    arguments_bool = ['--' + key for key, value in vars(args).items() if value is True]
+                    arguments_variable = [
+                        ['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
+                    arguments_bool = ['--' + key for key,
+                                      value in vars(args).items() if value is True]
                     arguments = sum(arguments_variable, arguments_bool)
 
                     exe_path = os.path.join(main_directory, 'cluster.py')
@@ -229,8 +232,8 @@ def main(args):
             # Create a dependent job for final report
             job_ids = [("ended(" + s + ")") for s in job_ids]
             w_condition = '&&'.join(job_ids)
-            
-            # assign unique name. 
+
+            # assign unique name.
             # Target completion of all experiment analysis with ended(HRConsolidate-*).
             # Needed in test_accuracy when JOB_DEP_LAST_SUB = 1 in lsb.params.
             unique_job_name = "HRConsolidate-" + str(job_ids[0])
@@ -261,10 +264,10 @@ def main(args):
                 consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
-            LOGGER.exception(
-                "During dispatching of jobs onto the cluster")
+            LOGGER.exception("During dispatching of jobs onto the cluster")
 
     elif args.only_crop == False:
+        bpm = None
         LOGGER.info("Running on a single machine")
         results = {'channel': [], 'loop': [],
                    'well': [], 'heartbeat': []}
@@ -275,8 +278,6 @@ def main(args):
                 LOGGER.info(
                     "The analyse for each well can take about from one to several minutes\n")
                 LOGGER.info("Running....please wait...")
-
-                bpm = None
 
                 try:
                     bpm = run_algorithm(
