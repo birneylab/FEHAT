@@ -184,19 +184,35 @@ def write_to_spreadsheet(outdir, results, experiment_id):
         writer = csv.writer(outfile, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-        writer.writerow(['Index', 'WellID', 'Loop',
-                        'Channel', 'Heartrate (BPM)'])
+        writer.writerow(['Index', 'WellID', 'Loop', 'Channel', 'Heartrate (BPM)', 
+                        'Heart size',   #qc_attributes
+                        'HROI count',
+                        'Stop frame',
+                        'Number of peaks',
+                        'Prominence',
+                        'Height',
+                        'Low variance'])
+
         nr_of_results = len(results['heartbeat'])
+
+        # Ensure everything is string and set None values
+        for key, value in results.items():
+            value = ["NA" if entry is None else str(entry) for entry in value]
+
         for idx in range(nr_of_results):
-            ch = results['channel'][idx]
-            loop = results['loop'][idx]
-            well = results['well'][idx]
-            bpm = results['heartbeat'][idx]
-            if bpm is None:
-                bpm = "NA"
-            else:
-                bpm = str(bpm)
-            writer.writerow([str(idx+1), well, loop, ch, bpm])
+            writer.writerow([str(idx+1),
+                            results['well'][idx],
+                            results['loop'][idx],
+                            results['channel'][idx],
+                            results['heartbeat'][idx],
+                            results['Heart size'][idx],
+                            results['HROI count'][idx],
+                            results['Stop frame'][idx],
+                            results['Number of peaks'][idx],
+                            results['Prominence'][idx],
+                            results['Height'][idx],
+                            results['Low variance'][idx]
+                            ])
 
 
 def save_cropped(cut_images, args, images_path):

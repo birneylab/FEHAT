@@ -73,10 +73,14 @@ for log, result in zip(logs_paths, results_paths):
         results['loop'].append(metadata[1])
         results['well'].append(metadata[2])
         results['log'].append(log_text)
-
+    
+    # (cluster.py) out_string = "heartbeat:123;Heart Size:1110;HROI count:2; ..."
     with open(result) as fp:
-        bpm = fp.read()
-        results['heartbeat'].append(bpm)
+        out_string = fp.read()
+        fields = out_string.split(';')
+        for field in fields:
+            entry = field.split(':')
+        results[entry[0]].append(entry[1])
 
 # Sort through pandas
 results = pd.DataFrame.from_dict(results)

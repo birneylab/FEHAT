@@ -50,12 +50,30 @@ channels = [args.channels]
 loops = [args.loops]
 
 # Run analysis
-results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+results = { 'channel':          [], 
+            'loop':             [],
+            'well':             [], 
+            'heartbeat':        [],
+            'Heart size':       [], # qc_attributes
+            'HROI count':       [],
+            'Stop frame':       [],
+            'Number of peaks':  [],
+            'Prominence':       [],
+            'Height':           [],
+            'Low variance':     []}
+
 # NOTE: added for compatibility, not working at this moment.
 resulting_dict_from_crop = {}
 try:
     LOGGER.info("##### Analysis #####")
     bpm = None
+    qc_attributes = {   "Heart size": None, 
+                        "HROI count": None, 
+                        "Stop frame": None, 
+                        "Number of peaks": None,
+                        "Prominence": None,
+                        "Height": None,
+                        "Low variance": None}
 
     for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
         if (video_metadata['well_id'] != well_id):
@@ -66,7 +84,7 @@ try:
         LOGGER.info("Running....please wait...")
 
         try:
-            bpm = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+            bpm, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
             LOGGER.info("Reported BPM: " + str(bpm))
 
         except Exception as e:
@@ -84,6 +102,10 @@ finally:
     else:
         bpm = 'NA'
 
+    out_string = "heartbeat:" + bpm
+    for key, value in qc_attributes.items():
+        out_string.append(";" + str(key) + ':' + str(value))
+
     out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
     with open(out_file, 'w') as output:
-        output.write(bpm)
+        output.write(out_string)

@@ -266,8 +266,17 @@ def main(args):
 
     elif args.only_crop == False:
         LOGGER.info("Running on a single machine")
-        results = {'channel': [], 'loop': [],
-                   'well': [], 'heartbeat': []}
+        results = { 'channel':          [], 
+                    'loop':             [],
+                    'well':             [], 
+                    'heartbeat':        [],
+                    'Heart size':       [], # qc_attributes
+                    'HROI count':       [],
+                    'Stop frame':       [],
+                    'Number of peaks':  [],
+                    'Prominence':       [],
+                    'Height':           [],
+                    'Low variance':     []}
         try:
             LOGGER.info("##### Analysis #####")
             resulting_dict_from_crop = {}
@@ -277,9 +286,16 @@ def main(args):
                 LOGGER.info("Running....please wait...")
 
                 bpm = None
-
+                qc_attributes = {   "Heart size": None, 
+                                    "HROI count": None, 
+                                    "Stop frame": None, 
+                                    "Number of peaks": None,
+                                    "Prominence": None,
+                                    "Height": None,
+                                    "Low variance": None}
+                
                 try:
-                    bpm = run_algorithm(
+                    bpm, qc_attributes = run_algorithm(
                         well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                     LOGGER.info("Reported BPM: " + str(bpm))
 
@@ -290,11 +306,14 @@ def main(args):
                                      + " with channel " + str(video_metadata['channel']))
                 finally:
                     # Save results
-                    results['channel'].append(
-                        video_metadata['channel'])
+                    results['channel'].append(video_metadata['channel'])
                     results['loop'].append(video_metadata['loop'])
                     results['well'].append(video_metadata['well_id'])
                     results['heartbeat'].append(bpm)
+
+                    # qc_attributes
+                    for key, value in qc_attributes.items():
+                        results[key].append(value)
 
                     gc.collect()
 
