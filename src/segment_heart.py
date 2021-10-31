@@ -1898,7 +1898,7 @@ def run(video, args, video_metadata):
     mask = np.invert(mask)
     hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in masked_greys])
 
-    qc_attributes["Heart size"] = str(len(hroi_pixels))
+    qc_attributes["Heart size"] = str(np.size(hroi_pixels, 1))
     ################################################################################ Draw bpm-trace
     bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
 

@@ -63,6 +63,7 @@ results = { 'channel':          [],
             'loop':             [],
             'well':             [], 
             'heartbeat':        [],
+            'log':              [],
             'Heart size':       [], # qc_attributes
             'HROI count':       [],
             'Stop frame':       [],
@@ -91,7 +92,7 @@ for log, result in zip(logs_paths, results_paths):
         fields = out_string.split(';')
         for field in fields:
             entry = field.split(':')
-        results[entry[0]].append(entry[1])
+            results[entry[0]].append(entry[1])
 
 # Sort through pandas
 results = pd.DataFrame.from_dict(results)
