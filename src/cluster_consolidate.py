@@ -59,7 +59,18 @@ results_paths = glob2.glob(indir + '*.txt')
 logs_paths.sort()
 results_paths.sort()
 
-results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': [], 'log': []}
+results = { 'channel':          [], 
+            'loop':             [],
+            'well':             [], 
+            'heartbeat':        [],
+            'Heart size':       [], # qc_attributes
+            'HROI count':       [],
+            'Stop frame':       [],
+            'Number of peaks':  [],
+            'Prominence':       [],
+            'Height':           [],
+            'Low variance':     []}
+            
 for log, result in zip(logs_paths, results_paths):
     if (Path(log).stem.split('-') != Path(result).stem.split('-')):
         LOGGER.exception("Logfile and result file order not right")
