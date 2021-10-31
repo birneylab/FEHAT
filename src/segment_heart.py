@@ -1178,8 +1178,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         # sorted_list = ys.sort()
         # max_y = sorted_list[-1]
 
-        # let´s find the max and min peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
-
+        # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
         max_x = xs[max_index]
         max_y = ys[max_index]
 
@@ -1187,7 +1186,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         # prominence filters out 'flat' KDEs,
         # these result from a noisy signal
         if peak_filter is True:
-            peaks, peak_attributes = find_peaks(ys, prominence=0.5)
+            peaks, peak_attributes = find_peaks(ys, prominence=1.0)
         else:
             peaks, peak_attributes = find_peaks(ys, prominence=0.1)
 
@@ -1211,10 +1210,9 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         elif len(peaks) > 1:
             # verify if user has inserted a average argument -a. 0 means No parameters inserted
             if not average_values:
-                LOGGER.info("found " + str(len(peaks)) +
-                            " peak(s), selected the highest one")
-                LOGGER.info(
-                    "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+                LOGGER.info("found " + str(len(peaks)) + " peak(s), selected highest one")
+                LOGGER.info("in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+
                 bpm = max_x * 60
                 bpm = np.around(bpm, decimals=2)
 
@@ -1255,7 +1253,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
         else:
             bpm = None
-            LOGGER.info('No peaks detected, as prominence is < 0.1')
+            LOGGER.info('No peaks detected, as prominence is < 1.0')
             # print('ERROR code 3')
 
     return(ax, bpm, nr_peaks, prominence, height, has_low_variance)
@@ -1819,6 +1817,12 @@ def run(video, args, video_metadata):
     # Detect HROI and write into figure. 
     # stop_frame = 0 if no movement detected, otherwise set to frame index
     embryo, mask, hroi_ax, stop_frame, nr_candidate_regions = HROI(sorted_frames, norm_frames, hroi_ax)
+
+    # TODO: analyse frames after movement
+    if stop_frame < 40:
+        LOGGER.info("Movement before frame 40. Stopping analysis")
+        return None, qc_attributes
+
     qc_attributes["HROI count"] = str(nr_candidate_regions)
     if stop_frame > 0:
         qc_attributes["Stop frame"] = str(stop_frame)
