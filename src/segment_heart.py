@@ -1178,229 +1178,180 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         _ = ax.annotate(bpm_label, xy=(median_peaks, hist_height), xytext=(median_peaks + (median_peaks * 0.1),
                         hist_height + (hist_height * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
+        return(ax, bpm)
+
+    # Detect most common Fourier Peak using Kernel Density Estimation (KDE)
+    density = gaussian_kde(frequencies)
+    xs = np.linspace(heart_range[0], heart_range[-1], 500)
+    ys = density(xs)
+
+    # Peak Calling
+    # prominence filters out 'flat' KDEs,
+    # these result from a noisy signal
+    if peak_filter is True:
+        #squared_list = np.sqrt(ys)
+        #peaks, _ = find_peaks(squared_list, prominence=(0.05))
+        peaks, _ = find_peaks(ys, prominence=0.5)
     else:
-        # Detect most common Fourier Peak using Kernel Density Estimation (KDE)
-        density = gaussian_kde(frequencies)
-        xs = np.linspace(heart_range[0], heart_range[-1], 500)
-        ys = density(xs)
+        peaks, _ = find_peaks(ys, prominence=0.1)
 
-        # Plot KDE
-        _ = sns.kdeplot(frequencies, ax=ax, fill=True)  # , bw_adjust=.5)
-        _ = ax.set_title("Pixel Fourier Transform Maxima")
-        _ = ax.set_xlabel('Frequency (Hz)')
-        _ = ax.set_ylabel('Density')
-        # Only plot within heart range (in Hertz)
-        _ = ax.set_xlim(heart_range)
+    if slow_mode == False:
+        if len(peaks) == 1:
+            LOGGER.info("Found 1 peak")
 
-        # Calculate bpm from most common Fourier peak
-        max_index = np.argmax(ys)
-        # min_index = np.argmin(ys)
-        # sorted_list = ys.sort()
-        # max_y = sorted_list[-1]
+            # Calculate bpm from most common Fourier peak
+            max_index = np.argmax(ys)
 
-        # let´s find the max and min peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
+            # let´s find the max peak, and use it in case we have two peaks and user has input an average as argument to filter peaks
+            max_x = xs[max_index]
+            max_y = ys[max_index]
 
-        max_x = xs[max_index]
-        max_y = ys[max_index]
+            bpm = max_x * 60
 
-        # Peak Calling
-        # prominence filters out 'flat' KDEs,
-        # these result from a noisy signal
-        if peak_filter is True:
-            #squared_list = np.sqrt(ys)
-            #peaks, _ = find_peaks(squared_list, prominence=(0.05))
-            peaks, _ = find_peaks(ys, prominence=0.5)
-        else:
-            peaks, _ = find_peaks(ys, prominence=0.1)
+            # Prepare label for plot
+            index_for_plotting = max_index
 
-        if slow_mode == False:
-            if len(peaks) == 1:
-                LOGGER.info("Found 1 peak")
-                bpm = max_x * 60
-                bpm = np.around(bpm, decimals=2)
+        elif len(peaks) > 1:
+            # verify if user has inserted a average argument -a. 0 means No parameters inserted
+            if not average_values:
+                LOGGER.info("found " + str(len(peaks)) +
+                            " peak(s), selected the one which represents the lower BPM, but above 50")
+                LOGGER.info(
+                    "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
 
-                # Prepare label for plot
-                bpm_label = str(int(bpm)) + " bpm"
-
-                # Label plot with bpm
-                _ = ax.plot(max_x, max_y, 'bo', ms=10)
-                _ = ax.annotate(bpm_label, xy=(max_x, max_y), xytext=(
-                    max_x + (max_x * 0.1), max_y + (max_y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-            elif len(peaks) > 1:
-                # verify if user has inserted a average argument -a. 0 means No parameters inserted
-                if not average_values:
-                    LOGGER.info("found " + str(len(peaks)) +
-                                " peak(s), selected the one which represents the lower BPM, but above 50")
-                    LOGGER.info(
-                        "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
-
-                    x_values = [xs[i] for i in peaks]
-                    lowest_value = min(x_values)
-                    highest_value = max(x_values)
-                    x_list = xs.tolist()
-                    index_for_plotting = x_list.index(lowest_value)
-                    bpm = lowest_value * 60
-                    # invert peaks if final bpm is lower than 50 (unreal)
-                    if bpm < 50:
-                        bpm = highest_value * 60
-                        index_for_plotting = x_list.index(highest_value)
-                    bpm = np.around(bpm, decimals=2)
-                    bpm_label = str(int(bpm)) + " bpm"
-
-                    # Label plot with bpm
-                    _ = ax.plot(xs[index_for_plotting],
-                                ys[index_for_plotting], 'bo', ms=10)
-                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-                else:
-                    # the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average
-
-                    # list_from_array = xs.tolist()
-                    # list_from_array_y_index = [x for x in range(len(ys)) if ys[x] in list_from_array_y]
-
-                    x_values = [xs[i] for i in peaks]
-
-                    def absolute_difference_function(list_value): return abs(
-                        list_value - average_values/60)
-                    closest_value = min(
-                        x_values, key=absolute_difference_function)
-
-                    x_list = xs.tolist()
-
-                    index_for_plotting = x_list.index(closest_value)
-
-                    bpm = closest_value * 60
-                    bpm = np.around(bpm, decimals=2)
-
-                    bpm_label = str(int(bpm)) + " bpm"
-                    # Label plot with bpm
-                    _ = ax.plot(xs[index_for_plotting],
-                                ys[index_for_plotting], 'bo', ms=10)
-                    _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                        xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-                    LOGGER.info("found " + str(len(peaks)) + " peak(s), and selected the closest to " +
-                                str(average_values) + ', as requested in the argument -a')
+                x_values = [xs[i] for i in peaks]
+                lowest_value = min(x_values)
+                highest_value = max(x_values)
+                x_list = xs.tolist()
+                index_for_plotting = x_list.index(lowest_value)
+                bpm = lowest_value * 60
+                # invert peaks if final bpm is lower than 50 (unreal)
+                if bpm < 50:
+                    bpm = highest_value * 60
+                    index_for_plotting = x_list.index(highest_value)
 
             else:
-                bpm = None
-                LOGGER.info('No peaks detected')
+                # the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average
 
-        else:  # slow mode is True
-            if len(peaks) == 1:
-                LOGGER.info("Found 1 peak in slow mode")
-                average_peaks = statistics.mean(ys)
-                max_peak = np.argmax(ys)
+                # list_from_array = xs.tolist()
+                # list_from_array_y_index = [x for x in range(len(ys)) if ys[x] in list_from_array_y]
 
-                if max_peak > (average_peaks*2):
+                x_values = [xs[i] for i in peaks]
+
+                def absolute_difference_function(list_value): return abs(
+                    list_value - average_values/60)
+                closest_value = min(
+                    x_values, key=absolute_difference_function)
+
+                x_list = xs.tolist()
+
+                index_for_plotting = x_list.index(closest_value)
+
+                bpm = closest_value * 60
+
+                LOGGER.info("found " + str(len(peaks)) + " peak(s), and selected the closest to " +
+                            str(average_values) + ', as requested in the argument -a')
+
+        else:
+            bpm = None
+            LOGGER.info('No peaks detected')
+
+    else:  # slow mode is True
+        if len(peaks) == 1:
+            LOGGER.info("Found 1 peak in slow mode")
+            average_peaks = statistics.mean(ys)
+            max_peak = np.argmax(ys)
+
+            if max_peak > (average_peaks*2):
+                LOGGER.info(
+                    "The peak is very higher than the average values and can be abnormal. We will try to detected hidden peaks by square rooting the values")
+                squared_list = np.sqrt(ys)
+                peaks, _ = find_peaks(squared_list, prominence=(0.05))
+
+                if len(peaks) > 1:
                     LOGGER.info(
-                        "The peak is very higher than the average values and can be abnormal. We will try to detected hidden peaks by square rooting the values")
-                    squared_list = np.sqrt(ys)
-                    peaks, _ = find_peaks(squared_list, prominence=(0.05))
+                        "Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
+                else:
+                    LOGGER.info(
+                        "No aditional peak detected, using the unique peak to detect bpm")
 
-                    if len(peaks) > 1:
-                        LOGGER.info(
-                            "Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
-                    else:
-                        LOGGER.info(
-                            "No aditional peak detected, using the unique peak to detect bpm")
+            x_values = [xs[i] for i in peaks]
+            highest_value = max(x_values)
+            x_list = xs.tolist()
+            index_for_plotting = x_list.index(highest_value)
+            bpm = xs[index_for_plotting] * 60
 
+        elif len(peaks) == 2:
+            LOGGER.info("Found 2 peaks in slow mode")
+            x_values = [xs[i] for i in peaks]
+            if x_values[0] < (x_values[1]/3):
+                bpm = x_values[1] * 60
+                x_list = xs.tolist()
+                index_for_plotting = x_list.index(x_values[1])
+            else:
+                bpm = x_values[0] * 60
+                x_list = xs.tolist()
+                index_for_plotting = x_list.index(x_values[0])
+
+        # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
+        elif len(peaks) > 2:
+            LOGGER.info("Found more than 2 peaks in slow mode")
+            x_values = [xs[i] for i in peaks]
+            averaged_peak_values = statistics.mean(x_values)
+
+            def absolute_difference_function(list_value): 
+                return abs(list_value - averaged_peak_values)
+            farthest_value = max(x_values, key=absolute_difference_function)
+
+            #x_list = xs.tolist()
+            index_for_deletion = x_values.index(farthest_value)
+            peaks = np.delete(peaks, index_for_deletion)
+
+            # now, with a correct peak list, calculate again using the higher peak
+            y_values = [ys[i] for i in peaks]
+            highest_value = max(y_values)
+            y_list = ys.tolist()
+            x_list = xs.tolist()
+            index_for_plotting = y_list.index(highest_value)
+            bpm = x_list[index_for_plotting] * 60
+
+        else:
+            LOGGER.info("No peaks detected, trying power over the peaks")
+            powered_list = np.power(ys, 2)
+            peaks, _ = find_peaks(powered_list)
+
+            if len(peaks) > 0:
+                LOGGER.info("Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
                 x_values = [xs[i] for i in peaks]
                 highest_value = max(x_values)
                 x_list = xs.tolist()
                 index_for_plotting = x_list.index(highest_value)
                 bpm = xs[index_for_plotting] * 60
-                bpm = np.around(bpm, decimals=2)
-
-                # plot with the correct peak index
-                bpm_label = str(int(bpm)) + " bpm"
-                _ = ax.plot(xs[index_for_plotting],
-                            ys[index_for_plotting], 'bo', ms=10)
-                _ = ax.annotate(bpm_label, xy=(xs[index_for_plotting], ys[index_for_plotting]), xytext=(xs[index_for_plotting] + (
-                    xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
-
-            elif len(peaks) == 2:
-                LOGGER.info("Found 2 peaks in slow mode")
-                x_values = [xs[i] for i in peaks]
-                if x_values[0] < (x_values[1]/3):
-                    bpm = x_values[1] * 60
-                    bpm = np.around(bpm, decimals=2)
-                    x_list = xs.tolist()
-                    index_for_plotting = x_list.index(x_values[1])
-                else:
-                    bpm = x_values[0] * 60
-                    bpm = np.around(bpm, decimals=2)
-                    x_list = xs.tolist()
-                    index_for_plotting = x_list.index(x_values[0])
-
-                # plot with the correct peak index
-                bpm_label = str(int(bpm)) + " bpm"
-                _ = ax.plot(xs[index_for_plotting],
-                            ys[index_for_plotting], 'bo', ms=10)
-                _ = ax.annotate(bpm_label, 
-                                xy=(xs[index_for_plotting], ys[index_for_plotting]), 
-                                xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), 
-                                arrowprops=dict(facecolor='black', shrink=0.05))
-
-            # more than 2 peaks, first delete the farthest peak from the peaks average,as is is suposed to be a error.
-            elif len(peaks) > 2:
-                LOGGER.info("Found more than 2 peaks in slow mode")
-                x_values = [xs[i] for i in peaks]
-                averaged_peak_values = statistics.mean(x_values)
-
-                def absolute_difference_function(list_value): 
-                    return abs(list_value - averaged_peak_values)
-                farthest_value = max(x_values, key=absolute_difference_function)
-
-                #x_list = xs.tolist()
-                index_for_deletion = x_values.index(farthest_value)
-                peaks = np.delete(peaks, index_for_deletion)
-
-                # now, with a correct peak list, calculate again using the higher peak
-                y_values = [ys[i] for i in peaks]
-                highest_value = max(y_values)
-                y_list = ys.tolist()
-                x_list = xs.tolist()
-                index_for_plotting = y_list.index(highest_value)
-                bpm = x_list[index_for_plotting] * 60
-                bpm = np.around(bpm, decimals=2)
-
-                # Label plot with peak representing the lowest bpm
-                bpm_label = str(int(bpm)) + " bpm"
-                _ = ax.plot(xs[index_for_plotting],
-                            ys[index_for_plotting], 'bo', ms=10)
-                _ = ax.annotate(bpm_label, 
-                                xy=(xs[index_for_plotting], ys[index_for_plotting]), 
-                                xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)), 
-                                arrowprops=dict(facecolor='black', shrink=0.05))
 
             else:
-                LOGGER.info("No peaks detected, trying power over the peaks")
-                powered_list = np.power(ys, 2)
-                peaks, _ = find_peaks(powered_list)
+                LOGGER.info(
+                    "No peaks detected anyway")
+                bpm = None
 
-                if len(peaks) > 0:
-                    LOGGER.info("Found " + str(len(peaks)) + " peaks. We will select the one that represents the highest bpm")
-                    x_values = [xs[i] for i in peaks]
-                    highest_value = max(x_values)
-                    x_list = xs.tolist()
-                    index_for_plotting = x_list.index(highest_value)
-                    bpm = xs[index_for_plotting] * 60
-                    bpm = np.around(bpm, decimals=2)
+    # Round bpm
+    bpm = np.around(bpm, decimals=2)
 
-                    # plot with the correct peak index
-                    bpm_label = str(int(bpm)) + " bpm"
-                    _ = ax.plot(xs[index_for_plotting], ys[index_for_plotting], 'bo', ms=10)
-                    _ = ax.annotate(bpm_label, 
-                                    xy=(xs[index_for_plotting], ys[index_for_plotting]), 
-                                    xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)),
-                                    arrowprops=dict(facecolor='black', shrink=0.05))
-                else:
-                    LOGGER.info(
-                        "No peaks detected anyway")
-                    bpm = None
+    # Plot KDE
+    _ = sns.kdeplot(frequencies, ax=ax, fill=True)  # , bw_adjust=.5)
+    _ = ax.set_title("Pixel Fourier Transform Maxima")
+    _ = ax.set_xlabel('Frequency (Hz)')
+    _ = ax.set_ylabel('Density')
+
+    # Only plot within heart range (in Hertz)
+    _ = ax.set_xlim(heart_range)
+
+    # plot with the correct peak index
+    bpm_label = str(int(bpm)) + " bpm"
+    _ = ax.plot(xs[index_for_plotting], ys[index_for_plotting], 'bo', ms=10)
+    _ = ax.annotate(bpm_label, 
+                    xy=(xs[index_for_plotting], ys[index_for_plotting]), 
+                    xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)),
+                    arrowprops=dict(facecolor='black', shrink=0.05))
 
     return(ax, bpm)
 
@@ -1814,12 +1765,15 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
     # TODO: That just results in wrong measurements, as the heart may be cut.
     norm_frames = resizeFrames(norm_frames, scale=50)
 
+    norm_frames = np.asarray(norm_frames)
+    hroi_pixels = norm_frames.reshape(norm_frames.shape[0], -1)
+
     # Signal for every pixel
-    all_pixel_sigs = PixelSignal(norm_frames)
+    pixel_sigs = PixelSignal(hroi_pixels)
 
     # Perform Fourier Transform on every pixel
     # NOTE: plot=True too expensive and won't finish at the moment
-    highest_freqs2 = PixelFourier(all_pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
+    highest_freqs2 = PixelFourier(pixel_sigs, times, empty_frames, frame2frame_sec, args['threads'], plot=False)
     
     # Plot the density of fourier transform global maxima across pixels
     out_kde2 = os.path.join(out_dir, "pixel_rate_all(slowmode).png")
@@ -1966,7 +1920,7 @@ def run(video, args, video_metadata):
     except Exception as e:
         if args['slowmode']:
             LOGGER.info("Trying in slow mode2")
-            norm_frames_grey = greyFrames(norm_frames, 0)
+            norm_frames_grey = greyFrames(norm_frames)
 
             bpm = fourier_bpm_slowmode(norm_frames_grey, times, [], frame2frame, args, out_dir)
             return bpm
