@@ -1819,16 +1819,17 @@ def run(video, args, video_metadata):
     embryo, mask, hroi_ax, stop_frame, nr_candidate_regions = HROI(sorted_frames, norm_frames, hroi_ax)
 
     # TODO: analyse frames after movement
-    if stop_frame < 40:
-        LOGGER.info("Movement before frame 40. Stopping analysis")
-        return None, qc_attributes
-
-    qc_attributes["HROI count"] = str(nr_candidate_regions)
     if stop_frame > 0:
         qc_attributes["Stop frame"] = str(stop_frame)
+
+        # Break condition
+        if stop_frame < 40:
+            LOGGER.info("Movement before frame 40. Stopping analysis")
+            return None, qc_attributes
     else:
         qc_attributes["Stop frame"] = str(len(embryo))
 
+    qc_attributes["HROI count"] = str(nr_candidate_regions)
 
     # Save Figure
     plt.savefig(out_fig, bbox_inches='tight')
