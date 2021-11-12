@@ -1190,9 +1190,10 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         else:
             peaks, peak_attributes = find_peaks(ys, prominence=0.1)
 
-        nr_peaks    = len(peaks)
-        prominence  = peak_attributes['prominences'][np.where(peaks == max_index)][0]
-        height      = max_y
+        if peaks:
+            nr_peaks    = len(peaks)
+            prominence  = peak_attributes['prominences'][np.where(peaks == max_index)][0]
+            height      = max_y
 
         if len(peaks) == 1:
             LOGGER.info("Found 1 peak")
