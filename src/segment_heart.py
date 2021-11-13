@@ -1117,7 +1117,10 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         if plot is True:
             _ = ax.plot(freqs, psd, color='grey', alpha=0.5)
 
-    return(ax, highest_freqs)
+    if plot is True:
+        return(ax, highest_freqs)
+    else:
+        return highest_freqs
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
 def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True, slow_mode=False):
