@@ -115,8 +115,6 @@ try:
         if args.debug:
             for key, value in qc_attributes.items():
                 out_string += (";" + str(key) + ':' + str(value))
-        else:
-            out_string += ";"
 
         out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
         with open(out_file, 'w') as output:

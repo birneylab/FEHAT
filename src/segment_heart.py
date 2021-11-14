@@ -1212,10 +1212,19 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         elif len(peaks) > 1:
             # verify if user has inserted a average argument -a. 0 means No parameters inserted
             if not average_values:
-                LOGGER.info("found " + str(len(peaks)) + " peak(s), selected highest one")
+                LOGGER.info("found " + str(len(peaks)) + " peak(s), selected highest prominence one")
                 LOGGER.info("in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+                
+                # Peak with maximum prominence
+                max_prominence_idx = np.argmax(peak_attributes['prominences'])
+                prominence = peak_attributes['prominences'][max_prominence_idx]
 
-                bpm = max_x * 60
+                # Map idx in peak list to idx for x and y values in the frequency-density space.
+                max_prominence_idx = peaks[max_prominence_idx]
+                height = ys[max_prominence_idx]
+
+                bpm = xs[max_prominence_idx] * 60
+
                 bpm = np.around(bpm, decimals=2)
 
                 bpm_label = str(int(bpm)) + " bpm"
@@ -1828,7 +1837,7 @@ def run(video, args, video_metadata):
         # Break condition
         if stop_frame < 40:
             LOGGER.info("Movement before frame 40. Stopping analysis")
-            return None, qc_attributes
+            return None, fps, qc_attributes
     else:
         qc_attributes["Stop frame"] = str(len(embryo))
 
