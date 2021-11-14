@@ -1,4 +1,4 @@
-Date: May 14, 2021
+Date: May 14, 2021 (v1.0)
 
 In this version of the script, some improvements were made to the original one, developed by Jack in https://github.com/monahanj/medaka_embryo_heartRate. 
 
@@ -27,7 +27,19 @@ Date: June 23, 2021
 - Providing the loops as arguments is no longer a necessity
 - Noticable increase in analysis speed.
 
-Date: October 22, 2021
+Date: October 22, 2021 (v1.1)
 
 - Added testing capeability for consistent benchmark analysis
 - Split the run() function in segment_heart.py into subfunction for easier algorithm refinement
+- Disabled slowmode fallback as proven inaccurate.
+
+Date: November 14, 2021 (v1.2)
+
+The release contains changes to make the software more accurate but sacrifices classification rate.
+
+- Set minimum frames for analysis before movement to 3 seconds.
+- Set minimum signal intensity in fourier analysis to 1.0.
+- fps used in analysis is now saved in the results file
+- Started structured versioning system, labelling this release as v1.2(nov21). The previous release disabled slowmode and is labeles release v1.1(oct21). The releases before this are labelles v1.0, as the analysis algorithm itself hasn't changed since May 2021.
+- well name (A001, A002,...) is saved in the results file in addition to already present well id (WE0001, WE0002,...)
+- Enabling debug option will output Heart size, HROI count, Stop frame, Number of peaks, Prominence, Height, Low variance with each video

@@ -19,7 +19,7 @@ import glob2
 import cv2
 from matplotlib import pyplot as plt
 
-SOFTWARE_VERSION = "1.1 (nov21)"
+SOFTWARE_VERSION = "1.2 (nov21)"
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)

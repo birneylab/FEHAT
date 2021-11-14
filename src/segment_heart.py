@@ -1835,8 +1835,8 @@ def run(video, args, video_metadata):
         qc_attributes["Stop frame"] = str(stop_frame)
 
         # Break condition
-        if stop_frame < 40:
-            LOGGER.info("Movement before frame 40. Stopping analysis")
+        if stop_frame < 3*fps:
+            LOGGER.info("Movement before 3 seconds. Stopping analysis")
             return None, fps, qc_attributes
     else:
         qc_attributes["Stop frame"] = str(len(embryo))
