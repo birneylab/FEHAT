@@ -19,14 +19,12 @@ import glob2
 import cv2
 from matplotlib import pyplot as plt
 
-#from matplotlib import pyplot as plt
+SOFTWARE_VERSION = "1.1 (nov21)"
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
 
 # Goes through all channels and loops and yields well data fields and paths to frames sorted by frame index.
-
-
 def well_video_generator(indir, channels, loops):
     # -A001--PO01--LO001--CO1--SL001--PX32500--PW0070--IN0020--TM280--X014600--Y011401--Z214683--T0000000000--WE00001.tif
 
@@ -164,7 +162,7 @@ def well_video_exists(indir, channel, loop, well_id):
 # Results:
 # Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
 # TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
-def write_to_spreadsheet(outdir, results, experiment_id):
+def write_to_spreadsheet(outdir, results, experiment_id, in_debug_mode=False):
     LOGGER.info("Saving acquired data to spreadsheet")
     outfile_name = "results_" + experiment_id + ".csv"
     outpath = os.path.join(outdir, outfile_name)
@@ -184,36 +182,48 @@ def write_to_spreadsheet(outdir, results, experiment_id):
         writer = csv.writer(outfile, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-        writer.writerow(['Index', 'WellID', 'Loop', 'Channel', 'Heartrate (BPM)', 
-                        'Heart size',   #qc_attributes
-                        'HROI count',
-                        'Stop frame',
-                        'Number of peaks',
-                        'Prominence',
-                        'Height',
-                        'Low variance'])
+        header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
+
+        if in_debug_mode: # also output qc_attributes
+            qc_attributes = ['Heart size',
+                            'HROI count',
+                            'Stop frame',
+                            'Number of peaks',
+                            'Prominence',
+                            'Height',
+                            'Low variance']
+            header += qc_attributes
+
+        writer.writerow(header)
 
         nr_of_results = len(results['heartbeat'])
 
         # Ensure everything is string and set None values
         for key, value in results.items():
             value = ["NA" if entry is None else str(entry) for entry in value]
+            results[key] = value
 
         for idx in range(nr_of_results):
-            writer.writerow([str(idx+1),
-                            results['well'][idx],
-                            results['loop'][idx],
-                            results['channel'][idx],
-                            results['heartbeat'][idx],
-                            results['Heart size'][idx],
-                            results['HROI count'][idx],
-                            results['Stop frame'][idx],
-                            results['Number of peaks'][idx],
-                            results['Prominence'][idx],
-                            results['Height'][idx],
-                            results['Low variance'][idx]
-                            ])
+            entry = [str(idx+1),
+                    results['well'][idx],
+                    well_id_name_table[results['well'][idx]],
+                    results['loop'][idx],
+                    results['channel'][idx],
+                    results['heartbeat'][idx],
+                    results['fps'][idx],
+                    SOFTWARE_VERSION]
 
+            if in_debug_mode: # also output qc_attributes
+                qc_attributes = [results['Heart size'][idx],
+                                results['HROI count'][idx],
+                                results['Stop frame'][idx],
+                                results['Number of peaks'][idx],
+                                results['Prominence'][idx],
+                                results['Height'][idx],
+                                results['Low variance'][idx]]
+                entry += qc_attributes
+
+            writer.writerow(entry)
 
 def save_cropped(cut_images, args, images_path):
     # function to save the cropped images
@@ -300,6 +310,23 @@ def save_panel(resulting_dict_from_crop, args):
 
             plt.savefig(outfile_path, bbox_extra_artists=(
                         suptitle,), bbox_inches="tight")
+
+well_id_name_table = {  'WE00001': 'A001', 'WE00002': 'A002', 'WE00003': 'A003', 'WE00004': 'A004', 'WE00005': 'A005', 'WE00006': 'A006', 
+                        'WE00007': 'A007', 'WE00008': 'A008', 'WE00009': 'A009', 'WE00010': 'A010', 'WE00011': 'A011', 'WE00012': 'A012', 
+                        'WE00013': 'B012', 'WE00014': 'B011', 'WE00015': 'B010', 'WE00016': 'B009', 'WE00017': 'B008', 'WE00018': 'B007', 
+                        'WE00019': 'B006', 'WE00020': 'B005', 'WE00021': 'B004', 'WE00022': 'B003', 'WE00023': 'B002', 'WE00024': 'B001', 
+                        'WE00025': 'C001', 'WE00026': 'C002', 'WE00027': 'C003', 'WE00028': 'C004', 'WE00029': 'C005', 'WE00030': 'C006', 
+                        'WE00031': 'C007', 'WE00032': 'C008', 'WE00033': 'C009', 'WE00034': 'C010', 'WE00035': 'C011', 'WE00036': 'C012', 
+                        'WE00037': 'D012', 'WE00038': 'D011', 'WE00039': 'D010', 'WE00040': 'D009', 'WE00041': 'D008', 'WE00042': 'D007', 
+                        'WE00043': 'D006', 'WE00044': 'D005', 'WE00045': 'D004', 'WE00046': 'D003', 'WE00047': 'D002', 'WE00048': 'D001', 
+                        'WE00049': 'E001', 'WE00050': 'E002', 'WE00051': 'E003', 'WE00052': 'E004', 'WE00053': 'E005', 'WE00054': 'E006', 
+                        'WE00055': 'E007', 'WE00056': 'E008', 'WE00057': 'E009', 'WE00058': 'E010', 'WE00059': 'E011', 'WE00060': 'E012', 
+                        'WE00061': 'F012', 'WE00062': 'F011', 'WE00063': 'F010', 'WE00064': 'F009', 'WE00065': 'F008', 'WE00066': 'F007', 
+                        'WE00067': 'F006', 'WE00068': 'F005', 'WE00069': 'F004', 'WE00070': 'F003', 'WE00071': 'F002', 'WE00072': 'F001', 
+                        'WE00073': 'G001', 'WE00074': 'G002', 'WE00075': 'G003', 'WE00076': 'G004', 'WE00077': 'G005', 'WE00078': 'G006', 
+                        'WE00079': 'G007', 'WE00080': 'G008', 'WE00081': 'G009', 'WE00082': 'G010', 'WE00083': 'G011', 'WE00084': 'G012', 
+                        'WE00085': 'H012', 'WE00086': 'H011', 'WE00087': 'H010', 'WE00088': 'H009', 'WE00089': 'H008', 'WE00090': 'H007', 
+                        'WE00091': 'H006', 'WE00092': 'H005', 'WE00093': 'H004', 'WE00094': 'H003', 'WE00095': 'H002', 'WE00096': 'H001'}
 
 # def save_cropped_img(outdir, img, well_id, loop_id):
 #     name = loop_id + '-' + str(well_id)

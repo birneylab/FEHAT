@@ -68,6 +68,7 @@ try:
     try:
         LOGGER.info("##### Analysis #####")
         bpm = None
+        fps = None
         qc_attributes = {   "Heart size": None, 
                             "HROI count": None, 
                             "Stop frame": None, 
@@ -85,7 +86,7 @@ try:
             LOGGER.info("Running....please wait...")
 
             try:
-                bpm, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                 LOGGER.info("Reported BPM: " + str(bpm))
 
             except Exception as e:
@@ -103,9 +104,19 @@ try:
         else:
             bpm = 'NA'
 
-        out_string = "heartbeat:" + bpm
-        for key, value in qc_attributes.items():
-            out_string += (";" + str(key) + ':' + str(value))
+        if fps:
+            fps = str(fps)
+        else:
+            fps = 'NA'
+
+        out_string = "heartbeat:" + bpm + ";fps:" + fps
+
+        # Output quality control attributes only in debug mode
+        if args.debug:
+            for key, value in qc_attributes.items():
+                out_string += (";" + str(key) + ':' + str(value))
+        else:
+            out_string += ";"
 
         out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
         with open(out_file, 'w') as output:

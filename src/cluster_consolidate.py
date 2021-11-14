@@ -62,8 +62,9 @@ results_paths.sort()
 results = { 'channel':          [], 
             'loop':             [],
             'well':             [], 
-            'heartbeat':        [],
             'log':              [],
+            'heartbeat':        [],
+            'fps':              [],
             'Heart size':       [], # qc_attributes
             'HROI count':       [],
             'Stop frame':       [],
@@ -94,6 +95,14 @@ for log, result in zip(logs_paths, results_paths):
             entry = field.split(':')
             results[entry[0]].append(entry[1])
 
+# If qc_attribute is there -> debug mode (don't print to csv)
+in_debug_mode = False
+if results["Prominence"]:
+    in_debug_mode = True
+
+# remove qc_attributes in case they are not present
+results = {key: value for (key, value) in results.items() if value}
+
 # Sort through pandas
 results = pd.DataFrame.from_dict(results)
 results.sort_values(by=['channel', 'loop', 'well'])
@@ -104,7 +113,7 @@ LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
 results = results.to_dict(orient='list')
 
 #  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
+io_operations.write_to_spreadsheet(out_dir, results, experiment_id, in_debug_mode)
 
 #TODO: Dangerous as it removes all conents of directory. Assert that in fact, only log and txt files are inside
 #TODO: and that folder is named tmp/

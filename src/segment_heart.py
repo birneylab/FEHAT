@@ -1794,6 +1794,7 @@ def run(video, args, video_metadata):
         total_time = (timestamp_final - timestamp0) / 1000
         # fps = int(len(sorted_times) / round(total_time))
         fps = len(sorted_times) / total_time
+        fps = round(fps, 2)
         LOGGER.info("Deduced fps: " + str(fps))
     else:
         fps = args['fps']
@@ -1914,14 +1915,15 @@ def run(video, args, video_metadata):
     nr_peaks = None
     prominence = None
     height = None
+
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
         bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
-    qc_attributes["Number of peaks"] = str(nr_peaks)
-    qc_attributes["Prominence"] = str(prominence)
-    qc_attributes["Height"] = str(height)
-    qc_attributes["Low variance"] = str(has_low_variance)
+    qc_attributes["Number of peaks"]    = str(nr_peaks)         if nr_peaks         else None
+    qc_attributes["Prominence"]         = str(prominence)       if prominence       else None
+    qc_attributes["Height"]             = str(height)           if height           else None
+    qc_attributes["Low variance"]       = str(has_low_variance) if has_low_variance else None
 
     # Run in slow mode, Fourier on every pixel
     if args['slowmode']: #or not bpm:
@@ -1931,4 +1933,4 @@ def run(video, args, video_metadata):
         bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
     plt.close('all') # fixed memory leak
-    return bpm, qc_attributes
+    return bpm, fps, qc_attributes
