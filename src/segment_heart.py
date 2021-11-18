@@ -844,8 +844,7 @@ def detrendSignal(interpolated_signal, time_domain, window_size=15):
     """
     # Savitzky–Golay filter to smooth signal
     # Window size must be odd integer
-    data_detrended = savgol_filter(
-        interpolated_signal(time_domain), window_size, 3)
+    data_detrended = savgol_filter(interpolated_signal(time_domain), window_size, 3)
 
     # Normalise Signal
     normalised_signal = data_detrended / data_detrended.std()
@@ -1035,8 +1034,7 @@ def PixelSignal(hroi_pixels):
     """
     pixel_signals = np.transpose(hroi_pixels, axes=[1, 0])
 
-    empty_pixels = np.where(np.all(pixel_signals==0))
-    pixel_signals = np.delete(pixel_signals, empty_pixels, 0)
+    pixel_signals = pixel_signals[~np.all(pixel_signals == 0, axis=1)]
 
     return(pixel_signals)
 
@@ -1085,7 +1083,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         # Remove values from empty frames
         signal_filtered = np.delete(pixel_signal, empty_frames)
         times_filtered = np.delete(times, empty_frames)
-
+    
         # Cubic Spline Interpolation
         cs = CubicSpline(times_filtered, signal_filtered)
         norm_cs = detrendSignal(cs, td, window_size=27)   # 27
