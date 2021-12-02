@@ -285,7 +285,7 @@ def detectEmbryo(frame):
 # Convert all frames in a list into greyscale
 
 
-def greyFrames(frames):  # stop_frame is not used anymore
+def greyFrames(frames):
 
     for frame in frames:
         if frame is not None:
@@ -640,6 +640,8 @@ def new_qc_mask_contours(heart_roi, maxima):
     pOverlap = []
     iList = []
 
+    nr_candidate_regions = len(contours)
+
     for i in range(len(contours)):
 
         # Contour to test
@@ -695,7 +697,7 @@ def new_qc_mask_contours(heart_roi, maxima):
 
     final_mask = cv2.add(final_mask, contour_mask)
 
-    return(final_mask, regions)
+    return(final_mask, regions, nr_candidate_regions)
 
 
 def qc_mask_contours(heart_roi, maxima, top_pixels):
@@ -849,8 +851,7 @@ def detrendSignal(interpolated_signal, time_domain, window_size=15):
     """
     # Savitzky–Golay filter to smooth signal
     # Window size must be odd integer
-    data_detrended = savgol_filter(
-        interpolated_signal(time_domain), window_size, 3)
+    data_detrended = savgol_filter(interpolated_signal(time_domain), window_size, 3)
 
     # Normalise Signal
     normalised_signal = data_detrended / data_detrended.std()
@@ -1040,8 +1041,7 @@ def PixelSignal(hroi_pixels):
     """
     pixel_signals = np.transpose(hroi_pixels, axes=[1, 0])
 
-    empty_pixels = np.where(np.all(pixel_signals==0))
-    pixel_signals = np.delete(pixel_signals, empty_pixels, 0)
+    pixel_signals = pixel_signals[~np.all(pixel_signals == 0, axis=1)]
 
     return(pixel_signals)
 
@@ -1090,7 +1090,7 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
         # Remove values from empty frames
         signal_filtered = np.delete(pixel_signal, empty_frames)
         times_filtered = np.delete(times, empty_frames)
-
+    
         # Cubic Spline Interpolation
         cs = CubicSpline(times_filtered, signal_filtered)
         norm_cs = detrendSignal(cs, td, window_size=27)   # 27
@@ -1124,6 +1124,12 @@ def PixelFourier(pixel_signals, times, empty_frames, frame2frame, threads, pixel
 
 # ## Function PixelFreqs(frequencies, figsize = (10,7), heart_range = (0.5, 5), peak_filter = True)
 def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5), peak_filter=True, slow_mode=False):
+    
+    # QC  attributes
+    nr_peaks = None
+    prominence = None
+    height = None
+    has_low_variance = False
 
     sns.set_style('white')
     ax = plt.subplot()
@@ -1133,7 +1139,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
     # otherwise variance will be too small for KDE.
     # Needs to be greater than 0
     if peak_variance < 0.0001:
-
+        has_low_variance = True
         LOGGER.info("In PixelFrequency analysis: low variance")
 
         # Take mode of (homogeneous) array to be the heart rate
@@ -1170,46 +1176,48 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
     # prominence filters out 'flat' KDEs,
     # these result from a noisy signal
     if peak_filter is True:
-        #squared_list = np.sqrt(ys)
-        #peaks, _ = find_peaks(squared_list, prominence=(0.05))
-        peaks, _ = find_peaks(ys, prominence=0.5)
+        peaks, peak_attributes = find_peaks(ys, prominence=1.0)
     else:
-        peaks, _ = find_peaks(ys, prominence=0.1)
+        peaks, peak_attributes = find_peaks(ys, prominence=0.1)
 
     if slow_mode == False:
+
+        # Calculate bpm from most common Fourier peak
+        max_index = np.argmax(ys)
+
+        # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
+        max_x = xs[max_index]
+        max_y = ys[max_index]
+
+        # Set attributes any peak was found
+        if len(peaks) != 0:
+            nr_peaks    = len(peaks)
+            prominence  = peak_attributes['prominences'][np.where(peaks == max_index)][0]
+            height      = max_y
+
         if len(peaks) == 1:
             LOGGER.info("Found 1 peak")
-
-            # Calculate bpm from most common Fourier peak
-            max_index = np.argmax(ys)
-
-            # let´s find the max peak, and use it in case we have two peaks and user has input an average as argument to filter peaks
-            max_x = xs[max_index]
-            max_y = ys[max_index]
-
             bpm = max_x * 60
 
-            # Prepare label for plot
             index_for_plotting = max_index
 
         elif len(peaks) > 1:
             # verify if user has inserted a average argument -a. 0 means No parameters inserted
             if not average_values:
-                LOGGER.info("found " + str(len(peaks)) +
-                            " peak(s), selected the one which represents the lower BPM, but above 50")
-                LOGGER.info(
-                    "in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+                LOGGER.info("found " + str(len(peaks)) + " peak(s), selected highest prominence one")
+                LOGGER.info("in these cases, inserting an expected average as agument -a in bash command line can help to choose the right peak. E.g.: -a 98")
+                
+                # Peak with maximum prominence
+                max_prominence_idx = np.argmax(peak_attributes['prominences'])
+                prominence = peak_attributes['prominences'][max_prominence_idx]
 
-                x_values = [xs[i] for i in peaks]
-                lowest_value = min(x_values)
-                highest_value = max(x_values)
-                x_list = xs.tolist()
-                index_for_plotting = x_list.index(lowest_value)
-                bpm = lowest_value * 60
-                # invert peaks if final bpm is lower than 50 (unreal)
-                if bpm < 50:
-                    bpm = highest_value * 60
-                    index_for_plotting = x_list.index(highest_value)
+                # Map idx in peak list to idx for x and y values in the frequency-density space.
+                max_prominence_idx = peaks[max_prominence_idx]
+                height = ys[max_prominence_idx]
+
+                bpm = xs[max_prominence_idx] * 60
+
+                index_for_plotting = max_prominence_idx
 
             else:
                 # the user insert, as an parameter -a value (average), then the algorithm detect peaks and consider the peak closest to the average
@@ -1221,21 +1229,18 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
 
                 def absolute_difference_function(list_value): return abs(
                     list_value - average_values/60)
-                closest_value = min(
-                    x_values, key=absolute_difference_function)
+                closest_value = min(x_values, key=absolute_difference_function)
 
                 x_list = xs.tolist()
 
                 index_for_plotting = x_list.index(closest_value)
 
                 bpm = closest_value * 60
-
-                LOGGER.info("found " + str(len(peaks)) + " peak(s), and selected the closest to " +
-                            str(average_values) + ', as requested in the argument -a')
+                bpm = np.around(bpm, decimals=2)
 
         else:
             bpm = None
-            LOGGER.info('No peaks detected')
+            LOGGER.info('No peaks detected, as prominence is < 1.0')
 
     else:  # slow mode is True
         if len(peaks) == 1:
@@ -1314,8 +1319,6 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
                     "No peaks detected anyway")
                 bpm = None
 
-    # Round bpm
-    bpm = np.around(bpm, decimals=2)
 
     # Plot KDE
     _ = sns.kdeplot(frequencies, ax=ax, fill=True)  # , bw_adjust=.5)
@@ -1327,14 +1330,19 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
     _ = ax.set_xlim(heart_range)
 
     # plot with the correct peak index
-    bpm_label = str(int(bpm)) + " bpm"
-    _ = ax.plot(xs[index_for_plotting], ys[index_for_plotting], 'bo', ms=10)
-    _ = ax.annotate(bpm_label, 
-                    xy=(xs[index_for_plotting], ys[index_for_plotting]), 
-                    xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)),
-                    arrowprops=dict(facecolor='black', shrink=0.05))
 
-    return(ax, bpm)
+    # Round bpm
+    if bpm is not None:
+        bpm = np.around(bpm, decimals=2)
+
+        bpm_label = str(int(bpm)) + " bpm"
+        _ = ax.plot(xs[index_for_plotting], ys[index_for_plotting], 'bo', ms=10)
+        _ = ax.annotate(bpm_label, 
+                        xy=(xs[index_for_plotting], ys[index_for_plotting]), 
+                        xytext=(xs[index_for_plotting] + (xs[index_for_plotting] * 0.1), ys[index_for_plotting] + (ys[index_for_plotting] * 0.01)),
+                        arrowprops=dict(facecolor='black', shrink=0.05))
+
+    return(ax, bpm, nr_peaks, prominence, height, has_low_variance)
 
 # ## Function output_report(well_number, well, bpm_fourier = "NA", error_message = "No message"):
 
@@ -1634,7 +1642,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # Detect heart region (and possibly blood vessels)
     # by determining the differences across windows of frames
     j = start_frame + 1
-
+    stop_frame = 0
     while j < len(norm_frames):
 
         frame = norm_frames[j]
@@ -1646,7 +1654,9 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
             # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
             if movement == True:
-                raise RuntimeError("Movement detected")
+                stop_frame = j
+                LOGGER.info("Movement detected, stopping at frame " + str(j))
+                break
 
             heart_roi = cv2.add(heart_roi, triangle_thresh)
             embryo.append(masked_frame)
@@ -1695,7 +1705,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     # Filter mask based on area of contours
     heart_roi_clean = filterMask(mask=heart_roi_clean, min_area=100)
 
-    final_mask, regions = new_qc_mask_contours(heart_roi_clean, maxima)
+    final_mask, regions, nr_candidate_regions = new_qc_mask_contours(heart_roi_clean, maxima)
     # final_mask, regions = qc_mask_contours(heart_roi_clean, maxima, top_pixels)
 
     # output_report(well_number, well, error_message = "no masks")
@@ -1713,8 +1723,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     if (final_mask.sum() <= 0):
         raise RuntimeError("Couldn't detect a HROI")
 
-    # stop_frame is not used anymore
-    return embryo, final_mask, hroi_ax
+    return embryo, final_mask, hroi_ax, stop_frame, nr_candidate_regions
 
 # Run normally, Fourier in segemented area
 def fourier_bpm(hroi_pixels, times, empty_frames, frame2frame_sec, args, out_dir):
@@ -1734,11 +1743,11 @@ def fourier_bpm(hroi_pixels, times, empty_frames, frame2frame_sec, args, out_dir
     # Plot the density of fourier transform global maxima across pixels
     out_kde = os.path.join(out_dir, "pixel_rate.png")
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-    ax, bpm_fourier = PixelFreqs(highest_freqs, args['average'], peak_filter=True, slow_mode=False)
+    ax, bpm_fourier, nr_peaks, prominence, height, has_low_variance = PixelFreqs(highest_freqs, args['average'], peak_filter=True)
     plt.savefig(out_kde)
     plt.close()
 
-    return bpm_fourier
+    return bpm_fourier, nr_peaks, prominence, height, has_low_variance
 
 # Run in slow mode, Fourier on every pixel
 def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args, out_dir):
@@ -1828,9 +1837,17 @@ def bpm_trace(hroi_pixels, frame2frame_sec, times, empty_frames, out_dir):
 # TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
 def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
-    bpm = None
 
-    ################################ Pre-Processing
+    bpm = None
+    qc_attributes = {   "Heart size": None, 
+                        "HROI count": None, 
+                        "Stop frame": None, 
+                        "Number of peaks": None,
+                        "Prominence": None,
+                        "Height": None,
+                        "Low variance": None}
+
+    ################################################################################ Create Outdir for pictures
     # Add well position to output directory path
     out_dir = os.path.join(args['outdir'], video_metadata['channel'],
                            video_metadata['loop'] + '-' + video_metadata['well_id'])
@@ -1894,17 +1911,24 @@ def run(video, args, video_metadata):
     out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
     fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
 
-    # Detect HROI
+    # Detect HROI and write into figure. 
     LOGGER.info("Detecting HROI")
-    try:
-        embryo, mask, hroi_ax = HROI(sorted_frames, norm_frames, hroi_ax)
-    except Exception as e:
-        if args['slowmode']:
-            LOGGER.info("Trying in slow mode2")
-            norm_frames_grey = greyFrames(norm_frames)
+    
+    # stop_frame = 0 if no movement detected, otherwise set to frame index
+    embryo, mask, hroi_ax, stop_frame, nr_candidate_regions = HROI(sorted_frames, norm_frames, hroi_ax)
 
-            bpm = fourier_bpm_slowmode(norm_frames_grey, times, [], frame2frame, args, out_dir)
-            return bpm
+    # TODO: analyse frames after movement
+    if stop_frame > 0:
+        qc_attributes["Stop frame"] = str(stop_frame)
+
+        # Break condition
+        if stop_frame < 3*fps:
+            LOGGER.info("Movement before 3 seconds. Stopping analysis")
+            return None, fps, qc_attributes
+    else:
+        qc_attributes["Stop frame"] = str(len(embryo))
+
+    qc_attributes["HROI count"] = str(nr_candidate_regions)
 
     # Save Figure
     plt.savefig(out_fig, bbox_inches='tight')
@@ -1960,26 +1984,41 @@ def run(video, args, video_metadata):
     cv2.imwrite(out_fig, masked_frames[0])
     save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
 
+    ################################################################################  Get evenly spaced frame timestamps, from 0, in seconds
+    nr_of_frames = len(masked_greys)
+    frame2frame = 1/fps
+
+    final_time = frame2frame * nr_of_frames
+    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
+
     ################################ Keep only pixels in HROI
     # delete pixels outside of mask (=HROI)
     # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
     mask = np.invert(mask)
     hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in masked_greys])
-    
-    # Draw bpm-trace
+
+    qc_attributes["Heart size"] = str(np.size(hroi_pixels, 1))
+    ################################################################################ Draw bpm-trace
     try:
         bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
     except Exception as e:
         LOGGER.exception("Whilst drawing the bpm trace")
-        
-    ################################ Fourier Frequency estimation
+
+    ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
+    bpm = None
+    nr_peaks = None
+    prominence = None
+    height = None
 
     # Run normally, Fourier in segemented area
-    try:
-        bpm = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
-    except Exception as e:
-        LOGGER.exception("Whilst trying Fourier analysis of segemented area")
+    if not args['slowmode']:
+        bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
+
+    qc_attributes["Number of peaks"]    = str(nr_peaks)         if nr_peaks         else None
+    qc_attributes["Prominence"]         = str(prominence)       if prominence       else None
+    qc_attributes["Height"]             = str(height)           if height           else None
+    qc_attributes["Low variance"]       = str(has_low_variance) if has_low_variance else None
 
     if not bpm:
         LOGGER.info("No bpm detected")
@@ -1992,4 +2031,4 @@ def run(video, args, video_metadata):
         bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
 
     plt.close('all') # fixed memory leak
-    return bpm
+    return bpm, fps, qc_attributes

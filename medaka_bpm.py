@@ -15,19 +15,12 @@ import logging
 import os
 import subprocess
 import sys
-#import glob2
-#import cv2
-
-#from matplotlib import pyplot as plt
-
-#import pathlib
 
 import src.io_operations as io_operations
 import src.setup as setup
 import src.segment_heart as segment_heart
 
 LOGGER = logging.getLogger(__name__)
-
 
 ################################## ALGORITHM ##################################
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
@@ -81,10 +74,9 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         video = io_operations.load_well_video_8bits(
             well_frame_paths)
 
-    bpm = segment_heart.run(video, vars(args), video_metadata)
+    bpm, fps, qc_attributes = segment_heart.run(video, vars(args), video_metadata)
 
-    return bpm
-
+    return bpm, fps, qc_attributes
 
 def run_multifolder(args, dirs):
     # processes to be dispatched
@@ -143,8 +135,7 @@ def run_multifolder(args, dirs):
 def main(args):
     ################################## STARTUP SETUP ##################################
     arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
-    setup.config_logger(
-        args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
     LOGGER.info("Program started with the following arguments: " +
                 str(sys.argv[1:]))
@@ -152,8 +143,7 @@ def main(args):
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
 
-    nr_of_videos, channels, loops = io_operations.extract_data(
-        args.indir)
+    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
     if arg_channels:
         channels = list(arg_channels.intersection(channels))
         channels.sort()
@@ -180,8 +170,7 @@ def main(args):
             job_ids = []
             for channel in channels:
                 for loop in loops:
-                    LOGGER.info("Dispatching wells from " +
-                                channel + " " + loop + " to cluster")
+                    LOGGER.info("Dispatching wells from " + channel + " " + loop + " to cluster")
 
                     # Prepare arguments to pass to bsub job
                     args.channels = channel
@@ -195,13 +184,11 @@ def main(args):
 
                     exe_path = os.path.join(main_directory, 'cluster.py')
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
-                    python_cmd = ['python3', exe_path] + \
-                        arguments + ['-x', '\$LSB_JOBINDEX']
+                    python_cmd = ['python3', exe_path] + arguments + ['-x', '\$LSB_JOBINDEX']
 
                     jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
-                    bsub_cmd = ['bsub', '-J', jobname,
-                                '-M40000', '-R', 'rusage[mem=16000]']
+                    bsub_cmd = ['bsub', '-J', jobname, '-M40000', '-R', 'rusage[mem=16000]']
 
                     if args.email == False:
                         if args.debug:
@@ -216,8 +203,7 @@ def main(args):
                     cmd = bsub_cmd + python_cmd  # calling source medaka_env was throwing a error
 
                     # Create a job array for each well
-                    result = subprocess.run(
-                        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
                     LOGGER.debug(cmd)
 
@@ -237,8 +223,7 @@ def main(args):
             # Target completion of all experiment analysis with ended(HRConsolidate-*).
             # Needed in test_accuracy when JOB_DEP_LAST_SUB = 1 in lsb.params.
             unique_job_name = "HRConsolidate-" + str(job_ids[0])
-            consolidate_cmd = ['bsub', '-J', unique_job_name,
-                               '-w', w_condition, '-M3000', '-R', 'rusage[mem=3000]']
+            consolidate_cmd = ['bsub', '-J', unique_job_name, '-w', w_condition, '-M3000', '-R', 'rusage[mem=3000]']
 
             if args.email == False:
                 if args.debug:
@@ -251,17 +236,14 @@ def main(args):
                     consolidate_cmd += ['-o', '/dev/null']
 
             tmp_dir = os.path.join(args.outdir, 'tmp')
-            exe_path = os.path.join(
-                main_directory, 'src/', 'cluster_consolidate.py')
-            python_cmd = ['python3', exe_path,
-                          '-i', tmp_dir, '-o', args.outdir]
+            exe_path = os.path.join(main_directory, 'src/', 'cluster_consolidate.py')
+            python_cmd = ['python3', exe_path, '-i', tmp_dir, '-o', args.outdir]
 
             # consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']  # calling source medaka_env here was throwing a error
             consolidate_cmd += python_cmd
 
             LOGGER.debug(consolidate_cmd)
-            subprocess.run(
-                consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(consolidate_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         except Exception as e:
             LOGGER.exception("During dispatching of jobs onto the cluster")
@@ -269,19 +251,37 @@ def main(args):
     elif args.only_crop == False:
         bpm = None
         LOGGER.info("Running on a single machine")
-        results = {'channel': [], 'loop': [],
-                   'well': [], 'heartbeat': []}
+        results = { 'channel':          [], 
+                    'loop':             [],
+                    'well':             [], 
+                    'heartbeat':        [],
+                    'fps':              [],
+                    'Heart size':       [], # qc_attributes
+                    'HROI count':       [],
+                    'Stop frame':       [],
+                    'Number of peaks':  [],
+                    'Prominence':       [],
+                    'Height':           [],
+                    'Low variance':     []}
         try:
             LOGGER.info("##### Analysis #####")
             resulting_dict_from_crop = {}
             for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-                LOGGER.info(
-                    "The analyse for each well can take about from one to several minutes\n")
+                LOGGER.info("The analyse for each well can take about from one to several minutes\n")
                 LOGGER.info("Running....please wait...")
 
+                bpm = None
+                fps = None
+                qc_attributes = {   "Heart size": None, 
+                                    "HROI count": None, 
+                                    "Stop frame": None, 
+                                    "Number of peaks": None,
+                                    "Prominence": None,
+                                    "Height": None,
+                                    "Low variance": None}
+                
                 try:
-                    bpm = run_algorithm(
-                        well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                    bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                     LOGGER.info("Reported BPM: " + str(bpm))
 
                 except Exception as e:
@@ -291,11 +291,15 @@ def main(args):
                                      + " with channel " + str(video_metadata['channel']))
                 finally:
                     # Save results
-                    results['channel'].append(
-                        video_metadata['channel'])
+                    results['channel'].append(video_metadata['channel'])
                     results['loop'].append(video_metadata['loop'])
                     results['well'].append(video_metadata['well_id'])
                     results['heartbeat'].append(bpm)
+                    results['fps'].append(fps)
+
+                    # qc_attributes
+                    for key, value in qc_attributes.items():
+                        results[key].append(value)
 
                     gc.collect()
 
@@ -310,7 +314,7 @@ def main(args):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
-        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
+        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id, args.debug)
 
     else:
         LOGGER.info("Only cropping, script will not run BPM analyses")

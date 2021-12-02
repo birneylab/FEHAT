@@ -49,47 +49,76 @@ experiment_id = experiment_name.split('_')[0]
 
 setup.config_logger(out_dir, ("logfile_" + experiment_id + ".log"))
 
-LOGGER.info("Consolidating cluster results")
+try:
+    LOGGER.info("Consolidating cluster results")
 
-# path to central log file
-logs_paths    = glob2.glob(indir + '*.log')
-results_paths = glob2.glob(indir + '*.txt')
+    # path to central log file
+    logs_paths    = glob2.glob(indir + '*.log')
+    results_paths = glob2.glob(indir + '*.txt')
 
-# log files and results files of one analysis should have same index in lists
-logs_paths.sort()
-results_paths.sort()
+    # log files and results files of one analysis should have same index in lists
+    logs_paths.sort()
+    results_paths.sort()
 
-results = {'channel': [], 'loop': [], 'well': [], 'heartbeat': [], 'log': []}
-for log, result in zip(logs_paths, results_paths):
-    if (Path(log).stem.split('-') != Path(result).stem.split('-')):
-        LOGGER.exception("Logfile and result file order not right")
+    results = { 'channel':          [], 
+                'loop':             [],
+                'well':             [], 
+                'log':              [],
+                'heartbeat':        [],
+                'fps':              [],
+                'Heart size':       [], # qc_attributes
+                'HROI count':       [],
+                'Stop frame':       [],
+                'Number of peaks':  [],
+                'Prominence':       [],
+                'Height':           [],
+                'Low variance':     []}
+                
+    for log, result in zip(logs_paths, results_paths):
+        if (Path(log).stem.split('-') != Path(result).stem.split('-')):
+            LOGGER.exception("Logfile and result file order not right")
 
-    #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
-    metadata = Path(log).stem.split('-')
+        #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
+        metadata = Path(log).stem.split('-')
 
-    with open(log) as fp:
-        log_text = fp.read()
-        results['channel'].append(metadata[0])
-        results['loop'].append(metadata[1])
-        results['well'].append(metadata[2])
-        results['log'].append(log_text)
+        with open(log) as fp:
+            log_text = fp.read()
+            results['channel'].append(metadata[0])
+            results['loop'].append(metadata[1])
+            results['well'].append(metadata[2])
+            results['log'].append(log_text)
+        
+        # (cluster.py) out_string = "heartbeat:123;Heart Size:1110;HROI count:2; ..."
+        with open(result) as fp:
+            out_string = fp.read()
+            fields = out_string.split(';')
+            for field in fields:
+                entry = field.split(':')
+                results[entry[0]].append(entry[1])
 
-    with open(result) as fp:
-        bpm = fp.read()
-        results['heartbeat'].append(bpm)
+    # If qc_attribute is there -> debug mode (don't print to csv)
+    in_debug_mode = False
+    if results["Prominence"]:
+        in_debug_mode = True
 
-# Sort through pandas
-results = pd.DataFrame.from_dict(results)
-results.sort_values(by=['channel', 'loop', 'well'])
+    # remove qc_attributes in case they are not present
+    results = {key: value for (key, value) in results.items() if value}
 
-logs = results['log'].tolist()
-LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
+    # Sort through pandas
+    results = pd.DataFrame.from_dict(results)
+    results.sort_values(by=['channel', 'loop', 'well'])
 
-results = results.to_dict(orient='list')
+    logs = results['log'].tolist()
+    LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
 
-#  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
+    results = results.to_dict(orient='list')
 
+    #  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
+    io_operations.write_to_spreadsheet(out_dir, results, experiment_id, in_debug_mode)
+
+except Exception as e:
+    LOGGER.exception("Couldn't consolidate results from cluster analysis")
+    
 #TODO: Dangerous as it removes all conents of directory. Assert that in fact, only log and txt files are inside
 #TODO: and that folder is named tmp/
 # Clean up and remove tmp directory
