@@ -1165,7 +1165,7 @@ def PixelFreqs(frequencies, average_values, figsize=(10, 7), heart_range=(0.5, 5
         _ = ax.annotate(bpm_label, xy=(median_peaks, hist_height), xytext=(median_peaks + (median_peaks * 0.1),
                         hist_height + (hist_height * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
 
-        return(ax, bpm)
+        return(ax, bpm, nr_peaks, prominence, height, has_low_variance)
 
     # Detect most common Fourier Peak using Kernel Density Estimation (KDE)
     density = gaussian_kde(frequencies)
