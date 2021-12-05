@@ -1428,8 +1428,6 @@ def final_dist_graph(bpm_fourier,  out_dir):
         pass
 
 # final_dist_graph(bpm_fourier)    ## debug
-
-
 def embryo_detection(video):
     center_of_embryo_list = []
     for img, i in zip(video, range(5)):
@@ -1776,6 +1774,146 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     return bpm_fourier
 
+def new_fourier(hroi_pixels, times, out_dir):
+
+    minBPM = 15
+    maxBPM = 300
+
+    pixel_signals = PixelSignal(hroi_pixels)
+
+    sample_step = times[1]
+
+    # Frequency bins
+    N = len(hroi_pixels)                        # number of sample points
+    freqs = np.fft.rfftfreq(N, d=sample_step)
+
+    # limit to bpm > 15 and bpm < 300
+    bpm_freq_range = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
+    freqs = freqs[bpm_freq_range]
+
+    signal_intensities = []
+
+    # Get intensities of frequency bins for each pixel
+    for signal in pixel_signals:
+
+        # augment pixel signal with inbetween values
+        fourier = np.fft.rfft(signal)
+
+        # Signal intensity of frequencies
+        freq_amplitude = np.abs(fourier)
+
+        # limit to bpm > 15 and bpm < 300
+        freq_amplitude = freq_amplitude[bpm_freq_range]
+
+        signal_intensities.append(freq_amplitude)
+    
+    # Detect most common frequency of pixels
+    average_frequencies = np.sum(signal_intensities, axis=0) / len(pixel_signals)
+
+    # Output plot of frequency spectrum
+    curve = CubicSpline(freqs, average_frequencies)
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.plot(freqs, curve(freqs))
+
+    ax.set_xlim(0, 6)
+    plt.ylabel('Summed signal intensity')
+    plt.xlabel('Frequency')
+
+    bpm, nr_peaks, height, prominence = peak_detection(average_frequencies, freqs, ax)
+
+    out_fig = os.path.join(out_dir, "pixel_signals.png")
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.show()
+    plt.close()
+
+    return bpm, nr_peaks, height, prominence
+
+def peak_detection(average_frequencies, freqs, ax):
+    bpm = None
+
+    max_freq = None
+    peaks, peak_attributes = find_peaks(average_frequencies, prominence=122)
+
+    for peak in peaks:
+        x = freqs[peak]
+        y = average_frequencies[peak]
+        ax.annotate(str(round(x * 60)) + " BPM", xy=(x, y), xytext=(x + (x * 0.1), y + (y * 0.01)), arrowprops=dict(facecolor='black', shrink=0.05))
+
+    # No peaks with min prominence found
+    if peaks.size == 0:
+        return None
+
+    # One peak found
+    elif peaks.size == 1:
+        LOGGER.info("1 Peak!")
+        max_freq = freqs[peaks.item()]
+
+    # More than one peak found
+    elif peaks.size > 1:
+        LOGGER.info("Multiple Peaks!")
+
+        # Take max prominence peak
+        max_prom_peak = peaks[np.argmax(peak_attributes['prominences'])]
+
+        # search for lower harmonic around half the frequency point
+        # TODO: gives incorrect bounds. indices do not correlate to frequency
+        lower_harmonic = peaks[np.logical_and(peaks >= (max_prom_peak/2 - 1), peaks <= (max_prom_peak/2 + 1))]
+
+        if True: #not lower_harmonic:
+            max_freq = freqs[max_prom_peak]
+        else:
+            LOGGER.info("Lower Harmonic!")
+            # Double chamber harmonic. Take lower peak
+            max_freq = freqs[lower_harmonic.item()]
+
+
+    nr_peaks    = peaks.size
+    prominence  = np.max(peak_attributes['prominences']) 
+    height      = average_frequencies[max_prom_peak]
+    bpm         = round(max_freq * 60)
+    # Hz to bpm
+    return bpm, nr_peaks, height, prominence
+
+def bpm_trace_fourier(hroi_pixels, times, out_dir):
+    
+    pixel_signals = PixelSignal(hroi_pixels)
+    
+    # Frequency bins
+    nr_of_samples = len(hroi_pixels)
+    nr_of_signals = len(pixel_signals)
+    sample_step = times[1]
+
+    freqs = np.fft.fftfreq(nr_of_samples, d=sample_step)
+
+    average_signal = np.zeros_like(freqs, dtype=np.complex128)
+
+    # Get intensities of frequency bins for each pixel
+    for signal in pixel_signals:
+
+        # augment pixel signal with inbetween values
+        fourier = np.fft.fft(signal)
+
+        average_signal += (np.abs(fourier)/nr_of_signals)
+
+    # Output plot of frequency spectrum
+    average_signal = np.fft.ifft(average_signal)
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.plot(times, average_signal.real)
+
+    ax.set_xlim(0, times[-1])
+    plt.ylabel('Average signal')
+    plt.xlabel('time')
+
+    out_fig = os.path.join(out_dir, "average_signal.png")
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.show()
+    plt.close()
+
+    return
+
 def bpm_trace(hroi_pixels, frame2frame_sec, times, empty_frames, out_dir):
     LOGGER.info("Statistical analysis")
 
@@ -2006,14 +2144,15 @@ def run(video, args, video_metadata):
 
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
-    bpm = None
     nr_peaks = None
     prominence = None
     height = None
+    has_low_variance = None
 
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
-        bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
+        bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
+        #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
     qc_attributes["Number of peaks"]    = str(nr_peaks)         if nr_peaks         else None
     qc_attributes["Prominence"]         = str(prominence)       if prominence       else None
