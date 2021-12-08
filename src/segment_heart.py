@@ -43,12 +43,14 @@ from skimage.measure import label
 from skimage import color, feature
 
 # import scipy
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, median_absolute_deviation
 from scipy import signal
 from scipy.signal import find_peaks, savgol_filter  # , peak_prominences, welch
 from scipy.interpolate import CubicSpline
 
 import matplotlib
+from mpl_toolkits.mplot3d import axes3d
+
 matplotlib.use('Agg')
 
 # Parallelisation
@@ -1805,10 +1807,15 @@ def new_fourier(hroi_pixels, times, out_dir):
         # limit to bpm > 15 and bpm < 300
         freq_amplitude = freq_amplitude[bpm_freq_range]
 
-        signal_intensities.append(freq_amplitude)
+        # Only add signals that contain clear frequency peaks
+        if np.sqrt(np.var(freq_amplitude)) > 90:
+            signal_intensities.append(freq_amplitude)
     
     # Detect most common frequency of pixels
-    average_frequencies = np.sum(signal_intensities, axis=0) / len(pixel_signals)
+    average_frequencies = np.sum(signal_intensities, axis=0) / len(signal_intensities)
+    if average_frequencies.size < 10:
+        LOGGER.info("Low variance in HROI signals. Can't detect bpm")
+        return None, None, None, None
 
     # Output plot of frequency spectrum
     curve = CubicSpline(freqs, average_frequencies)
@@ -1830,7 +1837,10 @@ def new_fourier(hroi_pixels, times, out_dir):
     return bpm, nr_peaks, height, prominence
 
 def peak_detection(average_frequencies, freqs, ax):
-    bpm = None
+    bpm         = None
+    nr_peaks    = None
+    prominence  = None
+    height      = None
 
     max_freq = None
     peaks, peak_attributes = find_peaks(average_frequencies, prominence=122)
@@ -1842,7 +1852,7 @@ def peak_detection(average_frequencies, freqs, ax):
 
     # No peaks with min prominence found
     if peaks.size == 0:
-        return None
+        return bpm, nr_peaks, height, prominence
 
     # One peak found
     elif peaks.size == 1:
@@ -1857,23 +1867,129 @@ def peak_detection(average_frequencies, freqs, ax):
         max_prom_peak = peaks[np.argmax(peak_attributes['prominences'])]
 
         # search for lower harmonic around half the frequency point
-        # TODO: gives incorrect bounds. indices do not correlate to frequency
-        lower_harmonic = peaks[np.logical_and(peaks >= (max_prom_peak/2 - 1), peaks <= (max_prom_peak/2 + 1))]
+        frequency = freqs[max_prom_peak]
+        step = freqs[1] - freqs[0]
+        
+        # add buffer to capture range of 3 frequencies
+        step *= 1.2
+        harmonic_indices = np.where(np.logical_and(freqs >= (frequency/2 - step), freqs <= (frequency/2 + step)))
 
-        if True: #not lower_harmonic:
+
+        # TODO: finish lower harmonic idea
+        lower_harmonics = np.union1d(peaks, harmonic_indices)
+
+        if True: #not lower_harmonics.any():
             max_freq = freqs[max_prom_peak]
         else:
             LOGGER.info("Lower Harmonic!")
-            # Double chamber harmonic. Take lower peak
-            max_freq = freqs[lower_harmonic.item()]
 
+            # Double chamber harmonic. Take lower peak
+            #max_freq = freqs[]
 
     nr_peaks    = peaks.size
     prominence  = np.max(peak_attributes['prominences']) 
-    height      = average_frequencies[max_prom_peak]
+    height      = average_frequencies[np.where(max_freq)]
     bpm         = round(max_freq * 60)
+
     # Hz to bpm
     return bpm, nr_peaks, height, prominence
+
+# Try  taking the max of max + limit signals with deviation from median
+def new_fourier_2(hroi_pixels, times, out_dir):
+
+    minBPM = 15
+    maxBPM = 300
+
+    pixel_signals = PixelSignal(hroi_pixels)
+
+    sample_step = times[1]
+
+    # Frequency bins
+    N = len(hroi_pixels)                        # number of sample points
+    freqs = np.fft.rfftfreq(N, d=sample_step)
+
+    # limit to bpm > 15 and bpm < 300
+    bpm_freq_range = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
+    freqs = freqs[bpm_freq_range]
+
+    chosen_signals  = []
+    max_frequency_idxs = []
+
+    # Get intensities of frequency bins for each pixel
+    for signal in pixel_signals:
+
+        # augment pixel signal with inbetween values
+        fourier = np.fft.rfft(signal)
+
+        # Signal intensity of frequencies
+        freq_amplitudes = np.abs(fourier)
+
+        # limit to bpm > 15 and bpm < 300
+        freq_amplitudes = freq_amplitudes[bpm_freq_range]
+
+        # Only add signals that contain clear frequency peaks
+        median = np.median(freq_amplitudes)
+        median_dev = median_absolute_deviation(freq_amplitudes)
+        max_amplitude = np.max(freq_amplitudes)
+
+        if max_amplitude > median + (10*median_dev):
+            chosen_signals.append(freq_amplitudes)
+            max_frequency_idxs.append(np.argmax(freq_amplitudes))
+
+    bincount = np.bincount(max_frequency_idxs)
+    most_occuring_freq_idx = bincount.argmax()
+
+    bpm = freqs[most_occuring_freq_idx] * 60
+
+    clear_signal_ratio      = len(chosen_signals) / len(pixel_signals)
+    chosen_freq_dominance   = bincount[most_occuring_freq_idx] / len(max_frequency_idxs)
+
+    chosen_signals = np.array(chosen_signals)
+
+    # Set up grid and test data
+    nx, ny = 256, 1024
+    x = range(nx)
+    y = range(ny)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    x = freqs
+    y = range(len(chosen_signals))
+    X, Y = np.meshgrid(x, y)
+
+    ax.plot_surface(X, Y, chosen_signals)
+    ax.set_xlabel('frequency')
+    ax.set_ylabel('pixel')
+    ax.set_zlabel('frequency amplitude')
+
+    out_fig = os.path.join(out_dir, "fourier_signals.png")
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.close()
+
+    return bpm, clear_signal_ratio, chosen_freq_dominance
+    # Detect most common frequency of pixels
+    
+
+    # # Output plot of frequency spectrum
+    # curve = CubicSpline(freqs, average_frequencies)
+    # fig, ax = plt.subplots(figsize=(10, 7))
+    # ax.plot(freqs, curve(freqs))
+
+    # ax.set_xlim(0, 6)
+    # plt.ylabel('Summed signal intensity')
+    # plt.xlabel('Frequency')
+
+    # bpm, nr_peaks, height, prominence = peak_detection(average_frequencies, freqs, ax)
+
+    # out_fig = os.path.join(out_dir, "pixel_signals.png")
+    # plt.savefig(out_fig, bbox_inches='tight')
+
+    # plt.show()
+    # plt.close()
+
+    # return bpm, nr_peaks, height, prominence
 
 def bpm_trace_fourier(hroi_pixels, times, out_dir):
     
@@ -2151,13 +2267,15 @@ def run(video, args, video_metadata):
 
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
-        bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
+        bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
+        #bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
-    qc_attributes["Number of peaks"]    = str(nr_peaks)         if nr_peaks         else None
-    qc_attributes["Prominence"]         = str(prominence)       if prominence       else None
-    qc_attributes["Height"]             = str(height)           if height           else None
-    qc_attributes["Low variance"]       = str(has_low_variance) if has_low_variance else None
+    # TODO: make this more flexible for different names and remove current hacky dependency
+    qc_attributes["Number of peaks"]    = str(nr_peaks)                 if nr_peaks                 else None
+    qc_attributes["Prominence"]         = str(clear_signal_ratio)       if clear_signal_ratio       else None
+    qc_attributes["Height"]             = str(chosen_freq_dominance)    if chosen_freq_dominance    else None
+    qc_attributes["Low variance"]       = str(has_low_variance)         if has_low_variance         else None
 
     if not bpm:
         LOGGER.info("No bpm detected")

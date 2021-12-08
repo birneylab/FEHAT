@@ -267,7 +267,7 @@ def main(args):
             LOGGER.info("##### Analysis #####")
             resulting_dict_from_crop = {}
             for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-                LOGGER.info("The analyse for each well can take about from one to several minutes\n")
+                LOGGER.info("The analysis for each well can take about from one to several minutes\n")
                 LOGGER.info("Running....please wait...")
 
                 bpm = None
