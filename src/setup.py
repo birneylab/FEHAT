@@ -91,7 +91,7 @@ def parse_arguments():
     return args
 
 # Processing, done after the logger in the main file has been set up
-def process_arguments(args):
+def process_arguments(args, is_cluster=False):
     will_crop = (args.only_crop or args.crop_and_save or args.crop)
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
@@ -105,13 +105,16 @@ def process_arguments(args):
     # Get the experiment folder name.
     experiment_name = os.path.basename(os.path.normpath(args.indir))
 
-    # Outdir should start with experiment name
-    args.outdir = os.path.join(args.outdir, experiment_name + "_medaka_bpm_out", '')
-    os.makedirs(args.outdir, exist_ok=True)
-
     # experiment_id: Number code for logfile and outfile respectively
     # e.g.: 170814162619_Ol_SCN5A_NKX2_5_Temp_35C -> 170814162619
     experiment_id = experiment_name.split('_')[0]
+
+    # Outdir should be named after experiment.
+    # Do not do for cluster nodes, already created on dispatch
+    if not is_cluster:
+        # Outdir should start with experiment name
+        args.outdir = os.path.join(args.outdir, experiment_name + "_medaka_bpm_out", '')
+        os.makedirs(args.outdir, exist_ok=True)
 
     # croppedRAWTiff folder present? Use cropped files for analysis
     if os.path.isdir(os.path.join(args.indir, "croppedRAWTiff")):

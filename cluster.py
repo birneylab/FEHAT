@@ -24,7 +24,8 @@ LOGGER = logging.getLogger(__name__)
 try:
     # Parse input arguments
     args = setup.parse_arguments()
-    experiment_id, args = setup.process_arguments(args)
+
+    experiment_id, args = setup.process_arguments(args, is_cluster_node=True)
 
     # Should receive only a single channel/loop/wellID, it's a cluster node with 1 job.
     # Needed as list though
@@ -41,7 +42,7 @@ try:
     analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
 
     # Check if video for well id exists before producting data.
-    if not io_operations.well_video_exists(args.indir, channels, loops, well_id):
+    if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
         sys.exit()
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
