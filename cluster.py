@@ -26,6 +26,11 @@ try:
     args = setup.parse_arguments()
     experiment_id, args = setup.process_arguments(args)
 
+    # Should receive only a single channel/loop/wellID, it's a cluster node with 1 job.
+    # Needed as list though
+    channels = list(args.channels)
+    loops = list(args.loops)
+
     tmp_dir = os.path.join(args.outdir, 'tmp')
 
     if args.lsf_index[0] == '\\':
@@ -33,10 +38,10 @@ try:
         args.lsf_index = args.lsf_index[1:]
 
     well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
-    analysis_id = args.channels[0] + '-' + args.loops[0] + '-' + well_id
+    analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
 
     # Check if video for well id exists before producting data.
-    if not io_operations.well_video_exists(args.indir, args.channels[0], args.loops[0], well_id):
+    if not io_operations.well_video_exists(args.indir, channels, loops, well_id):
         sys.exit()
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
@@ -68,7 +73,7 @@ try:
                             "Height": None,
                             "Low variance": None}
 
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, args.channels, args.loops):
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
             if (video_metadata['well_id'] != well_id):
                 continue
 
