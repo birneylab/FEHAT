@@ -24,6 +24,7 @@ LOGGER = logging.getLogger(__name__)
 try:
     # Parse input arguments
     args = setup.parse_arguments()
+    experiment_id, args = setup.process_arguments(args)
 
     tmp_dir = os.path.join(args.outdir, 'tmp')
 
@@ -32,23 +33,13 @@ try:
         args.lsf_index = args.lsf_index[1:]
 
     well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
-    analysis_id = args.channels + '-' + args.loops + '-' + well_id
+    analysis_id = args.channels[0] + '-' + args.loops[0] + '-' + well_id
 
-    # check if there is a croppedRawTiff folder  ( I don´t know how to solve more elegantly, as the 'args = setup.parse_arguments()' above get the indir originally passed as argument, even if we change it later)
-    subdir_list = os.listdir(args.indir)
-    for n in subdir_list:
-        if 'croppedRAWTiff' in n:
-            args.indir = os.path.join(args.indir, 'croppedRAWTiff/', '')
-
-    # Check if video for well id exists before producting data. Also check in CroppedRAWTiff folder.
-    if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
+    # Check if video for well id exists before producting data.
+    if not io_operations.well_video_exists(args.indir, args.channels[0], args.loops[0], well_id):
         sys.exit()
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
-
-    # need to pass as list to generator
-    channels = [args.channels]
-    loops = [args.loops]
 
     # Run analysis
     results = { 'channel':          [], 
@@ -77,7 +68,7 @@ try:
                             "Height": None,
                             "Low variance": None}
 
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, args.channels, args.loops):
             if (video_metadata['well_id'] != well_id):
                 continue
 
