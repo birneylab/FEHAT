@@ -91,7 +91,7 @@ def parse_arguments():
     return args
 
 # Processing, done after the logger in the main file has been set up
-def process_arguments(args, is_cluster=False):
+def process_arguments(args, is_cluster_node=False):
     will_crop = (args.only_crop or args.crop_and_save or args.crop)
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
@@ -111,7 +111,7 @@ def process_arguments(args, is_cluster=False):
 
     # Outdir should be named after experiment.
     # Do not do for cluster nodes, already created on dispatch
-    if not is_cluster:
+    if not is_cluster_node:
         # Outdir should start with experiment name
         args.outdir = os.path.join(args.outdir, experiment_name + "_medaka_bpm_out", '')
         os.makedirs(args.outdir, exist_ok=True)
