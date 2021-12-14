@@ -82,10 +82,6 @@ def parse_arguments():
     parser.set_defaults(crop=False, only_crop=False, crop_and_save=False,
                         slowmode=False, cluster=False, email=False, debug=False)
     args = parser.parse_args()
-        
-    # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
-    if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
-        args.indir = os.path.dirname(os.path.normpath(args.indir))
 
     # Adds a trailing slash if it is missing.
     args.indir = os.path.join(args.indir, '')
@@ -95,26 +91,32 @@ def parse_arguments():
     return args
 
 # Processing, done after the logger in the main file has been set up
-def process_arguments(args):
+def process_arguments(args, is_cluster_node=False):
     will_crop = (args.only_crop or args.crop_and_save or args.crop)
 
-    # Folder structure
+    # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
+    if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
+        args.indir = os.path.dirname(os.path.normpath(args.indir))
+
+    # Output into experiment folder, if no ouput was given
     if not args.outdir:
         args.outdir = args.indir
 
-    # Get the experiment name and verify if there is cropp folder
+    # Get the experiment folder name.
     experiment_name = os.path.basename(os.path.normpath(args.indir))
-    if experiment_name == "croppedRAWTiff":
-        experiment_name = os.path.basename(os.path.dirname(os.path.normpath(args.indir)))
 
     # experiment_id: Number code for logfile and outfile respectively
-    args.outdir = os.path.join(
-        args.outdir, experiment_name + "_medaka_bpm_out", '')
-
-    os.makedirs(args.outdir, exist_ok=True)
+    # e.g.: 170814162619_Ol_SCN5A_NKX2_5_Temp_35C -> 170814162619
     experiment_id = experiment_name.split('_')[0]
 
-    # Backwards compatibility: croppedRAWTiff folder present?
+    # Outdir should be named after experiment.
+    # Do not do for cluster nodes, already created on dispatch
+    if not is_cluster_node:
+        # Outdir should start with experiment name
+        args.outdir = os.path.join(args.outdir, experiment_name + "_medaka_bpm_out", '')
+        os.makedirs(args.outdir, exist_ok=True)
+
+    # croppedRAWTiff folder present? Use cropped files for analysis
     if os.path.isdir(os.path.join(args.indir, "croppedRAWTiff")):
         args.indir = os.path.join(args.indir, "croppedRAWTiff", '')
 
@@ -128,4 +130,4 @@ def process_arguments(args):
     if args.loops:
         args.loops = {l for l in args.loops.split('.')}
 
-    return args.channels, args.loops, experiment_id
+    return experiment_id, args

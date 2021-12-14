@@ -134,7 +134,7 @@ def run_multifolder(args, dirs):
 
 def main(args):
     ################################## STARTUP SETUP ##################################
-    arg_channels, arg_loops, experiment_id = setup.process_arguments(args)
+    experiment_id, args = setup.process_arguments(args)
     setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
     LOGGER.info("Program started with the following arguments: " +
@@ -144,11 +144,11 @@ def main(args):
     LOGGER.info("##### MedakaBPM #####")
 
     nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
-    if arg_channels:
-        channels = list(arg_channels.intersection(channels))
+    if args.channels:
+        channels = list(args.channels.intersection(channels))
         channels.sort()
-    if arg_loops:
-        loops = list(arg_loops.intersection(loops))
+    if args.loops:
+        loops = list(args.loops.intersection(loops))
         loops.sort()
 
     if not loops or not channels:

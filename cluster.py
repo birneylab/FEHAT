@@ -25,6 +25,13 @@ try:
     # Parse input arguments
     args = setup.parse_arguments()
 
+    experiment_id, args = setup.process_arguments(args, is_cluster_node=True)
+
+    # Should receive only a single channel/loop/wellID, it's a cluster node with 1 job.
+    # Needed as list though
+    channels = list(args.channels)
+    loops = list(args.loops)
+
     tmp_dir = os.path.join(args.outdir, 'tmp')
 
     if args.lsf_index[0] == '\\':
@@ -32,23 +39,13 @@ try:
         args.lsf_index = args.lsf_index[1:]
 
     well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
-    analysis_id = args.channels + '-' + args.loops + '-' + well_id
+    analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
 
-    # check if there is a croppedRawTiff folder  ( I don´t know how to solve more elegantly, as the 'args = setup.parse_arguments()' above get the indir originally passed as argument, even if we change it later)
-    subdir_list = os.listdir(args.indir)
-    for n in subdir_list:
-        if 'croppedRAWTiff' in n:
-            args.indir = os.path.join(args.indir, 'croppedRAWTiff/', '')
-
-    # Check if video for well id exists before producting data. Also check in CroppedRAWTiff folder.
-    if not io_operations.well_video_exists(args.indir, args.channels, args.loops, well_id):
+    # Check if video for well id exists before producting data.
+    if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
         sys.exit()
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
-
-    # need to pass as list to generator
-    channels = [args.channels]
-    loops = [args.loops]
 
     # Run analysis
     results = { 'channel':          [], 

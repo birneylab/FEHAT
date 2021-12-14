@@ -19,7 +19,7 @@ import glob2
 import cv2
 from matplotlib import pyplot as plt
 
-SOFTWARE_VERSION = "1.2 (nov21)"
+SOFTWARE_VERSION = "1.2.1 (dec21)"
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -64,18 +64,15 @@ def well_video_generator(indir, channels, loops):
 
 def detect_experiment_directories(indir):
     subdirs = set()
-    subdir_list = {os.path.join(os.path.dirname(p), '') for p in glob2.glob(
-        indir + '/*/')}  # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
+    subdir_list = {os.path.join(os.path.dirname(p), '') for p in glob2.glob(indir + '/*/')}
+    # set([os.path.dirname(p) for p in glob2.glob(indir + '/*/')])
 
-    # Condition: Tiffs inside or croppedRAWTifffolder
-    # The previous function seems not to work properly.
+    # Condition: Tiffs inside or croppedRAWTiff-folder present
     for path in subdir_list:
-        if os.path.basename(os.path.normpath(path)) == 'croppedRAWTiff':
-            subdirs = [path]
-            return subdirs
 
         cond_1 = os.path.isdir(os.path.join(path, "croppedRAWTiff"))
         cond_2 = glob2.glob(path + '*.tif') + glob2.glob(path + '*.tiff')
+
         if cond_1 or cond_2:
             subdirs.add(path)
 
@@ -86,8 +83,6 @@ def detect_experiment_directories(indir):
     return subdirs
 
 # TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
-
-
 def load_well_video_8bits(frame_paths_sorted, max_frames=-1):
     LOGGER.info("Loading video as 8 bits")
     video8 = []
@@ -151,8 +146,10 @@ def frameIdx(path):
 
 def well_video_exists(indir, channel, loop, well_id):
     all_frames = glob2.glob(indir + '*.tif') + glob2.glob(indir + '*.tiff')
-    video_frames = [frame for frame in all_frames if (
-        channel in frame and loop in frame and well_id in frame)]
+    video_frames = [frame for frame in all_frames
+                    if (channel in frame and 
+                        loop    in frame and 
+                        well_id in frame)]
 
     if video_frames:
         return True

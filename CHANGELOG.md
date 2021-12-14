@@ -43,3 +43,10 @@ The release contains changes to make the software more accurate but sacrifices c
 - Started structured versioning system, labelling this release as v1.2(nov21). The previous release disabled slowmode and is labeles release v1.1(oct21). The releases before this are labelles v1.0, as the analysis algorithm itself hasn't changed since May 2021.
 - well name (A001, A002,...) is saved in the results file in addition to already present well id (WE0001, WE0002,...)
 - Enabling debug option will output Heart size, HROI count, Stop frame, Number of peaks, Prominence, Height, Low variance with each video
+
+
+Date: December 14, 2021 (v1.2.1)
+
+Hotfix update for the implicit location of the outdir
+
+- If there is a croppedRAWTiff folder present, the outdir is now created in the parent (experiment) folder, not in the croppedRAWTiff folder
