@@ -1971,7 +1971,6 @@ def new_fourier_2(hroi_pixels, times, out_dir):
     return bpm, clear_signal_ratio, chosen_freq_dominance
     # Detect most common frequency of pixels
     
-
     # # Output plot of frequency spectrum
     # curve = CubicSpline(freqs, average_frequencies)
     # fig, ax = plt.subplots(figsize=(10, 7))
