@@ -1895,7 +1895,7 @@ def peak_detection(average_frequencies, freqs, ax):
     return bpm, nr_peaks, height, prominence
 
 # Try  taking the max of max + limit signals with deviation from median
-def new_fourier_2(hroi_pixels, times, out_dir):
+def new_fourier_2(hroi_pixels, times, outdir):
 
     minBPM = 15
     maxBPM = 300
@@ -1946,27 +1946,7 @@ def new_fourier_2(hroi_pixels, times, out_dir):
 
     chosen_signals = np.array(chosen_signals)
 
-    # Set up grid and test data
-    nx, ny = 256, 1024
-    x = range(nx)
-    y = range(ny)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    x = freqs
-    y = range(len(chosen_signals))
-    X, Y = np.meshgrid(x, y)
-
-    ax.plot_surface(X, Y, chosen_signals)
-    ax.set_xlabel('frequency')
-    ax.set_ylabel('pixel')
-    ax.set_zlabel('frequency amplitude')
-
-    out_fig = os.path.join(out_dir, "fourier_signals.png")
-    plt.savefig(out_fig, bbox_inches='tight')
-
-    plt.close()
+    plot_frequencies_2d(chosen_signals, freqs, outdir)
 
     return bpm, clear_signal_ratio, chosen_freq_dominance
     # Detect most common frequency of pixels
@@ -1989,6 +1969,99 @@ def new_fourier_2(hroi_pixels, times, out_dir):
     # plt.close()
 
     # return bpm, nr_peaks, height, prominence
+
+def plot_frequencies_2d(amplitudes, bins, outdir):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    x = bins
+    y = range(len(amplitudes))
+    X, Y = np.meshgrid(x, y)
+
+    ax.plot_surface(X, Y, amplitudes)
+    ax.set_xlabel('frequency')
+    ax.set_ylabel('pixel')
+    ax.set_zlabel('frequency amplitude')
+
+    out_fig = os.path.join(outdir, "fourier_signals.png")
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.close()
+
+def old_fourier_restructured(hroi_pixels, times, out_dir):
+    highest_freqs = []
+
+    pixel_signals = PixelSignal(hroi_pixels)
+
+    increment = times[1] / 6
+    td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
+
+    for pixel_signal in pixel_signals:
+        # Cubic Spline Interpolation
+        interpolated_signal = CubicSpline(times, pixel_signal)
+        interpolated_signal = detrendSignal(interpolated_signal, td, window_size=27)   # 27
+
+        # Fast fourier transform
+        fourier = np.fft.fft(interpolated_signal(times))
+        # Power Spectral Density
+        psd = np.abs(fourier) ** 2
+
+        N = interpolated_signal(times).size
+        timestep = np.mean(np.diff(times))
+        freqs = np.fft.fftfreq(N, d=timestep)
+
+        # one-sided Fourier spectra
+        psd = psd[freqs > 0]
+        freqs = freqs[freqs > 0]
+
+        # Determine the peak within the heart range
+        heart_indices = np.where(np.logical_and(freqs >= 0.25, freqs <= 5.0))[0]
+
+        # Spectra within heart range
+        heart_psd = psd[heart_indices]
+        heart_freqs = freqs[heart_indices]
+
+        # Index of largest spectrum in heart range
+        index_max = np.argmax(heart_psd)
+        
+        # Corresponding frequency
+        highest_freq = heart_freqs[index_max]
+        highest_freqs.append(highest_freq)
+
+    density = gaussian_kde(highest_freqs)
+    xs = np.linspace(0.25, 5.0, 500)
+    ys = density(xs)
+
+    peaks, peak_attributes = find_peaks(ys, prominence=1.0)
+    
+    # Calculate bpm from most common Fourier peak
+    max_index = np.argmax(ys)
+
+    # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
+    max_x = xs[max_index]
+
+    # Set attributes any peak was found
+    if len(peaks) == 1:
+        LOGGER.info("Found 1 peak")
+        bpm = max_x * 60
+
+    elif len(peaks) > 1:
+        # Peak with maximum prominence
+        max_prominence_idx = np.argmax(peak_attributes['prominences'])
+
+        # Map idx in peak list to idx for x and y values in the frequency-density space.
+        max_prominence_idx = peaks[max_prominence_idx]
+
+        bpm = xs[max_prominence_idx] * 60
+    else:
+        bpm = None
+
+    # Round bpm
+    if bpm is not None:
+        bpm = np.around(bpm, decimals=2)
+
+    return bpm
 
 def plot_average_signal(hroi_pixels, times, out_dir):
     
@@ -2263,10 +2336,13 @@ def run(video, args, video_metadata):
     prominence = None
     height = None
     has_low_variance = None
+    chosen_freq_dominance = None
+    clear_signal_ratio = None
 
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
-        bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
+        #bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
+        bpm = old_fourier_restructured(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
