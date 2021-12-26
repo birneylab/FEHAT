@@ -170,6 +170,19 @@ def main(indir, outdir, path_ground_truths):
 
                 algorithm_results.append(results)
 
+        # Extract group names of valid datasets
+        # Performance over datasets can vary greatly.
+        # Analysing over different groups gives info on best and worst case performance.
+        groups = set()
+        for result in algorithm_results:
+
+            # DATASETGROUP1_13FPS_170814... ---> DATASETGROUP1
+            # DATASETGROUP2_13FPS_170814... ---> DATASETGROUP2
+            dataset_name = result['DATASET'][0]
+            dataset_group = dataset_name.split('_')[0]
+            groups.add(dataset_group)
+
+        # list of dataframes to single unified dataframe
         algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
 
         # Merge the results
@@ -177,24 +190,18 @@ def main(indir, outdir, path_ground_truths):
 
         # remove empty entries
         output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
-        csv = output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
 
-        #split 35C off, as unreliable for 13fps
-        C21_28 = output_df[output_df['DATASET'].str.contains("21C|28C") ]
-        C35 = output_df[output_df['DATASET'].str.contains("35C")]
+        # Output combined results
+        output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
 
-        # create and store plots and csv files on disk
+        # Make statistics over each group seperately
         LOGGER.info("")
-        if not C21_28.empty:
-            LOGGER.info("### 21C and 28C data ###")
-            csv = C21_28.to_csv(os.path.join(outdir, "21c_28c.csv"), index=False)
-            create_plots(C21_28, outdir, 'C21_28')
+        for group_name in groups:
+            group_df = output_df[output_df['DATASET'].str.startswith(group_name + '_')]
 
-        if not C35.empty:
-            LOGGER.info("####### 35C data #######")
-            csv = C35.to_csv(os.path.join(outdir, "35c.csv"), index=False)
-            create_plots(C35, outdir, 'C35')
-
+            LOGGER.info(f"### {group_name} ###")
+            group_df.to_csv(os.path.join(outdir, f"{group_name}.csv"), index=False)
+            create_plots(group_df, outdir, group_name)
 
         LOGGER.info("Done.")
     except Exception as e:
@@ -215,6 +222,6 @@ if __name__ == '__main__':
 
     main(args.indir, args.outdir, args.ground_truth_csv)
 
-# This is a workaround to ensure relative import works when using this file as both a  toplevel script and module.
+# This is a workaround to ensure relative import works when using this file as both a toplevel script and module.
 else:
     from . import setup

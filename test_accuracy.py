@@ -40,9 +40,32 @@ LOGGER.info("Writing results into: " + args.outdir)
 # run algorithm from test datasets into assessment folder
 dir_list = io_operations.detect_experiment_directories(args.indir)
 
+
+# Semi-automated analysis for benchmarking is done with fixed fps.
+# To be as comparable as possible, the fps is set explicitly.
+# The following accomodates that datasets for testing may differ in fps.
+dirs_by_fps = {}
+for directory in dir_list:
+
+    #DATASET1_13FPS_171...
+    #DATASET2_24FPS_171...
+    name = os.path.basename(os.path.normpath(directory))
+    fps = [part for part in name.split('_') if 'FPS' in part]
+
+    assert len(fps) == 1, "FPS keyword not found. Add two digit fps info with '_##FPS_' in the directory name."
+    fps = fps[0][0:2] # extract integer fps
+
+    fps = float(fps)
+    try:
+        dirs_by_fps[fps].append(directory)
+    except KeyError:
+        dirs_by_fps[fps] = [directory]
+
 print("Running multifolder mode. Limited console feedback, check logfiles for process status")
 args_copy = copy.deepcopy(args)
-run_multifolder(args_copy, dir_list)
+for fps, dirs in dirs_by_fps.items():
+    args_copy.fps = fps
+    run_multifolder(args_copy, dirs)
 
 # copy algorithm file
 repo_path = os.path.dirname(os.path.abspath(__file__))
