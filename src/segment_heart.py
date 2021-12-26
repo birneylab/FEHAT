@@ -1990,7 +1990,7 @@ def new_fourier_2(hroi_pixels, times, out_dir):
 
     # return bpm, nr_peaks, height, prominence
 
-def bpm_trace_fourier(hroi_pixels, times, out_dir):
+def plot_average_signal(hroi_pixels, times, out_dir):
     
     pixel_signals = PixelSignal(hroi_pixels)
     

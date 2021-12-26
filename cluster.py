@@ -40,7 +40,7 @@ try:
 
     well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
     analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
-<
+
     # Check if video for well id exists before producting data.
     if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
         sys.exit()
