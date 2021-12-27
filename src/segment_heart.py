@@ -45,7 +45,7 @@ from skimage import color, feature
 # import scipy
 from scipy.stats import gaussian_kde, median_absolute_deviation
 from scipy import signal
-from scipy.signal import find_peaks, savgol_filter  # , peak_prominences, welch
+from scipy.signal import find_peaks, savgol_filter, detrend  # , peak_prominences, welch
 from scipy.interpolate import CubicSpline
 
 import matplotlib
@@ -1994,17 +1994,14 @@ def old_fourier_restructured(hroi_pixels, times, out_dir):
 
     pixel_signals = PixelSignal(hroi_pixels)
 
-    increment = times[1] / 6
-    td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
-
     for pixel_signal in pixel_signals:
 
         # smoothe signal
         pixel_signal = savgol_filter(pixel_signal, window_length=5, polyorder=3)
 
-        # Cubic Spline Interpolation
-        #interpolated_signal = CubicSpline(times, pixel_signal)
-        #interpolated_signal = detrendSignal(interpolated_signal, td, window_size=27)   # 27
+        # Subtract any linear trends
+        # TODO: Set qc attribute to check effectiveness
+        pixel_signal = detrend(pixel_signal)
 
         # Fast fourier transform
         fourier = np.fft.fft(pixel_signal)
