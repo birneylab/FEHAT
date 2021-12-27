@@ -8,17 +8,16 @@
 # Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
 ###
 ############################################################################################################
+import glob2
 import logging
 import os
-import numpy as np
-import csv
-
 import pathlib
 
-import glob2
 import cv2
-from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
+
+from matplotlib import pyplot as plt
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -177,10 +176,17 @@ def write_to_spreadsheet(outdir, results, experiment_id):
                                         'channel'   : 'Channel',
                                         'bpm'       : 'Heartrate (BPM)'})
     
+    # Map Well ID to Well Name. Order of recording to Well-Plate layout.
     results.insert(loc=1, column='Well Name', value=results['WellID'].map(well_id_name_table))
+
+    # Order columns before output
+    ordered_cols = ['WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)']
+    ordered_cols += [col for col in results.columns if col not in ordered_cols] # Debug columns, if any
+    results = results[ordered_cols]
+
     results.index += 1
 
-    results.to_csv(outpath, index=True, na_rep='NA')
+    results.to_csv(outpath, index=True, index_label='Index', na_rep='NA')
 
 def save_cropped(cut_images, args, images_path):
     # function to save the cropped images
