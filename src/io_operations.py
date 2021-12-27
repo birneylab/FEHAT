@@ -18,8 +18,7 @@ import pathlib
 import glob2
 import cv2
 from matplotlib import pyplot as plt
-
-SOFTWARE_VERSION = "1.2.1 (dec21)"
+import pandas as pd
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -57,8 +56,7 @@ def well_video_generator(indir, channels, loops):
                 _, well_frames_sorted = (list(t) for t in zip(
                     *sorted(zip(frame_indices, well_frames))))
 
-                metadata = {'well_id': well_id,
-                            'loop': loop, 'channel': channel}
+                metadata = {'well_id': well_id, 'loop': loop, 'channel': channel}
                 yield well_frames_sorted, metadata
 
 
@@ -157,70 +155,32 @@ def well_video_exists(indir, channel, loop, well_id):
         return False
 
 # Results:
-# Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-# TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
-def write_to_spreadsheet(outdir, results, experiment_id, in_debug_mode=False):
+# Pandas df
+#   columns: {'channel', 'loop', 'well_id', 'bpm', 'fps', ...qc_attributes}
+def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
     outfile_name = "results_" + experiment_id + ".csv"
     outpath = os.path.join(outdir, outfile_name)
 
     # Don't erase previous results by accident
     if os.path.isfile(outpath):
-        LOGGER.warning(
-            "Outdir already contains results file. Writing new file version")
+        LOGGER.warning("Outdir already contains results file. Writing new file version")
 
     version = 2
     while os.path.isfile(outpath):
-        outpath = os.path.join(outdir, "results_v" + str(version) + ".csv")
+        outpath = os.path.join(outdir, f"results_v{version}.csv")
         version += 1
 
-    # Write results in file
-    with open(outpath, 'w') as outfile:
-        writer = csv.writer(outfile, delimiter=',',
-                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
+    results = results.rename(columns={  'well_id'   : 'WellID', 
+                                        'loop'      : 'Loop', 
+                                        'channel'   : 'Channel',
+                                        'bpm'       : 'Heartrate (BPM)'})
+    
+    results.insert(loc=1, column='Well Name', value=results['WellID'].map(well_id_name_table))
+    results.index += 1
 
-        header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
-
-        if in_debug_mode: # also output qc_attributes
-            qc_attributes = ['Heart size',
-                            'HROI count',
-                            'Stop frame',
-                            'Number of peaks',
-                            'Prominence',
-                            'Height',
-                            'Low variance']
-            header += qc_attributes
-
-        writer.writerow(header)
-
-        nr_of_results = len(results['heartbeat'])
-
-        # Ensure everything is string and set None values
-        for key, value in results.items():
-            value = ["NA" if entry is None else str(entry) for entry in value]
-            results[key] = value
-
-        for idx in range(nr_of_results):
-            entry = [str(idx+1),
-                    results['well'][idx],
-                    well_id_name_table[results['well'][idx]],
-                    results['loop'][idx],
-                    results['channel'][idx],
-                    results['heartbeat'][idx],
-                    results['fps'][idx],
-                    SOFTWARE_VERSION]
-
-            if in_debug_mode: # also output qc_attributes
-                qc_attributes = [results['Heart size'][idx],
-                                results['HROI count'][idx],
-                                results['Stop frame'][idx],
-                                results['Number of peaks'][idx],
-                                results['Prominence'][idx],
-                                results['Height'][idx],
-                                results['Low variance'][idx]]
-                entry += qc_attributes
-
-            writer.writerow(entry)
+    results.to_csv(outpath, index=True, na_rep='NA')
 
 def save_cropped(cut_images, args, images_path):
     # function to save the cropped images

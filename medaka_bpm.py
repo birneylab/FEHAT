@@ -16,13 +16,67 @@ import os
 import subprocess
 import sys
 
+import pandas as pd
+
 import src.io_operations as io_operations
 import src.setup as setup
 import src.segment_heart as segment_heart
 
+SOFTWARE_VERSION = "1.2.1 (dec21)"
+
 LOGGER = logging.getLogger(__name__)
 
+
 ################################## ALGORITHM ##################################
+
+# Analyse a range of wells
+def analyse(args, channels, loops):
+    LOGGER.info("##### Analysis #####")
+    # Results for all wells
+    results = pd.DataFrame()
+
+    try:
+        resulting_dict_from_crop = {}
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+            LOGGER.info("The analysis for each well can take one to several minutes\n")
+            LOGGER.info("Running....please wait...")
+
+            # Results of current well
+            well_result = {}
+            bpm = None
+            fps = None
+            qc_attributes = {}
+            
+            try:
+                bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                LOGGER.info("Reported BPM: " + str(bpm))
+
+            except Exception as e:
+                LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
+                                    + " in loop " +
+                                    str(video_metadata['loop'])
+                                    + " with channel " + str(video_metadata['channel']))
+            finally:
+                well_result['well_id']  = video_metadata['well_id']
+                well_result['loop']     = video_metadata['loop']
+                well_result['channel']  = video_metadata['channel']
+                well_result['bpm']      = bpm
+                well_result['fps']      = fps
+                
+                # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
+                if args.debug:
+                    well_result.update(qc_attributes)
+
+                results = results.append(well_result, ignore_index=True)
+
+                gc.collect()
+
+    except Exception as e:
+        LOGGER.exception("Couldn't finish analysis")
+
+    return results
+
+# Run algorithm on a single well
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
     LOGGER.info("Analysing video - "
                 + "Channel: " + str(video_metadata['channel'])
@@ -34,6 +88,9 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
     # Load video
     video_metadata['timestamps'] = io_operations.extract_timestamps(
         well_frame_paths)
+
+    # TODO: Move the cropping out of here. 
+    # This does not overlap with analysis and should therefore be in it's own function
 
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
@@ -249,72 +306,20 @@ def main(args):
             LOGGER.exception("During dispatching of jobs onto the cluster")
 
     elif args.only_crop == False:
-        bpm = None
         LOGGER.info("Running on a single machine")
-        results = { 'channel':          [], 
-                    'loop':             [],
-                    'well':             [], 
-                    'heartbeat':        [],
-                    'fps':              [],
-                    'Heart size':       [], # qc_attributes
-                    'HROI count':       [],
-                    'Stop frame':       [],
-                    'Number of peaks':  [],
-                    'Prominence':       [],
-                    'Height':           [],
-                    'Low variance':     []}
-        try:
-            LOGGER.info("##### Analysis #####")
-            resulting_dict_from_crop = {}
-            for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-                LOGGER.info("The analysis for each well can take about from one to several minutes\n")
-                LOGGER.info("Running....please wait...")
 
-                bpm = None
-                fps = None
-                qc_attributes = {   "Heart size": None, 
-                                    "HROI count": None, 
-                                    "Stop frame": None, 
-                                    "Number of peaks": None,
-                                    "Prominence": None,
-                                    "Height": None,
-                                    "Low variance": None}
-                
-                try:
-                    bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
-                    LOGGER.info("Reported BPM: " + str(bpm))
-
-                except Exception as e:
-                    LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
-                                     + " in loop " +
-                                     str(video_metadata['loop'])
-                                     + " with channel " + str(video_metadata['channel']))
-                finally:
-                    # Save results
-                    results['channel'].append(video_metadata['channel'])
-                    results['loop'].append(video_metadata['loop'])
-                    results['well'].append(video_metadata['well_id'])
-                    results['heartbeat'].append(bpm)
-                    results['fps'].append(fps)
-
-                    # qc_attributes
-                    for key, value in qc_attributes.items():
-                        results[key].append(value)
-
-                    gc.collect()
-
-        except Exception as e:
-            LOGGER.exception("Couldn't finish analysis")
+        results = analyse(args, channels, loops)
 
         ################################## OUTPUT ##################################
         LOGGER.info("#######################")
         LOGGER.info("Finished analysis")
-        nr_of_results = len(results['heartbeat'])
+        nr_of_results = len(results)
         if (nr_of_videos != nr_of_results):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
-        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id, args.debug)
+        results['version'] = SOFTWARE_VERSION
+        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
 
     else:
         LOGGER.info("Only cropping, script will not run BPM analyses")
