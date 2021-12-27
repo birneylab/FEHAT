@@ -94,7 +94,7 @@ try:
 
     # Sort entries for output
     results = pd.DataFrame.from_dict(results)
-    results = results.sort_values(by=['channel', 'loop', 'well'])
+    results = results.sort_values(by=['channel', 'loop', 'well_id'])
 
     # Consolidate all logs into the general log file
     logs = results['log'].tolist()
