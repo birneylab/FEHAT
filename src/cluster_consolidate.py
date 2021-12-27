@@ -69,12 +69,13 @@ try:
         if (Path(log).stem.split('-') != Path(result).stem.split('-')):
             LOGGER.exception("Logfile and result file order not right")
 
-        # Filename determines which well the results belong to
-        #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
-        metadata = Path(log).stem.split('-')
-        well_result['channel']  = metadata[0]
-        well_result['loop']     = metadata[1]
-        well_result['well']     = metadata[2]
+        # Deprecated, also written into the file now. Maybe use for assert
+        # # Filename determines which well the results belong to
+        # #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
+        # metadata = Path(log).stem.split('-')
+        # well_result['channel']  = metadata[0]
+        # well_result['loop']     = metadata[1]
+        # well_result['well_id']  = metadata[2]
 
         with open(log) as fp:
             log_text = fp.read()

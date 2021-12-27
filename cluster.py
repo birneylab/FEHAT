@@ -59,7 +59,7 @@ try:
     for col in results.columns:
         value = results[col][0]
 
-        if pd.isnull(value):
+        if not pd.isnull(value):
             value = str(value)
         else:
             value = 'NA'
