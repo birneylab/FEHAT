@@ -30,16 +30,20 @@ LOGGER = logging.getLogger(__name__)
 ################################## ALGORITHM ##################################
 
 # Analyse a range of wells
-def analyse(args, channels, loops):
+def analyse(args, channels, loops, wells=None):
     LOGGER.info("##### Analysis #####")
+    LOGGER.info("The analysis for each well can take one to several minutes")
+    LOGGER.info("Running....please wait...\n")
     # Results for all wells
     results = pd.DataFrame()
 
     try:
         resulting_dict_from_crop = {}
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-            LOGGER.info("The analysis for each well can take one to several minutes\n")
-            LOGGER.info("Running....please wait...")
+            
+            well_nr = int(video_metadata['well_id'][-2:])
+            if wells is not None and well_nr not in wells:
+                continue
 
             # Results of current well
             well_result = {}
@@ -94,8 +98,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
 
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
-        LOGGER.info(
-            "Cropping images - NOT saving cropped images")
+        LOGGER.info("Cropping images - NOT saving cropped images")
         # We only need 8 bits video as no images will be saved
         video8 = io_operations.load_well_video_8bits(
             well_frame_paths)
