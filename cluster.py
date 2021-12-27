@@ -50,8 +50,8 @@ try:
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
 
-    # Run analysis
-    well_nr = well_id[-2:]
+    # Run analysisp
+    well_nr = int(well_id[-2:])
     results = analyse(args, channels, loops, wells=[well_nr])
 
     # write bpm in tmp directory
