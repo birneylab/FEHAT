@@ -1998,16 +1998,20 @@ def old_fourier_restructured(hroi_pixels, times, out_dir):
     td = np.arange(start=times[0], stop=times[-1] + increment, step=increment)
 
     for pixel_signal in pixel_signals:
+
+        # smoothe signal
+        pixel_signal = savgol_filter(pixel_signal, window_length=5, polyorder=3)
+
         # Cubic Spline Interpolation
-        interpolated_signal = CubicSpline(times, pixel_signal)
-        interpolated_signal = detrendSignal(interpolated_signal, td, window_size=27)   # 27
+        #interpolated_signal = CubicSpline(times, pixel_signal)
+        #interpolated_signal = detrendSignal(interpolated_signal, td, window_size=27)   # 27
 
         # Fast fourier transform
-        fourier = np.fft.fft(interpolated_signal(times))
+        fourier = np.fft.fft(pixel_signal)
         # Power Spectral Density
         psd = np.abs(fourier) ** 2
 
-        N = interpolated_signal(times).size
+        N = pixel_signal.size
         timestep = np.mean(np.diff(times))
         freqs = np.fft.fftfreq(N, d=timestep)
 
