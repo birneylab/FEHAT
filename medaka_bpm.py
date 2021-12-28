@@ -38,7 +38,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
         LOGGER.info(
-            "Cropping images - NOT saving cropped images")
+            "Cropping images to analyze them, but NOT saving cropped images")
         # We only need 8 bits video as no images will be saved
         video8 = io_operations.load_well_video_8bits(
             well_frame_paths)
@@ -57,19 +57,17 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         video8 = io_operations.load_well_video_8bits(
             well_frame_paths, max_frames=5)
         # we need every image as 16 bits to crop based on video8 coordinates
-        video = io_operations.load_well_video_16bits(well_frame_paths)
+        video16 = io_operations.load_well_video_16bits(well_frame_paths)
         embryo_coordinates = segment_heart.embryo_detection(video8)
-        _, resulting_dict_from_crop = segment_heart.crop_2(
-            video, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
-
+        video_cropped, resulting_dict_from_crop = segment_heart.crop_2(
+            video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)        
+        # save cropped images
+        io_operations.save_cropped(video_cropped, args, well_frame_paths)
+        # save panel for crop checking
+        io_operations.save_panel(resulting_dict_from_crop, args)
         # now we need every frame in 8bits to run bpm
         video = io_operations.load_well_video_8bits(
             well_frame_paths)
-        # save cropped images
-        io_operations.save_cropped(video, args, well_frame_paths)
-        # save panel for crop checking
-        io_operations.save_panel(resulting_dict_from_crop, args)
-
     else:
         video = io_operations.load_well_video_8bits(
             well_frame_paths)
@@ -338,10 +336,10 @@ def main(args):
             # print("embryo")
             # print(embryo_coordinates)
 
-            _, resulting_dict_from_crop = segment_heart.crop_2(
+            cropped_video, resulting_dict_from_crop = segment_heart.crop_2(
                 video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
             # save cropped images
-            io_operations.save_cropped(video16, args, well_frame_paths)
+            io_operations.save_cropped(cropped_video, args, well_frame_paths)
             # save panel for crop checking
             io_operations.save_panel(resulting_dict_from_crop, args)
             # here finish the script as we only need is save the cropped images

@@ -227,7 +227,7 @@ def save_cropped(cut_images, args, images_path):
     os.makedirs(os.path.join(
         args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
     for index, img in enumerate(cut_images):
-        final_part_path = pathlib.PurePath(images_path[0]).name
+        final_part_path = pathlib.PurePath(images_path[index]).name
         outfile_path = os.path.join(
             args.outdir, 'cropped_by_EBI_script/', final_part_path)
         # write the image
@@ -285,10 +285,7 @@ def save_panel(resulting_dict_from_crop, args):
                     outfile_path = os.path.join(
                         args.outdir, item[0] + "_panel.png")
                     counter += 1
-                    formated_counter = '{:02d}'.format(counter)
-
-            print("counter")
-            print(counter)
+                    formated_counter = '{:02d}'.format(counter)           
 
             while (counter < 97):  # do not save image
                 axes.append(fig.add_subplot(rows, cols, counter))
