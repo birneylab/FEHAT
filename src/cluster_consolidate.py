@@ -7,6 +7,7 @@
 # License: Contact authors
 ###
 # For cluster mode.
+# Each node creates it's own results file in outdir/tmp.
 # Called as a dependend bsub job when all instances running cluster.py have finished.
 # Gathers data from outdir/tmp and creates the final report.
 ###
@@ -60,61 +61,48 @@ try:
     logs_paths.sort()
     results_paths.sort()
 
-    results = { 'channel':          [], 
-                'loop':             [],
-                'well':             [], 
-                'log':              [],
-                'heartbeat':        [],
-                'fps':              [],
-                'Heart size':       [], # qc_attributes
-                'HROI count':       [],
-                'Stop frame':       [],
-                'Number of peaks':  [],
-                'Prominence':       [],
-                'Height':           [],
-                'Low variance':     []}
-                
+    results = pd.DataFrame()
+    
+    # Extract data from all files in tmp dir into dataframe
     for log, result in zip(logs_paths, results_paths):
+        well_result = {}
         if (Path(log).stem.split('-') != Path(result).stem.split('-')):
             LOGGER.exception("Logfile and result file order not right")
 
-        #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
-        metadata = Path(log).stem.split('-')
+        # Deprecated, also written into the file now. Maybe use for assert
+        # # Filename determines which well the results belong to
+        # #/../CO6-LO001-WE00001.txt -> [CO6, LO001, WE00001]
+        # metadata = Path(log).stem.split('-')
+        # well_result['channel']  = metadata[0]
+        # well_result['loop']     = metadata[1]
+        # well_result['well_id']  = metadata[2]
 
         with open(log) as fp:
             log_text = fp.read()
-            results['channel'].append(metadata[0])
-            results['loop'].append(metadata[1])
-            results['well'].append(metadata[2])
-            results['log'].append(log_text)
+            well_result['log'] = log_text
         
+        # File stores column name and value in the following format
         # (cluster.py) out_string = "heartbeat:123;Heart Size:1110;HROI count:2; ..."
         with open(result) as fp:
             out_string = fp.read()
             fields = out_string.split(';')
             for field in fields:
                 entry = field.split(':')
-                results[entry[0]].append(entry[1])
+                well_result[entry[0]] = entry[1]
 
-    # If qc_attribute is there -> debug mode (don't print to csv)
-    in_debug_mode = False
-    if results["Prominence"]:
-        in_debug_mode = True
+        results = results.append(well_result, ignore_index=True)
 
-    # remove qc_attributes in case they are not present
-    results = {key: value for (key, value) in results.items() if value}
-
-    # Sort through pandas
+    # Sort entries for output
     results = pd.DataFrame.from_dict(results)
-    results.sort_values(by=['channel', 'loop', 'well'])
+    results = results.sort_values(by=['channel', 'loop', 'well_id'])
 
+    # Consolidate all logs into the general log file
     logs = results['log'].tolist()
     LOGGER.info("Log reports from analyses: \n" + '\n'.join(logs))
 
-    results = results.to_dict(orient='list')
-
-    #  results: Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-    io_operations.write_to_spreadsheet(out_dir, results, experiment_id, in_debug_mode)
+    # Logs should not appear in the output csv
+    results = results.drop(columns=['log'])
+    io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
 
 except Exception as e:
     LOGGER.exception("Couldn't consolidate results from cluster analysis")

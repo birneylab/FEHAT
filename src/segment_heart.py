@@ -941,7 +941,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     psd = psd[freqs > 0]
     freqs = freqs[freqs > 0]
 
-    # TODO: This limits from 30 to 300bpm, which should not be done.
     # Calculate ylims for xrange 0.5 to 5 Hz
     heart_indices = np.where(np.logical_and(
         freqs >= heart_range[0], freqs <= heart_range[1]))[0]
@@ -980,8 +979,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
                 bpm = beat_freq * 60
                 peak_coord = (beat_freq, beat_power)
 
-            # TODO:
-            # Need something more sophisticated here
             # If 4 peaks or less, take the first one
             elif 1 < len(beat_indices) < 4:
                 beat_freq = beat_freqs[0]
@@ -1652,7 +1649,8 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
             masked_frame, triangle_thresh, thresh, movement = rolling_diff(j, norm_frames, win_size=2, direction="reverse", min_area=150)  # I´ve added thresh just to test; "movement" is not used anymore
 
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
-            # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
+            # if movement is true, it means that the embyio flip around.
+            # Then, save the frame number and and skip all following frames.
             if movement == True:
                 stop_frame = j
                 LOGGER.info("Movement detected, stopping at frame " + str(j))
@@ -1839,13 +1837,7 @@ def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
 
     bpm = None
-    qc_attributes = {   "Heart size": None, 
-                        "HROI count": None, 
-                        "Stop frame": None, 
-                        "Number of peaks": None,
-                        "Prominence": None,
-                        "Height": None,
-                        "Low variance": None}
+    qc_attributes = {}
 
     ################################################################################ Create Outdir for pictures
     # Add well position to output directory path
