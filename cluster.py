@@ -16,7 +16,10 @@ import sys
 import src.io_operations as io_operations
 import src.setup as setup
 
-from medaka_bpm import run_algorithm
+from numpy import isnan as isnan
+import pandas as pd
+
+from medaka_bpm import analyse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,74 +50,27 @@ try:
 
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
 
-    # Run analysis
-    results = { 'channel':          [], 
-                'loop':             [],
-                'well':             [], 
-                'heartbeat':        [],
-                'Heart size':       [], # qc_attributes
-                'HROI count':       [],
-                'Stop frame':       [],
-                'Number of peaks':  [],
-                'Prominence':       [],
-                'Height':           [],
-                'Low variance':     []}
+    # Run analysisp
+    well_nr = int(well_id[-2:])
+    results = analyse(args, channels, loops, wells=[well_nr])
 
-    # NOTE: added for compatibility, not working at this moment.
-    resulting_dict_from_crop = {}
-    try:
-        LOGGER.info("##### Analysis #####")
-        bpm = None
-        fps = None
-        qc_attributes = {   "Heart size": None, 
-                            "HROI count": None, 
-                            "Stop frame": None, 
-                            "Number of peaks": None,
-                            "Prominence": None,
-                            "Height": None,
-                            "Low variance": None}
+    # write bpm in tmp directory
+    out_string = ""
+    for col in results.columns:
+        value = results[col][0]
 
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-            if (video_metadata['well_id'] != well_id):
-                continue
-
-            LOGGER.info(
-                "The analyse for each well can take about 1 to a few minutes")
-            LOGGER.info("Running....please wait...")
-
-            try:
-                bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
-                LOGGER.info("Reported BPM: " + str(bpm))
-
-            except Exception as e:
-                LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
-                                + " in loop " + str(video_metadata['loop'])
-                                + " with channel " + str(video_metadata['channel']))
-
-    except Exception as e:
-        LOGGER.exception("Couldn't finish analysis")
-
-    finally:
-        # write bpm in tmp directory
-        if bpm:
-            bpm = str(bpm)
+        if not pd.isnull(value):
+            value = str(value)
         else:
-            bpm = 'NA'
+            value = 'NA'
 
-        if fps:
-            fps = str(fps)
-        else:
-            fps = 'NA'
+        out_string += f"{col}:{value};"
 
-        out_string = "heartbeat:" + bpm + ";fps:" + fps
+    out_string = out_string[:-1]
 
-        # Output quality control attributes only in debug mode
-        if args.debug:
-            for key, value in qc_attributes.items():
-                out_string += (";" + str(key) + ':' + str(value))
+    out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
+    with open(out_file, 'w') as output:
+        output.write(out_string)
 
-        out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
-        with open(out_file, 'w') as output:
-            output.write(out_string)
 except Exception as e:
     LOGGER.exception("In analysis dispatched to a cluster node")

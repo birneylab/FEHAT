@@ -942,7 +942,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
     psd = psd[freqs > 0]
     freqs = freqs[freqs > 0]
 
-    # TODO: This limits from 30 to 300bpm, which should not be done.
     # Calculate ylims for xrange 0.5 to 5 Hz
     heart_indices = np.where(np.logical_and(
         freqs >= heart_range[0], freqs <= heart_range[1]))[0]
@@ -981,8 +980,6 @@ def fourierHR(interpolated_signal, time_domain, heart_range=(0.5, 5)):
                 bpm = beat_freq * 60
                 peak_coord = (beat_freq, beat_power)
 
-            # TODO:
-            # Need something more sophisticated here
             # If 4 peaks or less, take the first one
             elif 1 < len(beat_indices) < 4:
                 beat_freq = beat_freqs[0]
@@ -1651,7 +1648,8 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
             masked_frame, triangle_thresh, thresh, movement = rolling_diff(j, norm_frames, win_size=2, direction="reverse", min_area=150)  # I´ve added thresh just to test; "movement" is not used anymore
 
             # TODO: If the movement happens early, all data is thrown away and the algorithm fails.
-            # if movement is true, it means that the embyio flip around. Then, save the frame number and and skip all following frames. The frame number will be used to try run the fast method if is the case
+            # if movement is true, it means that the embyio flip around.
+            # Then, save the frame number and and skip all following frames.
             if movement == True:
                 stop_frame = j
                 LOGGER.info("Movement detected, stopping at frame " + str(j))
@@ -2270,13 +2268,7 @@ def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
 
     bpm = None
-    qc_attributes = {   "Heart size": None, 
-                        "HROI count": None, 
-                        "Stop frame": None, 
-                        "Number of peaks": None,
-                        "Prominence": None,
-                        "Height": None,
-                        "Low variance": None}
+    qc_attributes = {}
 
     ################################################################################ Create Outdir for pictures
     # Add well position to output directory path
@@ -2437,13 +2429,7 @@ def run(video, args, video_metadata):
 
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
-    nr_peaks = None
-    prominence = None
-    height = None
-    has_low_variance = None
-    chosen_freq_dominance = None
-    clear_signal_ratio = None
-
+    
     # Run normally, Fourier in segemented area
     if not args['slowmode']:
         #bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
@@ -2452,11 +2438,7 @@ def run(video, args, video_metadata):
         #bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
-    # TODO: make this more flexible for different names and remove current hacky dependency
-    qc_attributes["Number of peaks"]    = str(nr_peaks)                 if nr_peaks                 else None
-    qc_attributes["Prominence"]         = str(clear_signal_ratio)       if clear_signal_ratio       else None
-    qc_attributes["Height"]             = str(chosen_freq_dominance)    if chosen_freq_dominance    else None
-    qc_attributes["Low variance"]       = str(has_low_variance)         if has_low_variance         else None
+    qc_attributes.update(qc_data)
 
     if not bpm:
         LOGGER.info("No bpm detected")

@@ -8,18 +8,16 @@
 # Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
 ###
 ############################################################################################################
+import glob2
 import logging
 import os
-import numpy as np
-import csv
-
 import pathlib
 
-import glob2
 import cv2
-from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
 
-SOFTWARE_VERSION = "1.2.1 (dec21)"
+from matplotlib import pyplot as plt
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -57,8 +55,7 @@ def well_video_generator(indir, channels, loops):
                 _, well_frames_sorted = (list(t) for t in zip(
                     *sorted(zip(frame_indices, well_frames))))
 
-                metadata = {'well_id': well_id,
-                            'loop': loop, 'channel': channel}
+                metadata = {'well_id': well_id, 'loop': loop, 'channel': channel}
                 yield well_frames_sorted, metadata
 
 
@@ -157,77 +154,46 @@ def well_video_exists(indir, channel, loop, well_id):
         return False
 
 # Results:
-# Dictionary {'channel': [], 'loop': [], 'well': [], 'heartbeat': []}
-# TODO: Transfer functionality into pandas dataframes. Probably more stable and clearer
-def write_to_spreadsheet(outdir, results, experiment_id, in_debug_mode=False):
+# Pandas df
+#   columns: {'channel', 'loop', 'well_id', 'bpm', 'fps', ...qc_attributes}
+def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
     outfile_name = "results_" + experiment_id + ".csv"
     outpath = os.path.join(outdir, outfile_name)
 
     # Don't erase previous results by accident
     if os.path.isfile(outpath):
-        LOGGER.warning(
-            "Outdir already contains results file. Writing new file version")
+        LOGGER.warning("Outdir already contains results file. Writing new file version")
 
     version = 2
     while os.path.isfile(outpath):
-        outpath = os.path.join(outdir, "results_v" + str(version) + ".csv")
+        outpath = os.path.join(outdir, f"results_v{version}.csv")
         version += 1
 
-    # Write results in file
-    with open(outpath, 'w') as outfile:
-        writer = csv.writer(outfile, delimiter=',',
-                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    #header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
+    results = results.rename(columns={  'well_id'   : 'WellID', 
+                                        'loop'      : 'Loop', 
+                                        'channel'   : 'Channel',
+                                        'bpm'       : 'Heartrate (BPM)'})
+    
+    # Map Well ID to Well Name. Order of recording to Well-Plate layout.
+    results.insert(loc=1, column='Well Name', value=results['WellID'].map(well_id_name_table))
 
-        header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
+    # Order columns before output
+    ordered_cols = ['WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)']
+    ordered_cols += [col for col in results.columns if col not in ordered_cols] # Debug columns, if any
+    results = results[ordered_cols]
 
-        if in_debug_mode: # also output qc_attributes
-            qc_attributes = ['Heart size',
-                            'HROI count',
-                            'Stop frame',
-                            'Number of peaks',
-                            'Prominence',
-                            'Height',
-                            'Low variance']
-            header += qc_attributes
+    results.index += 1
 
-        writer.writerow(header)
-
-        nr_of_results = len(results['heartbeat'])
-
-        # Ensure everything is string and set None values
-        for key, value in results.items():
-            value = ["NA" if entry is None else str(entry) for entry in value]
-            results[key] = value
-
-        for idx in range(nr_of_results):
-            entry = [str(idx+1),
-                    results['well'][idx],
-                    well_id_name_table[results['well'][idx]],
-                    results['loop'][idx],
-                    results['channel'][idx],
-                    results['heartbeat'][idx],
-                    results['fps'][idx],
-                    SOFTWARE_VERSION]
-
-            if in_debug_mode: # also output qc_attributes
-                qc_attributes = [results['Heart size'][idx],
-                                results['HROI count'][idx],
-                                results['Stop frame'][idx],
-                                results['Number of peaks'][idx],
-                                results['Prominence'][idx],
-                                results['Height'][idx],
-                                results['Low variance'][idx]]
-                entry += qc_attributes
-
-            writer.writerow(entry)
+    results.to_csv(outpath, index=True, index_label='Index', na_rep='NA')
 
 def save_cropped(cut_images, args, images_path):
     # function to save the cropped images
     os.makedirs(os.path.join(
         args.outdir, 'cropped_by_EBI_script/'), exist_ok=True)
     for index, img in enumerate(cut_images):
-        final_part_path = pathlib.PurePath(images_path[0]).name
+        final_part_path = pathlib.PurePath(images_path[index]).name
         outfile_path = os.path.join(
             args.outdir, 'cropped_by_EBI_script/', final_part_path)
         # write the image
@@ -285,10 +251,7 @@ def save_panel(resulting_dict_from_crop, args):
                     outfile_path = os.path.join(
                         args.outdir, item[0] + "_panel.png")
                     counter += 1
-                    formated_counter = '{:02d}'.format(counter)
-
-            print("counter")
-            print(counter)
+                    formated_counter = '{:02d}'.format(counter)           
 
             while (counter < 97):  # do not save image
                 axes.append(fig.add_subplot(rows, cols, counter))
