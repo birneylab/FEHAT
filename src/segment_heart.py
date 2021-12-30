@@ -1996,6 +1996,7 @@ def new_fourier_3(hroi_pixels, times, out_dir):
     maxBPM = 300
     highest_freqs = []
     SNR = [] # Signal to Noise ratio
+    intensity = []
 
     pixel_signals = PixelSignal(hroi_pixels)
 
@@ -2033,26 +2034,36 @@ def new_fourier_3(hroi_pixels, times, out_dir):
         highest_freq = heart_freqs[index_max]
         highest_freqs.append(highest_freq)
 
-        SNR.append(heart_psd[index_max]/(sum(heart_psd)-heart_psd[index_max]))
+        SNR.append(heart_psd[index_max]/(sum(heart_psd)))
+        intensity.append(heart_psd[index_max])
 
     # Take frequency that is most often the max
     max_freq = statistics.mode(highest_freqs)
 
     # Get SNR of pixels which contained max_freq
-    SNR = [snr for freq, snr in zip(highest_freqs, SNR) if freq == max_freq]
+    SNR         = [snr  for freq, snr   in zip(highest_freqs, SNR)          if freq == max_freq]
+    intensity   = [i    for freq, i     in zip(highest_freqs, intensity)    if freq == max_freq]
     
     overall_snr = sum(SNR)/len(SNR)
+    overall_i   = sum(intensity)/len(intensity)
 
-    # top 10% contributers SNR
-    n = math.ceil(len(SNR)/10)
+    # top contributers SNR
+    n = math.ceil(len(SNR)/20)
     SNR.sort()
     top_snr = sum(SNR[-n:]) / n
+
+    # top contributers Signal Intensities
+    intensity.sort()
+    top_i = sum(intensity[-n:]) / n
 
     bpm = round(max_freq * 60)
     
     qc_data = {}
-    qc_data['SNR']      = overall_snr
-    qc_data['SNR_Top10%'] = top_snr
+    qc_data['SNR']              = overall_snr
+    qc_data['Signal intensity'] = round(overall_i)
+
+    qc_data['SNR Top 5%'] = top_snr
+    qc_data['Signal Intensity Top 5%'] = round(top_i)
     return bpm, qc_data
 
     # density = gaussian_kde(highest_freqs)
