@@ -186,10 +186,7 @@ def main(indir, outdir, path_ground_truths):
         algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
 
         # Merge the results
-        output_df = pd.merge(algorithm_results, ground_truths, how="left")
-
-        # remove empty entries
-        output_df = output_df[output_df['ground truth'] != '']    # removes empty cells, keeps 'NA' filled ones.
+        output_df = pd.merge(algorithm_results, ground_truths, how="inner")
 
         # Output combined results
         output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
