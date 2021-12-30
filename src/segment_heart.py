@@ -17,8 +17,8 @@
 ############################################################################################################
 from collections import Counter, OrderedDict
 import warnings
-import multiprocessing
-from joblib import Parallel, delayed
+import math
+from numpy import ma
 import seaborn as sns
 from matplotlib import pyplot as plt
 import operator
@@ -28,7 +28,6 @@ import os
 import glob2
 import random
 import logging
-
 
 from statistics import mean
 
@@ -1776,7 +1775,7 @@ def fourier_bpm_slowmode(norm_frames, times, empty_frames, frame2frame_sec, args
 
     return bpm_fourier
 
-# WIP: Rework of old method, no savgol(bad idea) and requiring minimum amplitude of peak
+# WIP: Averaging all signals, no savgol(bad idea) and requiring minimum amplitude of peak
 def new_fourier(hroi_pixels, times, out_dir):
 
     minBPM = 15
@@ -1995,7 +1994,10 @@ def plot_frequencies_2d(amplitudes, bins, outdir):
 
 # WIP: new_fourier(), but using old_fourier_restructured as basis
 def new_fourier_3(hroi_pixels, times, out_dir):
+    minBPM = 15
+    maxBPM = 300
     highest_freqs = []
+    SNR = [] # Signal to Noise ratio
 
     pixel_signals = PixelSignal(hroi_pixels)
 
@@ -2019,12 +2021,8 @@ def new_fourier_3(hroi_pixels, times, out_dir):
         timestep = np.mean(np.diff(times))
         freqs = np.fft.rfftfreq(N, d=timestep)
 
-        # one-sided Fourier spectra
-        psd = psd[freqs > 0]
-        freqs = freqs[freqs > 0]
-
         # Determine the peak within the heart range
-        heart_indices = np.where(np.logical_and(freqs >= 0.25, freqs <= 5.0))[0]
+        heart_indices = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
 
         # Spectra within heart range
         heart_psd = psd[heart_indices]
@@ -2037,33 +2035,55 @@ def new_fourier_3(hroi_pixels, times, out_dir):
         highest_freq = heart_freqs[index_max]
         highest_freqs.append(highest_freq)
 
-    density = gaussian_kde(highest_freqs)
-    xs = np.linspace(0.25, 5.0, 500)
-    ys = density(xs)
+        SNR.append(heart_psd[index_max]/(sum(heart_psd)-heart_psd[index_max]))
 
-    peaks, peak_attributes = find_peaks(ys, prominence=1.0)
+    # Take frequency that is most often the max
+    max_freq = statistics.mode(highest_freqs)
+
+    # Get SNR of pixels which contained max_freq
+    SNR = [snr for freq, snr in zip(highest_freqs, SNR) if freq == max_freq]
     
-    # Calculate bpm from most common Fourier peak
-    max_index = np.argmax(ys)
+    overall_snr = sum(SNR)/len(SNR)
 
-    # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
-    max_x = xs[max_index]
+    # top 10% contributers SNR
+    n = math.ceil(len(SNR)/10)
+    SNR.sort()
+    top_snr = sum(SNR[-n:]) / n
 
-    # Set attributes any peak was found
-    if len(peaks) == 1:
-        LOGGER.info("Found 1 peak")
-        bpm = max_x * 60
+    bpm = round(max_freq * 60)
+    
+    qc_data = {}
+    qc_data['SNR']      = overall_snr
+    qc_data['SNR_Top10%'] = top_snr
+    return bpm, qc_data
 
-    elif len(peaks) > 1:
-        # Peak with maximum prominence
-        max_prominence_idx = np.argmax(peak_attributes['prominences'])
+    # density = gaussian_kde(highest_freqs)
+    # xs = np.linspace(0.25, 5.0, 500)
+    # ys = density(xs)
 
-        # Map idx in peak list to idx for x and y values in the frequency-density space.
-        max_prominence_idx = peaks[max_prominence_idx]
+    # peaks, peak_attributes = find_peaks(ys, prominence=1.0)
+    
+    # # Calculate bpm from most common Fourier peak
+    # max_index = np.argmax(ys)
 
-        bpm = xs[max_prominence_idx] * 60
-    else:
-        bpm = None
+    # # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
+    # max_x = xs[max_index]
+
+    # # Set attributes any peak was found
+    # if len(peaks) == 1:
+    #     LOGGER.info("Found 1 peak")
+    #     bpm = max_x * 60
+
+    # elif len(peaks) > 1:
+    #     # Peak with maximum prominence
+    #     max_prominence_idx = np.argmax(peak_attributes['prominences'])
+
+    #     # Map idx in peak list to idx for x and y values in the frequency-density space.
+    #     max_prominence_idx = peaks[max_prominence_idx]
+
+    #     bpm = xs[max_prominence_idx] * 60
+    # else:
+    #     bpm = None
 
     # Round bpm
     if bpm is not None:
@@ -2095,6 +2115,10 @@ def old_fourier_restructured(hroi_pixels, times, out_dir):
         N = pixel_signal.size
         timestep = np.mean(np.diff(times))
         freqs = np.fft.fftfreq(N, d=timestep)
+
+        # one-sided Fourier spectra
+        psd = psd[freqs > 0]
+        freqs = freqs[freqs > 0]
 
         # Determine the peak within the heart range
         heart_indices = np.where(np.logical_and(freqs >= 0.25, freqs <= 5.0))[0]
@@ -2424,7 +2448,7 @@ def run(video, args, video_metadata):
     if not args['slowmode']:
         #bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
         #bpm = old_fourier_restructured(hroi_pixels, times, out_dir)
-        bpm = new_fourier_3(hroi_pixels, times, out_dir)
+        bpm, qc_data = new_fourier_3(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
