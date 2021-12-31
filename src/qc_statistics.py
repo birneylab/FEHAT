@@ -146,6 +146,7 @@ def main(indir, outdir, path_ground_truths):
 
         # Load result.csv files into dataframe
         algorithm_results = []
+        groups = set()
 
         subdirs = {os.path.join(p, '') for p in glob2.glob(indir + '/*/')}
 
@@ -170,20 +171,17 @@ def main(indir, outdir, path_ground_truths):
 
                 algorithm_results.append(results)
 
-        # Extract group names of valid datasets
-        # Performance over datasets can vary greatly.
-        # Analysing over different groups gives info on best and worst case performance.
-        groups = set()
-        for result in algorithm_results:
+                # Extract group names of valid datasets
+                # Performance over datasets can vary greatly.
+                # Analysing over different groups gives info on best and worst case performance.
 
-            # DATASETGROUP1_13FPS_170814... ---> DATASETGROUP1
-            # DATASETGROUP2_13FPS_170814... ---> DATASETGROUP2
-            dataset_name = result['DATASET'][0]
-            dataset_group = dataset_name.split('_')[0]
-            groups.add(dataset_group)
+                # DATASETGROUP1_13FPS_170814... ---> DATASETGROUP1
+                # DATASETGROUP2_13FPS_170814... ---> DATASETGROUP2
+                dataset_group = dataset_name.split('_')[0]
+                groups.add(dataset_group)
 
         # list of dataframes to single unified dataframe
-        algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True)
+        algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True, sort=False)
 
         # Merge the results
         output_df = pd.merge(algorithm_results, ground_truths, how="inner")

@@ -180,7 +180,7 @@ def write_to_spreadsheet(outdir, results, experiment_id):
     results.insert(loc=1, column='Well Name', value=results['WellID'].map(well_id_name_table))
 
     # Order columns before output
-    ordered_cols = ['WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)']
+    ordered_cols = ['WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']
     ordered_cols += [col for col in results.columns if col not in ordered_cols] # Debug columns, if any
     results = results[ordered_cols]
 

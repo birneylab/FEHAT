@@ -66,6 +66,7 @@ def analyse(args, channels, loops, wells=None):
                 well_result['channel']  = video_metadata['channel']
                 well_result['bpm']      = bpm
                 well_result['fps']      = fps
+                well_result['version']  = SOFTWARE_VERSION
                 
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
@@ -319,7 +320,6 @@ def main(args):
             LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
-        results['version'] = SOFTWARE_VERSION
         io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
 
     else:
