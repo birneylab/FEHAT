@@ -2068,8 +2068,8 @@ def new_fourier_3(hroi_pixels, times, out_dir):
     qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
 
     # Decisions from empirical analysis:
-    if top_snr < 0.3:
-        bpm = None
+    #if top_snr < 0.3:
+    #    bpm = None
 
     return bpm, qc_data
 
@@ -2380,6 +2380,9 @@ def run(video, args, video_metadata):
     masked_greys = []
     masked_frames = []
     empty_frames = []
+
+    embryo = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in embryo]
+
     for i, frame in enumerate(embryo):
         if frame is not None:
             masked_data = cv2.bitwise_and(frame, frame, mask=mask)
