@@ -2068,8 +2068,9 @@ def new_fourier_3(hroi_pixels, times, out_dir):
     qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
 
     # Decisions from empirical analysis:
-    #if top_snr < 0.3:
-    #    bpm = None
+    # Drop signals that are weak or have many competing frequencies
+    if top_snr < 0.3 or top_i < 30000:
+        bpm = None
 
     return bpm, qc_data
 
