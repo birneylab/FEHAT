@@ -67,6 +67,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)
 clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
 LOGGER = logging.getLogger(__name__)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 # Kernel for image smoothing
 kernel = np.ones((5, 5), np.uint8)
@@ -1973,6 +1974,11 @@ def new_fourier_2(hroi_pixels, times, outdir):
 # 2D plot of frequencies detected in the region.
 def plot_frequencies_2d(amplitudes, bins, outdir):
 
+    # Ensures parameters are numpy arrays - meshgrid function works
+    amplitudes = np.array(amplitudes)
+    bins = np.array(bins)
+
+    # 3D Plot
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
@@ -1985,20 +1991,39 @@ def plot_frequencies_2d(amplitudes, bins, outdir):
     ax.set_ylabel('pixel')
     ax.set_zlabel('frequency amplitude')
 
-    out_fig = os.path.join(outdir, "fourier_signals.png")
+    out_fig = os.path.join(outdir, "fourier_signals_3D.png")
     plt.savefig(out_fig, bbox_inches='tight')
 
     plt.close()
 
-# WIP: new_fourier(), but using old_fourier_restructured as basis
-def new_fourier_3(hroi_pixels, times, out_dir):
-    minBPM = 15
-    maxBPM = 300
-    highest_freqs = []
-    SNR = [] # Signal to Noise ratio
-    intensity = []
+    # 2D heatmap (adapted from Erasmus Cedernaes, stackoverflow)
+    fig, ax = plt.subplots()
 
+    c = ax.pcolormesh(X, Y, amplitudes, cmap='hot', vmin=0, vmax=np.max(amplitudes))
+
+    # set the limits of the plot to the limits of the data
+    ax.axis([X.min(), X.max(), Y.min(), Y.max()])
+
+    ax.set_title('Frequency intensities per pixel')
+    ax.set_xlabel('frequency')
+    ax.set_ylabel('pixel')
+    fig.colorbar(c, ax=ax)
+
+    out_fig = os.path.join(outdir, "fourier_signals_heatmap.png")
+    plt.savefig(out_fig, bbox_inches='tight')
+
+    plt.close()
+
+def fourier_transform(hroi_pixels, times):
+    amplitudes = []
+
+    # Rotates array. Instead of frames, the first dimension are the pixels.
     pixel_signals = PixelSignal(hroi_pixels)
+
+    # Get Discrete Fourier frequencies. Defined by sample length
+    N = pixel_signals[0].size
+    timestep = np.mean(np.diff(times))
+    freqs = np.fft.rfftfreq(N, d=timestep)
 
     for pixel_signal in pixel_signals:
 
@@ -2006,8 +2031,7 @@ def new_fourier_3(hroi_pixels, times, out_dir):
         pixel_signal = savgol_filter(pixel_signal, window_length=5, polyorder=3)
 
         # Subtract any linear trends
-        # Increases classification rate slightly (~0.5-1%)
-        # TODO: Set qc attribute to analyse and compare impact
+        # Increases classification rate (depending on data, 1-12%)
         pixel_signal = detrend(pixel_signal)
 
         # Fast fourier transform
@@ -2016,26 +2040,24 @@ def new_fourier_3(hroi_pixels, times, out_dir):
         # Power Spectral Density
         psd = np.abs(fourier) ** 2
 
-        N = pixel_signal.size
-        timestep = np.mean(np.diff(times))
-        freqs = np.fft.rfftfreq(N, d=timestep)
+        amplitudes.append(psd)
 
-        # Determine the peak within the heart range
-        heart_indices = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
+    return amplitudes, freqs
 
-        # Spectra within heart range
-        heart_psd = psd[heart_indices]
-        heart_freqs = freqs[heart_indices]
+def analyse_frequencies(amplitudes, freqs):
 
-        # Index of largest spectrum in heart range
-        index_max = np.argmax(heart_psd)
-        
-        # Corresponding frequency
-        highest_freq = heart_freqs[index_max]
-        highest_freqs.append(highest_freq)
+    # Empirically found values:
+    min_snr         = 0.3
+    min_intensity   = 30000
 
-        SNR.append(heart_psd[index_max]/(sum(heart_psd)))
-        intensity.append(heart_psd[index_max])
+    # Get top frequency in each pixel
+    max_indices = [np.argmax(pixel_freqs) for pixel_freqs in amplitudes]
+    highest_freqs = [freqs[idx] for idx in max_indices]
+
+    # SNR = Amplitude of max freq / sum of all freqs
+    # Intensity = amplitude of top frequency
+    SNR         = [(pixel_freqs[idx]/sum(pixel_freqs)) for pixel_freqs, idx in zip(amplitudes, max_indices)]
+    intensity   = [(pixel_freqs[idx]) for pixel_freqs, idx in zip(amplitudes, max_indices)]
 
     # Take frequency that is most often the max
     max_freq = statistics.mode(highest_freqs)
@@ -2069,44 +2091,38 @@ def new_fourier_3(hroi_pixels, times, out_dir):
 
     # Decisions from empirical analysis:
     # Drop signals that are weak or have many competing frequencies
-    if top_snr < 0.3 or top_i < 30000:
+    if top_snr < min_snr or top_i < min_intensity:
         bpm = None
 
     return bpm, qc_data
 
-    # density = gaussian_kde(highest_freqs)
-    # xs = np.linspace(0.25, 5.0, 500)
-    # ys = density(xs)
+# WIP: new_fourier(), but using old_fourier_restructured as basis
+def new_fourier_3(hroi_pixels, times, out_dir):
+    minBPM = 15
+    maxBPM = 300
 
-    # peaks, peak_attributes = find_peaks(ys, prominence=1.0)
-    
-    # # Calculate bpm from most common Fourier peak
-    # max_index = np.argmax(ys)
+    highest_freqs = []
+    SNR = [] # Signal to Noise ratio
+    intensity = []
 
-    # # let´s find the max peaks, and use it in case we have two peaks and user has input an average as argument to filter peaks
-    # max_x = xs[max_index]
+    # Get Frequency Spectrum for each pixel.
+    amplitudes, freqs = fourier_transform(hroi_pixels, times)
 
-    # # Set attributes any peak was found
-    # if len(peaks) == 1:
-    #     LOGGER.info("Found 1 peak")
-    #     bpm = max_x * 60
+    # Limit to frequencies within defined borders
+    heart_freqs_indices = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
+    freqs       = freqs[heart_freqs_indices]
+    amplitudes  = [pixel_freqs[heart_freqs_indices] for pixel_freqs in amplitudes]
 
-    # elif len(peaks) > 1:
-    #     # Peak with maximum prominence
-    #     max_prominence_idx = np.argmax(peak_attributes['prominences'])
+    # Plot the pixel amplitudes as 
+    plot_frequencies_2d(amplitudes, freqs, out_dir)
 
-    #     # Map idx in peak list to idx for x and y values in the frequency-density space.
-    #     max_prominence_idx = peaks[max_prominence_idx]
+    # Attempt to find bpm
+    bpm, qc_data = analyse_frequencies(amplitudes, freqs)
 
-    #     bpm = xs[max_prominence_idx] * 60
-    # else:
-    #     bpm = None
-
-    # Round bpm
     if bpm is not None:
         bpm = np.around(bpm, decimals=2)
 
-    return bpm
+    return bpm, qc_data
 
 # Current method, just cleaner and simpler
 def old_fourier_restructured(hroi_pixels, times, out_dir):
@@ -2185,6 +2201,7 @@ def old_fourier_restructured(hroi_pixels, times, out_dir):
 
     return bpm
 
+# Attempt to combine all signals into one curve. Not working
 def plot_average_signal(hroi_pixels, times, out_dir):
     
     pixel_signals = PixelSignal(hroi_pixels)
@@ -2382,8 +2399,6 @@ def run(video, args, video_metadata):
     masked_frames = []
     empty_frames = []
 
-    embryo = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in embryo]
-
     for i, frame in enumerate(embryo):
         if frame is not None:
             masked_data = cv2.bitwise_and(frame, frame, mask=mask)
@@ -2437,6 +2452,9 @@ def run(video, args, video_metadata):
     times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
 
     ################################ Keep only pixels in HROI
+    # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
+    masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in masked_greys]
+    
     # delete pixels outside of mask (=HROI)
     # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
     mask = np.invert(mask)
