@@ -2044,7 +2044,13 @@ def fourier_transform(hroi_pixels, times):
 
     return amplitudes, freqs
 
+# Check if frequency specturm of pixel fullfills conditions to be viable
+def freq_filter(pixel_freqs, freq_idx, min_snr, min_intensity):
+    return (pixel_freqs[freq_idx] > min_intensity) and (pixel_freqs[freq_idx]/sum(pixel_freqs) > min_snr)
+
 def analyse_frequencies(amplitudes, freqs):
+    qc_data = {}
+    bpm     = None
 
     # Empirically found values:
     min_snr         = 0.3
@@ -2062,37 +2068,78 @@ def analyse_frequencies(amplitudes, freqs):
     # Take frequency that is most often the max
     max_freq = statistics.mode(highest_freqs)
 
-    # Get SNR of pixels which contained max_freq
-    SNR         = [snr  for freq, snr   in zip(highest_freqs, SNR)          if freq == max_freq]
-    intensity   = [i    for freq, i     in zip(highest_freqs, intensity)    if freq == max_freq]
+    ### LOOK AT HARMONICS OF HIGHEST FREQUENCY
+
+    # Add max freq and harmonics to candidae freqs
+    freq_step = freqs[1] - freqs[0]
+    lower_harmonic = freqs[np.where(np.abs(freqs-(max_freq/2)) < (freq_step/2))]
+    upper_harmonic = freqs[np.where(np.abs(freqs-(max_freq*2)) < (freq_step/2))]
+
+    candidate_freqs = np.concatenate(([max_freq], lower_harmonic, upper_harmonic))
+    candidate_idcs  = [np.where(freqs == freq) for freq in candidate_freqs]
+
+    # Pick the freq with strongest signal
+    intensities = []
+    pixel_count = []
+    for freq, idx in zip(candidate_freqs, candidate_idcs):
+
+        # Filter by intensity and snr.
+        freq_amplitudes = [pixel_freqs for pixel_freqs in amplitudes if freq_filter(pixel_freqs, idx, min_snr, min_intensity)]
+
+        # Check if viable
+        if not freq_amplitudes:
+            intensities.append(None)
+            pixel_count.append(None)
+            continue
+
+        i = np.average([pixel_freqs[idx] for pixel_freqs in freq_amplitudes])
+
+        intensities.append(i)
+        pixel_count.append(len(freq_amplitudes))
+
+    # Return if none satisfy qc control
+    if intensities.count(None) == len(intensities):
+        return bpm, qc_data
+
+    # conversion necessar to avoid problems with None
+    max_idx = np.nanargmax(np.array(intensities, dtype=float))
+
+    bpm = candidate_freqs[max_idx] * 60
+    qc_data["Intensity"]        = intensities[max_idx]
+    qc_data["Viable pixels"]    = pixel_count[max_idx]
+    qc_data["Viability rate"]   = pixel_count[max_idx] / len(amplitudes)
+
+    ### PICK HIGHEST FREQUENCY - QC FILTER FOR MIN INTENSITY AND 
+    # # Get SNR of pixels which contained max_freq
+    # SNR         = [snr  for freq, snr   in zip(highest_freqs, SNR)          if freq == max_freq]
+    # intensity   = [i    for freq, i     in zip(highest_freqs, intensity)    if freq == max_freq]
     
-    overall_snr = sum(SNR)/len(SNR)
-    overall_i   = sum(intensity)/len(intensity)
+    # overall_snr = sum(SNR)/len(SNR)
+    # overall_i   = sum(intensity)/len(intensity)
 
-    # top contributers SNR
-    n = math.ceil(len(SNR)/20)
-    SNR.sort()
-    top_snr = sum(SNR[-n:]) / n
+    # # top contributers SNR
+    # n = math.ceil(len(SNR)/20)
+    # SNR.sort()
+    # top_snr = sum(SNR[-n:]) / n
 
-    # top contributers Signal Intensities
-    intensity.sort()
-    top_i = sum(intensity[-n:]) / n
+    # # top contributers Signal Intensities
+    # intensity.sort()
+    # top_i = sum(intensity[-n:]) / n
 
-    bpm = round(max_freq * 60)
+    # bpm = round(max_freq * 60)
     
-    qc_data = {}
-    qc_data['SNR']              = overall_snr
-    qc_data['Signal intensity'] = round(overall_i)
+    # qc_data['SNR']              = overall_snr
+    # qc_data['Signal intensity'] = round(overall_i)
 
-    qc_data['SNR Top 5%'] = top_snr
-    qc_data['Signal Intensity Top 5%'] = round(top_i)
+    # qc_data['SNR Top 5%'] = top_snr
+    # qc_data['Signal Intensity Top 5%'] = round(top_i)
 
-    qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
+    # qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
 
-    # Decisions from empirical analysis:
-    # Drop signals that are weak or have many competing frequencies
-    if top_snr < min_snr or top_i < min_intensity:
-        bpm = None
+    # # Decisions from empirical analysis:
+    # # Drop signals that are weak or have many competing frequencies
+    # if top_snr < min_snr or top_i < min_intensity:
+    #     bpm = None
 
     return bpm, qc_data
 
