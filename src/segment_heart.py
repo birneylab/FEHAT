@@ -1721,7 +1721,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
     if (final_mask.sum() <= 0):
         raise RuntimeError("Couldn't detect a HROI")
 
-    return embryo, final_mask, hroi_ax, stop_frame, nr_candidate_regions
+    return embryo, final_mask, hroi_ax, stop_frame, regions
 
 # Run normally, Fourier in segemented area
 def fourier_bpm(hroi_pixels, times, empty_frames, frame2frame_sec, args, out_dir):
@@ -2070,76 +2070,99 @@ def analyse_frequencies(amplitudes, freqs):
 
     ### LOOK AT HARMONICS OF HIGHEST FREQUENCY
 
-    # Add max freq and harmonics to candidae freqs
+    # # Add max freq and harmonics to candidae freqs
+    # freq_step = freqs[1] - freqs[0]
+    # lower_harmonic = freqs[np.where(np.abs(freqs-(max_freq/2)) < (freq_step/2))]
+    # upper_harmonic = freqs[np.where(np.abs(freqs-(max_freq*2)) < (freq_step/2))]
+
+    # candidate_freqs = np.concatenate(([max_freq], lower_harmonic, upper_harmonic))
+    # candidate_idcs  = [np.where(freqs == freq) for freq in candidate_freqs]
+
+    # # Pick the freq with strongest signal
+    # intensities = []
+    # pixel_count = []
+    # for freq, idx in zip(candidate_freqs, candidate_idcs):
+
+    #     # Filter by intensity and snr.
+    #     freq_amplitudes = [pixel_freqs for pixel_freqs in amplitudes if freq_filter(pixel_freqs, idx, min_snr, min_intensity)]
+
+    #     # Check if viable
+    #     if not freq_amplitudes:
+    #         intensities.append(None)
+    #         pixel_count.append(None)
+    #         continue
+
+    #     i = np.average([pixel_freqs[idx] for pixel_freqs in freq_amplitudes])
+
+    #     intensities.append(i)
+    #     pixel_count.append(len(freq_amplitudes))
+
+    # # Return if none satisfy qc control
+    # if intensities.count(None) == len(intensities):
+    #     return bpm, qc_data
+
+    # # conversion necessar to avoid problems with None
+    # max_idx = np.nanargmax(np.array(intensities, dtype=float))
+
+    # bpm = candidate_freqs[max_idx] * 60
+    # qc_data["Intensity"]        = intensities[max_idx]
+    # qc_data["Viable pixels"]    = pixel_count[max_idx]
+    # qc_data["Viability rate"]   = pixel_count[max_idx] / len(amplitudes)
+
+    ### Intensity of harmonics?
     freq_step = freqs[1] - freqs[0]
     lower_harmonic = freqs[np.where(np.abs(freqs-(max_freq/2)) < (freq_step/2))]
     upper_harmonic = freqs[np.where(np.abs(freqs-(max_freq*2)) < (freq_step/2))]
 
-    candidate_freqs = np.concatenate(([max_freq], lower_harmonic, upper_harmonic))
+    candidate_freqs = np.concatenate((lower_harmonic, upper_harmonic))
     candidate_idcs  = [np.where(freqs == freq) for freq in candidate_freqs]
 
-    # Pick the freq with strongest signal
-    intensities = []
-    pixel_count = []
+    # Find highest top 5% intesity of harmonic. (higher or lower)
+    harmonic_intensity = 0
     for freq, idx in zip(candidate_freqs, candidate_idcs):
 
         # Filter by intensity and snr.
-        freq_amplitudes = [pixel_freqs for pixel_freqs in amplitudes if freq_filter(pixel_freqs, idx, min_snr, min_intensity)]
+        freq_amplitudes = [pixel_freqs[idx] for pixel_freqs in amplitudes]
+        freq_amplitudes.sort()
 
-        # Check if viable
-        if not freq_amplitudes:
-            intensities.append(None)
-            pixel_count.append(None)
-            continue
+        i = np.average(freq_amplitudes[-(math.ceil(len(freq_amplitudes)/20)):])
 
-        i = np.average([pixel_freqs[idx] for pixel_freqs in freq_amplitudes])
+        if i > harmonic_intensity:
+            i = harmonic_intensity
 
-        intensities.append(i)
-        pixel_count.append(len(freq_amplitudes))
-
-    # Return if none satisfy qc control
-    if intensities.count(None) == len(intensities):
-        return bpm, qc_data
-
-    # conversion necessar to avoid problems with None
-    max_idx = np.nanargmax(np.array(intensities, dtype=float))
-
-    bpm = candidate_freqs[max_idx] * 60
-    qc_data["Intensity"]        = intensities[max_idx]
-    qc_data["Viable pixels"]    = pixel_count[max_idx]
-    qc_data["Viability rate"]   = pixel_count[max_idx] / len(amplitudes)
+    qc_data["Harmonic Intensity"] = str(harmonic_intensity)
 
     ### PICK HIGHEST FREQUENCY - QC FILTER FOR MIN INTENSITY AND 
-    # # Get SNR of pixels which contained max_freq
-    # SNR         = [snr  for freq, snr   in zip(highest_freqs, SNR)          if freq == max_freq]
-    # intensity   = [i    for freq, i     in zip(highest_freqs, intensity)    if freq == max_freq]
+    # Get SNR of pixels which contained max_freq
+    SNR         = [snr  for freq, snr   in zip(highest_freqs, SNR)          if freq == max_freq]
+    intensity   = [i    for freq, i     in zip(highest_freqs, intensity)    if freq == max_freq]
     
-    # overall_snr = sum(SNR)/len(SNR)
-    # overall_i   = sum(intensity)/len(intensity)
+    overall_snr = sum(SNR)/len(SNR)
+    overall_i   = sum(intensity)/len(intensity)
 
-    # # top contributers SNR
-    # n = math.ceil(len(SNR)/20)
-    # SNR.sort()
-    # top_snr = sum(SNR[-n:]) / n
+    # top contributers SNR
+    n = math.ceil(len(SNR)/20)
+    SNR.sort()
+    top_snr = np.average(SNR[-n:])
 
-    # # top contributers Signal Intensities
-    # intensity.sort()
-    # top_i = sum(intensity[-n:]) / n
+    # top contributers Signal Intensities
+    intensity.sort()
+    top_i = np.average(intensity[-n:])
 
-    # bpm = round(max_freq * 60)
+    bpm = round(max_freq * 60)
     
-    # qc_data['SNR']              = overall_snr
-    # qc_data['Signal intensity'] = round(overall_i)
+    qc_data['SNR']              = overall_snr
+    qc_data['Signal intensity'] = round(overall_i)
 
-    # qc_data['SNR Top 5%'] = top_snr
-    # qc_data['Signal Intensity Top 5%'] = round(top_i)
+    qc_data['SNR Top 5%'] = top_snr
+    qc_data['Signal Intensity Top 5%'] = round(top_i)
 
-    # qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
+    qc_data['Signal regional prominence'] = len(SNR)/len(highest_freqs)
 
-    # # Decisions from empirical analysis:
-    # # Drop signals that are weak or have many competing frequencies
-    # if top_snr < min_snr or top_i < min_intensity:
-    #     bpm = None
+    # Decisions from empirical analysis:
+    # Drop signals that are weak or have many competing frequencies
+    if top_snr < min_snr or top_i < min_intensity:
+        bpm = None
 
     return bpm, qc_data
 
@@ -2508,6 +2531,7 @@ def run(video, args, video_metadata):
     hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in masked_greys])
 
     qc_attributes["Heart size"] = str(np.size(hroi_pixels, 1))
+    qc_attributes["empty frames"] = str(len(empty_frames))
     ################################################################################ Draw bpm-trace
     try:
         bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
