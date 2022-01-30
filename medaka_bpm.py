@@ -129,7 +129,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         video = io_operations.load_well_video_8bits(
             well_frame_paths)
     else:
-        video = io_operations.load_well_video_8bits(
+        video = io_operations.load_well_video_16bits(
             well_frame_paths)
 
     bpm, fps, qc_attributes = segment_heart.run(video, vars(args), video_metadata)
