@@ -1870,7 +1870,7 @@ def threshold_changes(frame2frame_difference, min_area=300):
     thresholded_differences = np.array([cv2.morphologyEx(diff, cv2.MORPH_OPEN, KERNEL) for diff in thresholded_differences])
     
     # Keep intensity of changes
-    thresholded_differences = np.multiply(thresholded_differences, frame2frame_difference)
+    #thresholded_differences = np.multiply(thresholded_differences, frame2frame_difference)
 
     return thresholded_differences
 
@@ -1935,8 +1935,7 @@ def HROI2(frame2frame_changes, min_area=300):
     top_changing_mask[top_changing_indices] = 1
 
     ### Threshold heart RoI to find regions
-    all_roi = total_changes > threshold_isodata(total_changes)
-
+    all_roi = total_changes > threshold_yen(total_changes)
     all_roi = all_roi.astype(np.uint8)
 
     # Fill holes in blobs
@@ -2081,7 +2080,7 @@ def run(video, args, video_metadata):
                         out_dir)
 
     roi_qc_video = video_with_roi(normed_video, frame2frame_changes, hroi_mask)
-    save_video(roi_qc_video, fps, out_dir, "embroy_changes.mp4")
+    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     ################################ Keep only pixels in HROI
     # delete pixels outside of mask (=HROI)
