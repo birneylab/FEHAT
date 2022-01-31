@@ -2590,10 +2590,10 @@ def run(video, args, video_metadata):
     video8  = assert_8bit(normed_video)
     
     frame2frame_changes = absdiff_between_frames(video8)
-    frame2frame_changes = threshold_changes(frame2frame_changes)
+    frame2frame_changes_thresh= threshold_changes(frame2frame_changes)
 
     # Detect movement and stop analysis early
-    stop_frame = detect_movement(frame2frame_changes)
+    stop_frame = detect_movement(frame2frame_changes_thresh)
     qc_attributes["Stop frame"] = str(stop_frame)
 
     # Break condition
@@ -2604,11 +2604,9 @@ def run(video, args, video_metadata):
     # Shorten videos
     normed_video        = normed_video[:stop_frame]
     video8              = video8[:stop_frame]
-    frame2frame_changes = frame2frame_changes[:stop_frame]
+    frame2frame_changes_thresh = frame2frame_changes_thresh[:stop_frame]
 
-    hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes)
-
-    qc_attributes["HROI Change Intensity"] = str(np.sum(np.multiply(hroi_mask, total_changes)))
+    hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
 
     draw_heart_qc_plot( video8[0],
                         total_changes,
@@ -2617,19 +2615,23 @@ def run(video, args, video_metadata):
                         top_changing_pixels, 
                         out_dir)
 
-    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
+    roi_qc_video = video_with_roi(video8, frame2frame_changes_thresh, hroi_mask)
     save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     ################################ Keep only pixels in HROI
     # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
-    normed_video = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
+    masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
     
     # delete pixels outside of mask (=HROI)
     # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
     mask = np.invert(hroi_mask*255)
     hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in normed_video])
 
-    qc_attributes["Heart size"] = str(np.size(hroi_pixels, 1))
+    heart_size = np.size(hroi_pixels, 1)
+    qc_attributes["Heart size"] = str(heart_size)
+
+    # TODO: Maybe limit on selected pixels in fourier analysis -> bit tricky, need to pull out that info and map afterwards
+    qc_attributes["HROI Change Intensity"] = str(np.sum(np.multiply(hroi_mask, np.sum(frame2frame_changes, axis=0))) / heart_size)
 
     empty_frames = [i for i, frame in enumerate(normed_video) if not np.any(cv2.bitwise_and(frame, frame, mask=hroi_mask))]
     qc_attributes["empty frames"] = str(len(empty_frames))
