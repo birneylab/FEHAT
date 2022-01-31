@@ -15,10 +15,8 @@
 #   calculating bpm frequency from pixel color fluctuation in said videos
 ###
 ############################################################################################################
-from collections import Counter, OrderedDict
 import warnings
 import math
-from numpy import ma
 import seaborn as sns
 from matplotlib import pyplot as plt
 import operator
@@ -70,13 +68,12 @@ LOGGER = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 # Kernel for image smoothing
-kernel = np.ones((5, 5), np.uint8)
+KERNEL = np.ones((5, 5), np.uint8)
 ################################################################################
 ##########################
 ##  Functions   ##
 ##########################
 # start of fast mode
-
 
 def get_image_files_and_time_spacing(indir, frame_format, well_number, loop):
 
@@ -352,31 +349,13 @@ def resizeFrames(frames, scale=50):
 # TODO: Streching should be done from the bottom as well.
 # TODO: Also, a single outlier will worsen the normalization
 def normVideo(frames):
-    norm_frames = []
-
+    min_in_frames = np.min(frames)
     max_in_frames = np.max(frames)
 
-    for i in range(len(frames)):
+    norm_frames = (np.subtract(frames, min_in_frames) / (max_in_frames-min_in_frames)) * np.iinfo(frames.dtype).max
+    norm_frames = norm_frames.astype(frames.dtype)
 
-        frame = frames[i]
-
-        if (frame is not None) and (frame.size > 0):
-
-            # Convert RGB to greyscale
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            norm_frame = np.uint8(frame / max_in_frames * 255)
-
-            # Convert scaled greyscale back to RGB
-            norm_frame = cv2.cvtColor(norm_frame, cv2.COLOR_GRAY2BGR)
-
-        # If empty frame
-        else:
-            norm_frame = None
-
-        norm_frames.append(norm_frame)
-
-    return(norm_frames)
+    return norm_frames
     
 # ## Function processFrame(frame)
 # Pre-process frame
@@ -484,7 +463,7 @@ def diffFrame(frame, frame2_blur, frame1_blur, min_area=300):
         thresh = thresh.astype(np.uint8)
 
         # Opening to remove noise
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, KERNEL)
 
         # Find contours in mask and filter them based on their area
         mask = filterMask(mask=thresh, min_area=min_area)
@@ -1588,19 +1567,23 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 #     return video_cropped
 
 def save_video(video, fps, outdir, filename):
-    vid_frames = [frame for frame in video if frame is not None]
+    video = assert_8bit(video)
+    
+    if(len(video[0].shape) == 2):
+        video = np.array([cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB) for frame in video])
+
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
     try:
-        height, width, layers = vid_frames[0].shape
-    except IndexError:
-        height, width = vid_frames[0].shape
+        height, width, layers = video[0].shape
+    except (IndexError, ValueError):
+        height, width = video[0].shape
     size = (width, height)
     out_vid = os.path.join(outdir, filename)
     out = cv2.VideoWriter(out_vid, fourcc, fps, size)
 
-    for i in range(len(vid_frames)):
-        out.write(vid_frames[i])
+    for i in range(len(video)):
+        out.write(video[i])
     out.release()
 
 # Detect heart region of interest (HROI)
@@ -1693,7 +1676,7 @@ def HROI(sorted_frames, norm_frames, hroi_ax):
 
     # Perform 'opening' on heat map of absolute differences
     # Rounds of erosion and dilation
-    heart_roi_open = cv2.morphologyEx(heart_roi, cv2.MORPH_OPEN, kernel)
+    heart_roi_open = cv2.morphologyEx(heart_roi, cv2.MORPH_OPEN, KERNEL)
 
     # Threshold heart RoI to generate mask
     yen = threshold_yen(heart_roi_open)
@@ -2368,6 +2351,205 @@ def bpm_trace(hroi_pixels, frame2frame_sec, times, empty_frames, out_dir):
     plt.show()
     plt.close()
 
+# Sort and remove duplicate frames
+def sort_frames(video, timestamps):
+    timestamps_sorted, idcs = np.unique(timestamps, return_index=True)
+    video_sorted        = video[idcs]
+
+    return video_sorted, timestamps_sorted
+
+# Calculate fps from first and last timestamp or use predefined value
+def determine_fps(timestamps, fps_console_parameter):
+    fps = 0
+
+    # Determine FPS
+    # Determine frame rate from time-stamps if unspecified
+    if not fps_console_parameter:
+        # total time acquiring frames in seconds
+        timestamp0 = int(timestamps[0])
+        timestamp_final = int(timestamps[-1])
+        total_time = (timestamp_final - timestamp0) / 1000
+        fps = len(timestamps) / total_time
+        LOGGER.info("Calculated fps: " + str(round(fps, 2)))
+    else:
+        fps = fps_console_parameter
+        LOGGER.info("Defined fps: " + str(round(fps, 2)))
+
+    return fps
+
+# timestamp spacing can vary by a few ms. Provides equally spaced timestamps
+def equally_spaced_timestamps(nr_of_frames, fps):
+    frame2frame = 1/fps
+        
+    final_time = frame2frame * nr_of_frames
+    equal_space_times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
+
+    return equal_space_times
+
+def absdiff_between_frames(video):
+    # Last frame has no differencs
+    frame2frame_changes = np.zeros_like(video[:-1])
+
+    # Blur smooths noise -> focus on larger regional changes
+    blurred_video = np.array([cv2.GaussianBlur(frame, (9, 9), 0) for frame in video])
+
+    frame2frame_changes = np.array([cv2.absdiff(frame, blurred_video[i+1]) for i, frame in enumerate(blurred_video[:-1])])
+
+    return frame2frame_changes
+
+
+def threshold_changes(frame2frame_difference, min_area=300):
+    # Only pixels with the most changes
+    thresholded_differences = np.array([diff > threshold_triangle(diff) for diff in frame2frame_difference], dtype=np.uint8)
+
+    # Opening to remove noise
+    thresholded_differences = np.array([cv2.morphologyEx(diff, cv2.MORPH_OPEN, KERNEL) for diff in thresholded_differences])
+    
+    # Keep intensity of changes
+    #thresholded_differences = np.multiply(thresholded_differences, frame2frame_difference)
+
+    return thresholded_differences
+
+def detect_movement(frame2frame_changes):
+    stop_frame = len(frame2frame_changes)
+    for frame, i in enumerate(frame2frame_changes):
+        if np.sum(frame) > 50000:
+            stop_frame = i
+            break
+    
+    return (stop_frame + 1)
+
+# Filter regions of interest by size and select region with most overlap
+def hroi_from_blobs(regions_of_interest, most_changing_pixels_mask, min_area=300):
+    ### Find contours, filter by size
+    # Contour mask
+    contours, _ = cv2.findContours(regions_of_interest, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    # Filter based on contour area
+    candidate_contours = []
+    for contour in contours:
+        if cv2.contourArea(contour) >= min_area:
+            candidate_contours.append(contour)
+
+    if len(candidate_contours) < 1:
+        raise ValueError("Couldn't find a suitable heart region")
+
+    hroi_mask = np.zeros_like(regions_of_interest)
+    max_pixel_ratio = 0
+    heart_contour = None
+    for contour in candidate_contours:
+        region_mask = np.zeros_like(regions_of_interest)
+        region_mask = cv2.drawContours(region_mask, [contour], -1, 1, thickness=-1)
+
+        overlap = np.logical_and(region_mask, most_changing_pixels_mask)
+        overlap_pixels  = overlap.sum()
+        pixel_ratio     = overlap_pixels / region_mask.sum()
+
+        if pixel_ratio > max_pixel_ratio:
+            max_pixel_ratio = pixel_ratio
+            heart_contour = contour
+
+    # Draw heart contour onto mask
+    cv2.drawContours(hroi_mask, [heart_contour], -1, 1, thickness=-1)
+
+    return hroi_mask
+
+# hroi... heart region of interest
+def HROI2(frame2frame_changes, min_area=300):
+    # TODO: a lot of resolution is lost with the conversion. to uint16
+    total_changes = np.sum(frame2frame_changes, axis=0, dtype=np.uint32)
+    #total_changes = (total_changes/65535).astype(np.uint16)
+
+    ### Create mask with most changing pixels
+    nr_of_pixels_considered = 250
+    top_changing_indices = np.unravel_index(np.argsort(total_changes.ravel())[-nr_of_pixels_considered:], 
+                                            total_changes.shape)
+    
+    top_changing_mask = np.zeros((total_changes.shape), dtype=bool)
+
+    # Label pixels based on based on the top changeable pixels
+    top_changing_mask[top_changing_indices] = 1
+
+    ### Threshold heart RoI to find regions
+    all_roi = total_changes > threshold_yen(total_changes)
+    all_roi = all_roi.astype(np.uint8)
+
+    # Fill holes in blobs
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+
+    hroi_mask = hroi_from_blobs(all_roi, top_changing_mask)
+
+    return hroi_mask, all_roi, total_changes, top_changing_mask
+
+def draw_heart_qc_plot(single_frame, abs_changes, all_roi, hroi_mask, top_changing_pixels, out_dir):
+    label_top_changes = label(top_changing_pixels)
+    
+    hroi_mask = cv2.cvtColor(hroi_mask, cv2.COLOR_GRAY2RGB)
+    all_roi = cv2.cvtColor(all_roi, cv2.COLOR_GRAY2RGB)
+
+    hroi_mask = color.label2rgb(label_top_changes, image=hroi_mask,
+                              alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
+
+    all_roi = color.label2rgb(label_top_changes, image=all_roi,
+                              alpha=0.7, bg_label=0, bg_color=None, colors=[(1, 0, 0)])
+
+    # Prepare outfigure
+    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
+
+    fig, ax = plt.subplots(2, 2, figsize=(15, 15))
+    # First frame
+    ax[0, 0].imshow(single_frame, cmap='gray')
+    ax[0, 0].set_title('Embryo', fontsize=10)
+    ax[0, 0].axis('off')
+
+    # Summed Absolute Difference between sequential frames
+    ax[0, 1].imshow(abs_changes)
+    ax[0, 1].set_title('Summed Absolute\nDifferences', fontsize=10)
+    ax[0, 1].axis('off')
+
+    # Thresholded Differences
+    ax[1, 0].imshow(hroi_mask)
+    ax[1, 0].set_title('Thresholded Absolute\nDifferences', fontsize=10)
+    ax[1, 0].axis('off')
+
+    # Overlap between filtered RoI mask and pixel maxima
+    ax[1, 1].imshow(all_roi)
+    ax[1, 1].set_title('RoI overlap with maxima', fontsize=10)
+    ax[1, 1].axis('off')
+
+    # Save Figure
+    plt.savefig(out_fig, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+def assert_8bit(video):
+    if video.dtype == np.uint32:
+        video = (video/65535).astype(np.uint16)
+    if video.dtype == np.uint16:
+        video = (video/255).astype(np.uint8)
+
+    return video
+
+def video_with_roi(normed_video, frame2frame_changes, hroi_mask):
+    normed_video        = assert_8bit(normed_video)
+    frame2frame_changes = assert_8bit(frame2frame_changes)
+
+    changes_video       = normVideo(frame2frame_changes)
+    
+    roi_video           = np.array([cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB) for frame in normed_video])
+    
+    # Color in changes
+    roi_video[:-1,:,:,1] = np.array([cv2.add(frame[:,:,2], change_mask)
+                            for frame, change_mask in zip(roi_video[:-1], changes_video)])
+    
+    # Draw outline of Heart ROI
+    contours, _ = cv2.findContours(hroi_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    roi_video = np.array([cv2.drawContours(frame, contours, -1, 255, thickness=2)
+                            for frame in roi_video])
+
+    return roi_video
+
 # run the algorithm on a well video
 # TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
 def run(video, args, video_metadata):
@@ -2376,167 +2558,81 @@ def run(video, args, video_metadata):
     bpm = None
     qc_attributes = {}
 
-    ################################################################################ Create Outdir for pictures
+    ################################################################################ Setup
     # Add well position to output directory path
-    out_dir = os.path.join(args['outdir'], video_metadata['channel'],
-                           video_metadata['loop'] + '-' + video_metadata['well_id'])
+    out_dir = os.path.join( args['outdir'], 
+                            video_metadata['channel'],
+                            video_metadata['loop'] + '-' + video_metadata['well_id'])
 
     os.makedirs(out_dir, exist_ok=True)
-    sorted_frames = video
 
-    # timestamp-frame dictionary
-    # Remove duplicated Frames
-    frame_dict = {}
-    sorted_times = video_metadata['timestamps']
+    # Ensures np array not lists.
+    video = np.asarray(video)
+    timestamps = np.asarray(video_metadata['timestamps'])
 
-    for img, time in zip(sorted_frames, sorted_times):
-        if img is not None:
-            frame_dict[time] = img
-        else:
-            frame_dict[time] = None
+    video, timestamps = sort_frames(video, video_metadata['timestamps'])
+    fps = determine_fps(timestamps, args['fps'])
 
-    # Remove duplicate time stamps,
-    # same frame can have been saved more than once
-    sorted_times = list(OrderedDict.fromkeys(sorted_times))
-    sorted_frames = [frame_dict[time] for time in sorted_times]
-
-    # Determine FPS
-    # Determine frame rate from time-stamps if unspecified
-    if not args['fps']:
-        # total time acquiring frames in seconds
-        timestamp0 = int(sorted_times[0])
-        timestamp_final = int(sorted_times[-1])
-        total_time = (timestamp_final - timestamp0) / 1000
-        # fps = int(len(sorted_times) / round(total_time))
-        fps = len(sorted_times) / total_time
-        LOGGER.info("Calculated fps: " + str(round(fps, 2)))
-    else:
-        fps = args['fps']
-        LOGGER.info("Defined fps: " + str(round(fps, 2)))
-
+    timestamps = equally_spaced_timestamps(len(timestamps), fps)
 
     ################################# Normalize Frames
     LOGGER.info("Normalizing frames")
+    save_video(video, fps, out_dir, "before_norm.mp4")
     # Normalize frames
-    norm_frames = normVideo(sorted_frames)
+    normed_video = normVideo(video)
+    del video
 
     LOGGER.info("Writing video")
-    save_video(norm_frames, fps, out_dir, "embryo.mp4")
-
-    ################################ Get frame timestamps, from 0, in seconds for fourier transform
-    frame2frame = 0
-    nr_of_frames = len(video)
-    if not args['fps']:
-        timespan = (int(sorted_times[nr_of_frames-1]) - int(sorted_times[0])) / 1000
-        frame2frame = timespan / nr_of_frames  # 1 / fps
-    else:
-        frame2frame = 1/args['fps']
-        
-    final_time = frame2frame * nr_of_frames
-    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
+    save_video(normed_video, fps, out_dir, "embryo.mp4")
 
     ################################ Detect HROI and write into figure. 
-    # Prepare outfigure
-    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
-    fig, hroi_ax = plt.subplots(2, 2, figsize=(15, 15))
-
-    # Detect HROI and write into figure. 
     LOGGER.info("Detecting HROI")
+    video8  = assert_8bit(normed_video)
     
-    # stop_frame = 0 if no movement detected, otherwise set to frame index
-    embryo, mask, hroi_ax, stop_frame, nr_candidate_regions = HROI(sorted_frames, norm_frames, hroi_ax)
+    frame2frame_changes = absdiff_between_frames(video8)
+    frame2frame_changes = threshold_changes(frame2frame_changes)
 
-    # TODO: analyse frames after movement
-    if stop_frame > 0:
-        qc_attributes["Stop frame"] = str(stop_frame)
+    # Detect movement and stop analysis early
+    stop_frame = detect_movement(frame2frame_changes)
+    qc_attributes["Stop frame"] = str(stop_frame)
 
-        # Break condition
-        if stop_frame < 3*fps:
-            LOGGER.info("Movement before 3 seconds. Stopping analysis")
-            return None, fps, qc_attributes
-    else:
-        qc_attributes["Stop frame"] = str(len(embryo))
+    # Break condition
+    if stop_frame < 3*fps:
+        LOGGER.info("Movement before 3 seconds. Stopping analysis")
+        return None, fps, qc_attributes
 
-    qc_attributes["HROI count"] = str(nr_candidate_regions)
+    # Shorten videos
+    normed_video        = normed_video[:stop_frame]
+    video8              = video8[:stop_frame]
+    frame2frame_changes = frame2frame_changes[:stop_frame]
 
-    # Save Figure
-    plt.savefig(out_fig, bbox_inches='tight')
-    plt.show()
-    plt.close()
+    hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes)
 
-    ################################ Mask frames
-    masked_greys = []
-    masked_frames = []
-    empty_frames = []
+    qc_attributes["HROI Change Intensity"] = str(np.sum(np.multiply(hroi_mask, total_changes)))
 
-    for i, frame in enumerate(embryo):
-        if frame is not None:
-            masked_data = cv2.bitwise_and(frame, frame, mask=mask)
+    draw_heart_qc_plot( video8[0],
+                        total_changes,
+                        hroi_mask*255, 
+                        all_roi*255, 
+                        top_changing_pixels, 
+                        out_dir)
 
-            # Especially fluorescend recordings may get zeroed
-            if not np.any(masked_data):
-                masked_frame = None
-                masked_grey = None
-                empty_frames.append(i)
-
-            # TODO: Suspected source of errors. Check and inspect this for frames after the first.
-            # embryo gets added 50 in greenchannel in HROI()->rolling_diff()->maskFrame() function
-            masked_grey = cv2.cvtColor(masked_data, cv2.COLOR_BGR2GRAY)
-
-            # print('masked_grey')
-            # print('Embryo number: ' + str(i))
-            plt.imshow(masked_grey)
-            plt.show()
-
-            # split source frame into B,G,R channels
-            b, g, r = cv2.split(frame)
-
-            # add a constant to B (blue) channel to highlight the heart
-            b = cv2.add(b, 100, dst=b, mask=mask, dtype=cv2.CV_8U)
-
-            masked_frame = cv2.merge((b, g, r))
-
-            # print('masked_frame')
-            plt.imshow(masked_frame)
-            plt.show()
-
-        # No signal in heart RoI if the frame is empty
-        else:
-            masked_frame = None
-            masked_grey = None
-            empty_frames.append(i)
-
-        masked_frames.append(masked_frame)
-        masked_greys.append(masked_grey)
-
-    # Save first frame with the ROI highlighted
-    out_fig = os.path.join(out_dir, "masked_frame.png")
-    cv2.imwrite(out_fig, masked_frames[0])
-    save_video(masked_frames, fps, out_dir, "embryo_changes.mp4")
-
-    ################################################################################  Get evenly spaced frame timestamps, from 0, in seconds
-    nr_of_frames = len(masked_greys)
-    frame2frame = 1/fps
-
-    final_time = frame2frame * nr_of_frames
-    times = np.linspace(start=0, stop=final_time, num=nr_of_frames, endpoint=False)
+    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
+    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     ################################ Keep only pixels in HROI
     # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
-    masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in masked_greys]
+    normed_video = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
     
     # delete pixels outside of mask (=HROI)
     # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
-    mask = np.invert(mask)
-    hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in masked_greys])
+    mask = np.invert(hroi_mask*255)
+    hroi_pixels = np.asarray([np.ma.masked_array(frame, mask).compressed() for frame in normed_video])
 
     qc_attributes["Heart size"] = str(np.size(hroi_pixels, 1))
+
+    empty_frames = [i for i, frame in enumerate(normed_video) if not np.any(cv2.bitwise_and(frame, frame, mask=hroi_mask))]
     qc_attributes["empty frames"] = str(len(empty_frames))
-    ################################################################################ Draw bpm-trace
-    try:
-        bpm_trace(hroi_pixels, frame2frame, times, empty_frames, out_dir)
-    except Exception as e:
-        LOGGER.exception("Whilst drawing the bpm trace")
 
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
@@ -2545,7 +2641,7 @@ def run(video, args, video_metadata):
     if not args['slowmode']:
         #bpm, clear_signal_ratio, chosen_freq_dominance = new_fourier_2(hroi_pixels, times, out_dir)
         #bpm = old_fourier_restructured(hroi_pixels, times, out_dir)
-        bpm, qc_data = new_fourier_3(hroi_pixels, times, out_dir)
+        bpm, qc_data = new_fourier_3(hroi_pixels, timestamps, out_dir)
         #bpm, nr_peaks, height, prominence = new_fourier(hroi_pixels, times, out_dir)
         #bpm, nr_peaks, prominence, height, has_low_variance  = fourier_bpm(hroi_pixels, times, empty_frames, frame2frame, args, out_dir)
 
@@ -2558,8 +2654,7 @@ def run(video, args, video_metadata):
     if args['slowmode'] and not bpm:
         LOGGER.info("Trying in slow mode1")
         # stop_frame is not used anymore
-        norm_frames_grey = greyFrames(norm_frames)
-        bpm = fourier_bpm_slowmode(norm_frames_grey, times, empty_frames, frame2frame, args, out_dir)
+        bpm = fourier_bpm_slowmode(normed_video, timestamps, empty_frames, 1/fps, args, out_dir)
 
     plt.close('all') # fixed memory leak
     return bpm, fps, qc_attributes

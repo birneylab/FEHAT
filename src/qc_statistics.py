@@ -69,6 +69,11 @@ def draw_accuracy(dataframe, ax_line, ax_scatter):
 
     dataframe_classified = dataframe_ground_truth[dataframe_ground_truth['ground truth'] != 'NA']
     dataframe_classified = dataframe_classified[dataframe_classified['Heartrate (BPM)'] != 'NA']
+    
+    # r2 value is not calculated if any nan is present. 
+    # Origin unknown though, above commands should filter for those
+    # Very weird...
+    dataframe_classified = dataframe_classified.dropna(subset=['ground truth', 'Heartrate (BPM)'])
 
     # False & True positives
     nr_false_positives  = dataframe_negatives[dataframe_negatives['Heartrate (BPM)'] != 'NA'].shape[0]

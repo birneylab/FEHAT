@@ -79,28 +79,20 @@ def detect_experiment_directories(indir):
 
     return subdirs
 
-# TODO: get default to greyscale, as the videos are only in greyscale, conversion everywhere is overhead
-def load_well_video_8bits(frame_paths_sorted, max_frames=-1):
-    LOGGER.info("Loading video as 8 bits")
-    video8 = []
-    for index, path in enumerate(frame_paths_sorted):
-        # check if the function is supposed to read every frame (-1), otherwise, runs only the number of frames specified in max_frames argument
-        # it is usefull as if we need crop and save the images, we only need the first 5 frames to make the average of position.
-        if max_frames == -1 or index < max_frames:
-            frame = cv2.imread(path, 1)  # 1 flag to read image as rgb
-            video8.append(frame)
-    return video8
+# imread_flag:
+#   -1  - as is (greyscale 16bit)
+#   0   - greyscale 8 bit
+#   1   - color     8 bit
+def load_video(frame_paths, imread_flag=0, max_frames=np.inf):
+    LOGGER.info("Loading video...")
+    video = []
+    for i, path in enumerate(frame_paths):
+        if i >= max_frames:
+            break
 
-
-def load_well_video_16bits(frame_paths_sorted):
-    LOGGER.info("Loading video as 16 bits")
-    video16 = []
-    for path in frame_paths_sorted:
-        # -1 flag to read image as it is (16 bits)
-        frame = cv2.imread(path, -1)
-        video16.append(frame)
-    return video16
-
+        frame = cv2.imread(path, imread_flag)
+        video.append(frame)
+    return np.asarray(video)
 
 def extract_timestamps(sorted_frame_paths):
     # splits every path at '-T'. Picks first 10 chars of the string that starts with a number.
