@@ -15,6 +15,7 @@
 #   calculating bpm frequency from pixel color fluctuation in said videos
 ###
 ############################################################################################################
+from tracemalloc import stop
 import warnings
 from cv2 import norm
 from joblib import Parallel, delayed
@@ -2051,8 +2052,9 @@ def run(video, args, video_metadata):
 
     ################################ Detect HROI and write into figure. 
     LOGGER.info("Detecting HROI")
+    video8  = assert_8bit(normed_video)
     
-    frame2frame_changes = absdiff_between_frames(normed_video)
+    frame2frame_changes = absdiff_between_frames(video8)
     frame2frame_changes = threshold_changes(frame2frame_changes)
 
     # Detect movement and stop analysis early
@@ -2066,20 +2068,21 @@ def run(video, args, video_metadata):
 
     # Shorten videos
     normed_video        = normed_video[:stop_frame]
+    video8              = video8[:stop_frame]
     frame2frame_changes = frame2frame_changes[:stop_frame]
 
     hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes)
 
     qc_attributes["HROI Change Intensity"] = str(np.sum(np.multiply(hroi_mask, total_changes)))
 
-    draw_heart_qc_plot( normed_video[0],
+    draw_heart_qc_plot( video8[0],
                         total_changes,
                         hroi_mask*255, 
                         all_roi*255, 
                         top_changing_pixels, 
                         out_dir)
 
-    roi_qc_video = video_with_roi(normed_video, frame2frame_changes, hroi_mask)
+    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
     save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     ################################ Keep only pixels in HROI

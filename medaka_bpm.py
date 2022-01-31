@@ -16,6 +16,8 @@ import os
 import subprocess
 import sys
 
+import cv2
+
 import pandas as pd
 
 import src.io_operations as io_operations
@@ -53,7 +55,7 @@ def analyse(args, channels, loops, wells=None):
             
             try:
                 bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
-                LOGGER.info("Reported BPM: " + str(bpm))
+                LOGGER.info(f"Reported BPM: {str(bpm)}")
 
             except Exception as e:
                 LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
@@ -82,7 +84,7 @@ def analyse(args, channels, loops, wells=None):
 
 # Run algorithm on a single well
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
-    LOGGER.info("Analysing video - "
+    LOGGER.info("\nAnalysing video - "
                 + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
                 + " Well: " + str(video_metadata['well_id'])
@@ -100,37 +102,41 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
     if args.crop == True and args.crop_and_save == False:
         LOGGER.info("Cropping images to analyze them, but NOT saving cropped images")
         # We only need 8 bits video as no images will be saved
-        video8 = io_operations.load_well_video_8bits(
-            well_frame_paths)
+        video8 = io_operations.load_video(well_frame_paths, imread_flag=1)
+
         # now calculate position based on first 5 frames 8 bits
-        embryo_coordinates = segment_heart.embryo_detection(
-            video8[0:5])  # get the first 5 frames
+        embryo_coordinates = segment_heart.embryo_detection(video8[0:5])  # get the first 5 frames
+
         # crop and do not save, just return 8 bits cropped video
         video, resulting_dict_from_crop = segment_heart.crop_2(
             video8, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
+
+        video = [cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in video]
+
         # save panel for crop checking
         io_operations.save_panel(resulting_dict_from_crop, args)
 
     elif args.crop_and_save == True:
         LOGGER.info("Cropping images and saving them...")
         # first 5 frames to calculate embryo coordinates
-        video8 = io_operations.load_well_video_8bits(
-            well_frame_paths, max_frames=5)
+        video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
+
         # we need every image as 16 bits to crop based on video8 coordinates
-        video16 = io_operations.load_well_video_16bits(well_frame_paths)
+        video16 = io_operations.load_video(well_frame_paths, imread_flag=-1)
         embryo_coordinates = segment_heart.embryo_detection(video8)
         video_cropped, resulting_dict_from_crop = segment_heart.crop_2(
-            video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)        
+            video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)  
+
         # save cropped images
         io_operations.save_cropped(video_cropped, args, well_frame_paths)
+
         # save panel for crop checking
         io_operations.save_panel(resulting_dict_from_crop, args)
+
         # now we need every frame in 8bits to run bpm
-        video = io_operations.load_well_video_8bits(
-            well_frame_paths)
+        video = io_operations.load_video(well_frame_paths, imread_flag=0)
     else:
-        video = io_operations.load_well_video_16bits(
-            well_frame_paths)
+        video = io_operations.load_video(well_frame_paths, imread_flag=-1)
 
     bpm, fps, qc_attributes = segment_heart.run(video, vars(args), video_metadata)
 
@@ -335,10 +341,10 @@ def main(args):
                         )
 
             # we only need the first 5 frames to get position averages
-            video8 = io_operations.load_well_video_8bits(
-                well_frame_paths, max_frames=5)
+            video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
+            
             # we need every image as 16 bits to crop based on video8 coordinates
-            video16 = io_operations.load_well_video_16bits(well_frame_paths)
+            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
             embryo_coordinates = segment_heart.embryo_detection(video8)
 
             # print("embryo")
