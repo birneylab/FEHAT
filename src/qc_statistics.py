@@ -164,7 +164,9 @@ def main(indir, outdir, path_ground_truths):
                     sys.exit()
 
                 dataset_name = os.path.basename(os.path.normpath(path))
-                dataset_name = dataset_name[:-15]
+                
+                idx = dataset_name.index('_medaka_bpm_out')
+                dataset_name = dataset_name[:idx]
 
                 LOGGER.info("Found results file for dataset " + dataset_name)
 

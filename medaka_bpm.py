@@ -172,7 +172,7 @@ def run_multifolder(args, dirs):
             subprocess.run(cmd, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
     else:
-        max_subprocesses = config['DEFAULT']['MaxParallelDirs']
+        max_subprocesses = int(config['DEFAULT']['MaxParallelDirs'])
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
