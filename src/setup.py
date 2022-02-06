@@ -10,10 +10,13 @@
 import argparse
 import os
 import logging
-import sys
+
+import configparser
+config = configparser.ConfigParser()
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config.read(os.path.join(parent_dir, 'config.ini'))
 
 LOGGER = logging.getLogger(__name__)
-
 
 def config_logger(logfile_path, logfile_name="medaka_outdir.log", in_debug_mode=False):
     os.makedirs(logfile_path, exist_ok=True)
@@ -106,8 +109,11 @@ def process_arguments(args, is_cluster_node=False):
     # Outdir should be named after experiment.
     # Do not do for cluster nodes, already created on dispatch
     if not is_cluster_node:
+        
+        software_version = config['DEFAULT']['VERSION']
+
         # Outdir should start with experiment name
-        args.outdir = os.path.join(args.outdir, experiment_name + "_medaka_bpm_out", '')
+        args.outdir = os.path.join(args.outdir, f"{experiment_name}_medaka_bpm_out_{software_version}", '')
         os.makedirs(args.outdir, exist_ok=True)
 
     # croppedRAWTiff folder present? Use cropped files for analysis

@@ -24,11 +24,11 @@ import src.io_operations as io_operations
 import src.setup as setup
 import src.segment_heart as segment_heart
 
-SOFTWARE_VERSION = "1.2.1 (dec21)"
+import configparser
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 LOGGER = logging.getLogger(__name__)
-
-
 ################################## ALGORITHM ##################################
 
 # Analyse a range of wells
@@ -68,7 +68,7 @@ def analyse(args, channels, loops, wells=None):
                 well_result['channel']  = video_metadata['channel']
                 well_result['bpm']      = bpm
                 well_result['fps']      = fps
-                well_result['version']  = SOFTWARE_VERSION
+                well_result['version']  = config['DEFAULT']['VERSION']
                 
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
@@ -172,17 +172,15 @@ def run_multifolder(args, dirs):
             subprocess.run(cmd, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
     else:
-        max_subprocesses = 2
+        max_subprocesses = config['DEFAULT']['MaxParallelDirs']
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
-            p = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)
 
             experiment_name = cmd[cmd.index("--indir")+1]
-            experiment_name = os.path.basename(
-                os.path.normpath(experiment_name))
+            experiment_name = os.path.basename(os.path.normpath(experiment_name))
             print("Starting " + experiment_name)
             i -= 1
 

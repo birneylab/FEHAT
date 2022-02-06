@@ -8,6 +8,7 @@
 # Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
 ###
 ############################################################################################################
+from wsgiref.simple_server import software_version
 import glob2
 import logging
 import os
@@ -18,6 +19,11 @@ import numpy as np
 import pandas as pd
 
 from matplotlib import pyplot as plt
+
+import configparser
+config = configparser.ConfigParser()
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config.read(os.path.join(parent_dir, 'config.ini'))
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -153,7 +159,8 @@ def well_video_exists(indir, channel, loop, well_id):
 #   columns: {'channel', 'loop', 'well_id', 'bpm', 'fps', ...qc_attributes}
 def write_to_spreadsheet(outdir, results, experiment_id):
     LOGGER.info("Saving acquired data to spreadsheet")
-    outfile_name = "results_" + experiment_id + ".csv"
+    software_version = config['DEFAULT']['VERSION']
+    outfile_name = f"results_{experiment_id}_{software_version}.csv"
     outpath = os.path.join(outdir, outfile_name)
 
     # Don't erase previous results by accident
@@ -282,36 +289,3 @@ well_id_name_table = {  'WE00001': 'A001', 'WE00002': 'A002', 'WE00003': 'A003',
                         'WE00079': 'G007', 'WE00080': 'G008', 'WE00081': 'G009', 'WE00082': 'G010', 'WE00083': 'G011', 'WE00084': 'G012', 
                         'WE00085': 'H012', 'WE00086': 'H011', 'WE00087': 'H010', 'WE00088': 'H009', 'WE00089': 'H008', 'WE00090': 'H007', 
                         'WE00091': 'H006', 'WE00092': 'H005', 'WE00093': 'H004', 'WE00094': 'H003', 'WE00095': 'H002', 'WE00096': 'H001'}
-
-# def save_cropped_img(outdir, img, well_id, loop_id):
-#     name = loop_id + '-' + str(well_id)
-
-#     out_fig = os.path.join(outdir, name + "_cropped.png")
-#     plt.imshow(img)
-#     plt.title('Original Frame', fontsize=10)
-#     plt.axis('off')
-#     plt.savefig(out_fig,bbox_inches='tight')
-#     plt.close()
-
-# def write_videos(path, videos, names, is_color=False):
-#     # iterate over videos and corresponding well names in parallel
-#     for video, name in zip(videos, names):
-#         write_video(path, video, name, is_color)
-
-# def write_video(path, video, name, is_color=False):
-#     name = name + ".mp4"
-#     LOGGER.debug("Writing video " + name)
-
-#     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-
-#     try:
-#         height, width, layers = video[0].shape
-#     except:
-#         height, width = video[0].shape
-
-#     size = (width,height)
-#     out_vid = os.path.join(path, name)
-#     out = cv2.VideoWriter(out_vid,fourcc, fps, size, is_color)
-#     for i in range(len(video)):
-#         out.write(video[i])
-#     out.release()

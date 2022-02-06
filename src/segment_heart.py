@@ -17,14 +17,9 @@
 ############################################################################################################
 import warnings
 import math
-import seaborn as sns
 from matplotlib import pyplot as plt
-import operator
 import statistics
-import pandas as pd
 import os
-import glob2
-import random
 import logging
 
 from statistics import mean
@@ -33,18 +28,12 @@ import numpy as np
 import cv2
 
 # import skimage
-from skimage.util import img_as_ubyte, img_as_float
 from skimage.filters import threshold_triangle, threshold_yen
 from skimage.measure import label
-# from skimage.metrics import structural_similarity
-from skimage import color, feature
+from skimage import color
 
 # import scipy
-from scipy.stats import gaussian_kde, median_absolute_deviation
-from scipy import signal
-from scipy.signal import find_peaks, savgol_filter, detrend  # , peak_prominences, welch
-from scipy.interpolate import CubicSpline
-
+from scipy.signal import savgol_filter, detrend 
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
 
@@ -463,6 +452,7 @@ def determine_fps(timestamps, fps_console_parameter):
         fps = fps_console_parameter
         LOGGER.info("Defined fps: " + str(round(fps, 2)))
 
+    fps = round(fps, 2)
     return fps
 
 # TODO: Fourier Transform expects equally spaced samples. Do cubicspline over timestamps and intepolate over missing values

@@ -22,7 +22,6 @@ import logging
 import os
 import sys
 
-
 LOGGER = logging.getLogger(__name__)
 
 def draw_classification_rate(dataframe, axes):
