@@ -49,10 +49,6 @@ def parse_arguments():
                         help='Restrict analysis to channel',                    default=None,       required=False)
     parser.add_argument('-f', '--fps',       action="store",         dest='fps',
                         help='Frames per second',                               default=0.0,        required=False,   type=float)
-    parser.add_argument('-p', '--threads',   action="store",         dest='threads',
-                        help='Threads to use',                                  default=1,          required=False,   type=int)
-    parser.add_argument('-a', '--average',   action="store",         dest='average',     help='average',
-                        default=0.0,        required=False,   type=float)
 
     # Cropping Arguments
     parser.add_argument('-s', '--embryo_size', action="store",         dest='embryo_size',
@@ -65,8 +61,6 @@ def parse_arguments():
                         help='Should only crop images, not run bpm script',                     required=False)
 
     # Cluster arguments. Index is hidden argument that is set through bash script to assign wells to cluster instances.
-    parser.add_argument('--slowmode',       action="store_true",    dest='slowmode',
-                        help='Should run analysis in slowmode',                 required=False)
     parser.add_argument('--cluster',        action="store_true",    dest='cluster',
                         help='Run analysis on a cluster',                       required=False)
     parser.add_argument('--email',          action="store_true",    dest='email',

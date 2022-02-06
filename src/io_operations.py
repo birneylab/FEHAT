@@ -85,13 +85,16 @@ def detect_experiment_directories(indir):
 #   1   - color     8 bit
 def load_video(frame_paths, imread_flag=0, max_frames=np.inf):
     LOGGER.info("Loading video...")
-    video = []
+
+    test_frame = cv2.imread(frame_paths[0], imread_flag)
+
+    video = np.empty(shape=(len(frame_paths), test_frame.shape[0], test_frame.shape[1]), dtype=test_frame.dtype)
     for i, path in enumerate(frame_paths):
         if i >= max_frames:
             break
 
         frame = cv2.imread(path, imread_flag)
-        video.append(frame)
+        video[i] = frame
     return np.asarray(video)
 
 def extract_timestamps(sorted_frame_paths):

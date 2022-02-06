@@ -137,7 +137,7 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         # now we need every frame in 8bits to run bpm
         video = io_operations.load_video(well_frame_paths, imread_flag=0)
     else:
-        video = io_operations.load_video(well_frame_paths, imread_flag=-1)
+        video = io_operations.load_video(well_frame_paths, imread_flag=0)
 
     bpm, fps, qc_attributes = segment_heart.run(video, vars(args), video_metadata)
 
@@ -253,7 +253,7 @@ def main(args):
 
                     jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
-                    bsub_cmd = ['bsub', '-J', jobname, '-M4000', '-R', 'rusage[mem=4000]']
+                    bsub_cmd = ['bsub', '-J', jobname, '-M8000', '-R', 'rusage[mem=8000]']
 
                     if args.email == False:
                         if args.debug:
