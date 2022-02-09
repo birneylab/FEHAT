@@ -50,3 +50,10 @@ Date: December 14, 2021 (v1.2.1)
 Hotfix update for the implicit location of the outdir
 
 - If there is a croppedRAWTiff folder present, the outdir is now created in the parent (experiment) folder, not in the croppedRAWTiff folder
+
+Date: February 09, 2022 (v1.3)
+Region detection as well as frequency and detection was reworked
+
+- Accuracy improved by ~2% to 97-99%. Classification rate improved by about 10-20%.
+- Videos are now read and processed as greyscale images. This and simplified algorithm structure reduced memory consumption drastically.
+- Version info is now present in the name of the output directory and the resultsfile.
