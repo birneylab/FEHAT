@@ -405,10 +405,6 @@ def bpm_from_heartregion(hroi_pixels, times, out_dir):
     minBPM = 15
     maxBPM = 300
 
-    highest_freqs = []
-    SNR = [] # Signal to Noise ratio
-    intensity = []
-
     # Get Frequency Spectrum for each pixel.
     amplitudes, freqs = fourier_transform(hroi_pixels, times)
 
@@ -431,7 +427,7 @@ def bpm_from_heartregion(hroi_pixels, times, out_dir):
 # Sort and remove duplicate frames
 def sort_frames(video, timestamps):
     timestamps_sorted, idcs = np.unique(timestamps, return_index=True)
-    video_sorted        = video[idcs]
+    video_sorted            = video[idcs]
 
     return video_sorted, timestamps_sorted
 
@@ -688,11 +684,16 @@ def run(video, args, video_metadata):
         return None, fps, qc_attributes
 
     # Shorten videos
-    normed_video        = normed_video[:stop_frame]
-    video8              = video8[:stop_frame]
-    frame2frame_changes_thresh = frame2frame_changes_thresh[:stop_frame]
+    normed_video                = normed_video[:stop_frame]
+    video8                      = video8[:stop_frame]
+    frame2frame_changes         = frame2frame_changes[:stop_frame]
+    frame2frame_changes_thresh  = frame2frame_changes_thresh[:stop_frame]
 
-    hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
+    try:
+        hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
+    except ValueError as e: #TODO: create a cutom exception to avoid catching any system errors.
+        LOGGER.info("Couldn't detect a suitable heart region")
+        return None, fps, qc_attributes
 
     draw_heart_qc_plot( video8[0],
                         total_changes,
