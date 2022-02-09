@@ -657,7 +657,8 @@ def run(video, args, video_metadata):
 
     ################################# Normalize Frames
     LOGGER.info("Normalizing frames")
-    save_video(video, fps, out_dir, "before_norm.mp4")
+    #save_video(video, fps, out_dir, "before_norm.mp4")
+    
     # Normalize frames
     normed_video = normVideo(video)
     del video
