@@ -21,9 +21,13 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 import configparser
-config = configparser.ConfigParser()
+
+# Read config
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config.read(os.path.join(parent_dir, 'config.ini'))
+config_path = os.path.join(parent_dir, 'config.ini')
+
+config = configparser.ConfigParser()
+config.read(config_path)
 
 logging.getLogger('matplotlib.font_manager').disabled = True
 LOGGER = logging.getLogger(__name__)
@@ -94,7 +98,7 @@ def load_video(frame_paths, imread_flag=0, max_frames=np.inf):
 
     test_frame = cv2.imread(frame_paths[0], imread_flag)
 
-    video = np.empty(shape=(len(frame_paths), test_frame.shape[0], test_frame.shape[1]), dtype=test_frame.dtype)
+    video = np.empty(shape=(len(frame_paths), *test_frame.shape), dtype=test_frame.dtype)
     for i, path in enumerate(frame_paths):
         if i >= max_frames:
             break

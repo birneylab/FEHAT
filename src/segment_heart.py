@@ -32,7 +32,7 @@ from skimage.filters import threshold_triangle, threshold_yen
 from skimage.measure import label
 from skimage import color
 
-# import scipy
+import scipy.stats
 from scipy.signal import savgol_filter, detrend 
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
@@ -288,7 +288,7 @@ def analyse_frequencies(amplitudes, freqs):
     intensity   = [(pixel_freqs[idx]) for pixel_freqs, idx in zip(amplitudes, max_indices)]
 
     # Take frequency that is most often the max
-    max_freq = statistics.mode(highest_freqs)
+    max_freq = scipy.stats.mode(highest_freqs).mode[0]
 
     ### LOOK AT HARMONICS OF HIGHEST FREQUENCY
 
@@ -474,8 +474,11 @@ def absdiff_between_frames(video):
 
 
 def threshold_changes(frame2frame_difference, min_area=300):
+    #thresholds = np.array([threshold_triangle(diff_frame) for diff_frame in frame2frame_difference], dtype=np.uint8)
+    thresh = np.percentile(frame2frame_difference, 99.999)
+
     # Only pixels with the most changes
-    thresholded_differences = np.array([diff > threshold_triangle(diff) for diff in frame2frame_difference], dtype=np.uint8)
+    thresholded_differences = np.array([diff > thresh for diff in frame2frame_difference], dtype=np.uint8)
 
     # Opening to remove noise
     thresholded_differences = np.array([cv2.morphologyEx(diff, cv2.MORPH_OPEN, KERNEL) for diff in thresholded_differences])
@@ -673,6 +676,13 @@ def run(video, args, video_metadata):
     
     frame2frame_changes = absdiff_between_frames(video8)
     frame2frame_changes_thresh= threshold_changes(frame2frame_changes)
+    weighted_changes = np.multiply(frame2frame_changes_thresh, frame2frame_changes)
+
+    changes = normVideo(frame2frame_changes)
+    save_video(changes, fps, out_dir, "changes.mp4")
+
+    weighted_changes = normVideo(weighted_changes)
+    save_video(weighted_changes, fps, out_dir, "weighted_changes.mp4")
 
     # Detect movement and stop analysis early
     stop_frame, max_change = detect_movement(frame2frame_changes_thresh)
@@ -697,7 +707,7 @@ def run(video, args, video_metadata):
         return None, fps, qc_attributes
 
     draw_heart_qc_plot( video8[0],
-                        total_changes,
+                        np.sum(frame2frame_changes),
                         hroi_mask*255, 
                         all_roi*255, 
                         top_changing_pixels, 
