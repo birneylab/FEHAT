@@ -189,10 +189,11 @@ def PixelSignal(hroi_pixels):
     """
         Extract individual pixel signal across all frames
     """
-    pixel_signals = np.transpose(hroi_pixels, axes=[1, 0])
 
-    # Remove empty signals
-    pixel_signals = pixel_signals[~np.all(pixel_signals == 0, axis=1)]
+    # Prevent empty signals
+    hroi_pixels[0] += 1
+
+    pixel_signals = np.transpose(hroi_pixels, axes=[1, 0])
 
     return(pixel_signals)
 
@@ -474,11 +475,11 @@ def absdiff_between_frames(video):
 
 
 def threshold_changes(frame2frame_difference, min_area=300):
-    #thresholds = np.array([threshold_triangle(diff_frame) for diff_frame in frame2frame_difference], dtype=np.uint8)
-    thresh = np.percentile(frame2frame_difference, 99.999)
+    # thresholds = np.array([threshold_triangle(diff_frame) for diff_frame in frame2frame_difference], dtype=np.uint8)
+    # thresh = np.percentile(frame2frame_difference, 99.999)
 
     # Only pixels with the most changes
-    thresholded_differences = np.array([diff > thresh for diff in frame2frame_difference], dtype=np.uint8)
+    thresholded_differences = np.array([diff > threshold_triangle(diff) for diff in frame2frame_difference], dtype=np.uint8)
 
     # Opening to remove noise
     thresholded_differences = np.array([cv2.morphologyEx(diff, cv2.MORPH_OPEN, KERNEL) for diff in thresholded_differences])
@@ -564,6 +565,95 @@ def HROI2(frame2frame_changes, min_area=300):
 
     return hroi_mask, all_roi, total_changes, top_changing_mask
 
+
+# FGet largest region
+def hroi_from_blobs2(regions_of_interest, min_area=300):
+    ### Find contours, filter by size
+    # Contour mask
+    contours, _ = cv2.findContours(regions_of_interest, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    # Filter based on contour area
+    candidate_contours = []
+    candidate_areas = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area >= min_area:
+            candidate_contours.append(contour)
+            candidate_areas.append(area)
+
+    if len(candidate_contours) < 1:
+        raise ValueError("Couldn't find a suitable heart region")
+
+    largest_region_idx = np.argmax(candidate_areas)
+    heart_contour = candidate_contours[largest_region_idx]
+
+    # Draw heart contour onto mask
+    hroi_mask = np.zeros_like(regions_of_interest)
+    cv2.drawContours(hroi_mask, [heart_contour], -1, 1, thickness=-1)
+
+    return hroi_mask
+
+# hroi... heart region of interest
+def HROI3(video, frame2frame_changes, timestamps, min_area=300):
+    # Create mask of all pixels that exhibited change
+    change_mask = np.zeros_like(video[0])
+    for frame in frame2frame_changes:
+        change_mask = cv2.bitwise_or(frame, change_mask)
+
+    indices = np.where(change_mask)
+
+    change_pixels = np.array([frame[indices] for frame in video])
+    pixel_amplitudes, _ = fourier_transform(change_pixels, timestamps)
+    
+    max_indices = [np.argmax(pix_amps) for pix_amps in pixel_amplitudes]
+    SNR         = [(pix_amps[idx]/sum(pix_amps)) for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
+    
+    SNR = np.array(SNR)
+    candidates  = np.where(SNR > 0.3)
+
+    candidates = (indices[0][candidates], indices[1][candidates])
+    
+    all_roi = np.zeros_like(video[0])
+    all_roi[candidates] = 1
+
+    # Fill holes in blobs
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+
+    hroi_mask = hroi_from_blobs2(all_roi)
+
+    return hroi_mask, all_roi, change_mask
+
+def draw_heart_qc_plot2(single_frame, abs_changes, all_roi, hroi_mask, out_dir):
+
+    # Prepare outfigure
+    out_fig = os.path.join(out_dir, "embryo_heart_roi.png")
+
+    fig, ax = plt.subplots(2, 2, figsize=(15, 15))
+    # First frame
+    ax[0, 0].imshow(single_frame, cmap='gray')
+    ax[0, 0].set_title('Embryo', fontsize=10)
+    ax[0, 0].axis('off')
+
+    # Summed Absolute Difference between sequential frames
+    ax[0, 1].imshow(abs_changes)
+    ax[0, 1].set_title('Pixels emitting change', fontsize=10)
+    ax[0, 1].axis('off')
+
+    # Thresholded Differences
+    ax[1, 0].imshow(hroi_mask)
+    ax[1, 0].set_title('Emitting clear periodic change', fontsize=10)
+    ax[1, 0].axis('off')
+
+    # Overlap between filtered RoI mask and pixel maxima
+    ax[1, 1].imshow(all_roi)
+    ax[1, 1].set_title('Largest of these regions', fontsize=10)
+    ax[1, 1].axis('off')
+
+    # Save Figure
+    plt.savefig(out_fig, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
 def draw_heart_qc_plot(single_frame, abs_changes, all_roi, hroi_mask, top_changing_pixels, out_dir):
     label_top_changes = label(top_changing_pixels)
     
@@ -604,6 +694,7 @@ def draw_heart_qc_plot(single_frame, abs_changes, all_roi, hroi_mask, top_changi
     plt.savefig(out_fig, bbox_inches='tight')
     plt.show()
     plt.close()
+
 
 def assert_8bit(video):
     if video.dtype == np.uint32:
@@ -676,13 +767,14 @@ def run(video, args, video_metadata):
     
     frame2frame_changes = absdiff_between_frames(video8)
     frame2frame_changes_thresh= threshold_changes(frame2frame_changes)
-    weighted_changes = np.multiply(frame2frame_changes_thresh, frame2frame_changes)
 
-    changes = normVideo(frame2frame_changes)
-    save_video(changes, fps, out_dir, "changes.mp4")
+    # weighted_changes = np.multiply(frame2frame_changes_thresh, frame2frame_changes)
 
-    weighted_changes = normVideo(weighted_changes)
-    save_video(weighted_changes, fps, out_dir, "weighted_changes.mp4")
+    # changes = normVideo(frame2frame_changes)
+    # save_video(changes, fps, out_dir, "changes.mp4")
+
+    # weighted_changes = normVideo(weighted_changes)
+    # save_video(weighted_changes, fps, out_dir, "weighted_changes.mp4")
 
     # Detect movement and stop analysis early
     stop_frame, max_change = detect_movement(frame2frame_changes_thresh)
@@ -701,17 +793,26 @@ def run(video, args, video_metadata):
     frame2frame_changes_thresh  = frame2frame_changes_thresh[:stop_frame]
 
     try:
-        hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
+        #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
+        hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps)
+
     except ValueError as e: #TODO: create a cutom exception to avoid catching any system errors.
         LOGGER.info("Couldn't detect a suitable heart region")
         return None, fps, qc_attributes
 
-    draw_heart_qc_plot( video8[0],
-                        np.sum(frame2frame_changes),
+    # draw_heart_qc_plot( video8[0],
+    #                     total_changes,
+    #                     hroi_mask*255, 
+    #                     all_roi*255, 
+    #                     top_changing_pixels, 
+    #                     out_dir)
+
+    draw_heart_qc_plot2(video8[0],
+                        total_changes,
                         hroi_mask*255, 
                         all_roi*255, 
-                        top_changing_pixels, 
                         out_dir)
+    
 
     roi_qc_video = video_with_roi(video8, frame2frame_changes_thresh, hroi_mask)
     save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
