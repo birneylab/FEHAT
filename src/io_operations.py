@@ -173,7 +173,7 @@ def write_to_spreadsheet(outdir, results, experiment_id):
 
     version = 2
     while os.path.isfile(outpath):
-        outpath = os.path.join(outdir, f"results_v{version}.csv")
+        outpath = os.path.join(outdir, f"results_{experiment_id}_{software_version}_{version}.csv")
         version += 1
 
     #header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']

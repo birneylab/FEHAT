@@ -279,6 +279,7 @@ def analyse_frequencies(amplitudes, freqs):
     qc_data = {}
     bpm     = None
 
+
     # Get top frequency in each pixel
     max_indices = [np.argmax(pixel_freqs) for pixel_freqs in amplitudes]
     highest_freqs = [freqs[idx] for idx in max_indices]
@@ -334,8 +335,8 @@ def analyse_frequencies(amplitudes, freqs):
 
     ### Intensity of harmonics?
     freq_step = freqs[1] - freqs[0]
-    lower_harmonic = freqs[np.where(np.abs(freqs-(max_freq/2)) < (freq_step/2))]
-    upper_harmonic = freqs[np.where(np.abs(freqs-(max_freq*2)) < (freq_step/2))]
+    lower_harmonic = freqs[np.where(np.abs(freqs-(max_freq/2)) < (freq_step/1.5))]
+    upper_harmonic = freqs[np.where(np.abs(freqs-(max_freq*2)) < (freq_step/1.5))]
 
     candidate_freqs = np.concatenate((lower_harmonic, upper_harmonic))
     candidate_idcs  = [np.where(freqs == freq) for freq in candidate_freqs]
@@ -404,7 +405,7 @@ def analyse_frequencies(amplitudes, freqs):
 # WIP: new_fourier(), but using old_fourier_restructured as basis
 def bpm_from_heartregion(hroi_pixels, times, out_dir):
     minBPM = 15
-    maxBPM = 300
+    maxBPM = 310
 
     # Get Frequency Spectrum for each pixel.
     amplitudes, freqs = fourier_transform(hroi_pixels, times)
@@ -412,7 +413,13 @@ def bpm_from_heartregion(hroi_pixels, times, out_dir):
     # Limit to frequencies within defined borders
     heart_freqs_indices = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
     freqs       = freqs[heart_freqs_indices]
-    amplitudes  = [pixel_freqs[heart_freqs_indices] for pixel_freqs in amplitudes]
+    amplitudes  = np.array([pixel_freqs[heart_freqs_indices] for pixel_freqs in amplitudes])
+
+    # # Rolling window for smeared spectra
+    # left_spectrum   = np.pad(amplitudes[:, :-1], ((0,0), (0,1)))
+    # right_spectrum  = np.pad(amplitudes[:, 1:], ((0,0), (1,0)))
+    # amplitudes = np.add(amplitudes, left_spectrum)
+    # amplitudes = np.add(amplitudes, right_spectrum)
 
     # Plot the pixel amplitudes as 
     plot_frequencies_2d(amplitudes, freqs, out_dir)
@@ -594,7 +601,7 @@ def hroi_from_blobs2(regions_of_interest, min_area=300):
     return hroi_mask
 
 # hroi... heart region of interest
-def HROI3(video, frame2frame_changes, timestamps, min_area=300):
+def HROI3(video, frame2frame_changes, timestamps, fps):
     # Create mask of all pixels that exhibited change
     change_mask = np.zeros_like(video[0])
     for frame in frame2frame_changes:
@@ -602,7 +609,7 @@ def HROI3(video, frame2frame_changes, timestamps, min_area=300):
 
     indices = np.where(change_mask)
 
-    change_pixels = np.array([frame[indices] for frame in video])
+    change_pixels = np.array([frame[indices] for frame in video[:int(fps*5)]])
     pixel_amplitudes, _ = fourier_transform(change_pixels, timestamps)
     
     max_indices = [np.argmax(pix_amps) for pix_amps in pixel_amplitudes]
@@ -794,7 +801,7 @@ def run(video, args, video_metadata):
 
     try:
         #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
-        hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps)
+        hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps, fps)
 
     except ValueError as e: #TODO: create a cutom exception to avoid catching any system errors.
         LOGGER.info("Couldn't detect a suitable heart region")
