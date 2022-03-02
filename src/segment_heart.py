@@ -612,11 +612,13 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     change_pixels = np.array([frame[indices] for frame in video[:int(fps*5)]])
     pixel_amplitudes, _ = fourier_transform(change_pixels, timestamps)
     
-    max_indices = [np.argmax(pix_amps) for pix_amps in pixel_amplitudes]
-    SNR         = [(pix_amps[idx]/sum(pix_amps)) for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
+    max_indices = [np.argmax(pix_amps)              for pix_amps in pixel_amplitudes]
+    SNR         = [(pix_amps[idx]/sum(pix_amps))    for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
+    intensity   = [(pix_amps[idx])                  for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
     
-    SNR = np.array(SNR)
-    candidates  = np.where(SNR > 0.3)
+    SNR         = np.array(SNR)
+    intensity   = np.array(intensity)
+    candidates  = np.where((SNR > 0.3) & (intensity > 30000))
 
     candidates = (indices[0][candidates], indices[1][candidates])
     
@@ -624,7 +626,7 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     all_roi[candidates] = 1
 
     # Fill holes in blobs
-    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+    #all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
 
     hroi_mask = hroi_from_blobs2(all_roi)
 
