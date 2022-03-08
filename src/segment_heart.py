@@ -389,16 +389,20 @@ def analyse_frequencies(amplitudes, freqs):
     #### Decisions from empirical analysis:
     if signal_prominence < 0.33:
         LOGGER.info("Failed frequency analysis: Common top frequency in less then 33% of pixels")
-        bpm = None
+        qc_data['qc_error'] = "Signal prominence < 33%"
+        #bpm = None
     if (top_i/harmonic_intensity) < 4.8:
         LOGGER.info("Failed frequency analysis: Intense Harmonics present.")
-        bpm = None
+        qc_data['qc_error'] = "Intense harmonics"
+        #bpm = None
     if top_snr < 0.3:
         LOGGER.info("Failed frequency analysis: Noisy Frequency spectrum")
-        bpm = None
+        qc_data['qc_error'] = "Noisy frequency spectrum"
+        #bpm = None
     if top_i < 30000:
         LOGGER.info("Failed frequency analysis: Signal not strong enough.")
-        bpm = None
+        qc_data['qc_error'] = "Signal intensity low"
+        #bpm = None
     
     return bpm, qc_data
 
