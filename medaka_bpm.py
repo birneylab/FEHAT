@@ -65,6 +65,8 @@ def analyse(args, channels, loops, wells=None):
                                     + " in loop " +
                                     str(video_metadata['loop'])
                                     + " with channel " + str(video_metadata['channel']))
+                well_result['error'] = "Error during processing. Check log files"
+
             finally:
                 well_result['well_id']  = video_metadata['well_id']
                 well_result['loop']     = video_metadata['loop']
