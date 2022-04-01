@@ -12,9 +12,12 @@ import os
 import logging
 
 import configparser
-config = configparser.ConfigParser()
+# Read config
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config.read(os.path.join(parent_dir, 'config.ini'))
+config_path = os.path.join(parent_dir, 'config.ini')
+
+config = configparser.ConfigParser()
+config.read(config_path)
 
 LOGGER = logging.getLogger(__name__)
 

@@ -32,7 +32,7 @@ from skimage.filters import threshold_triangle, threshold_yen
 from skimage.measure import label
 from skimage import color
 
-# import scipy
+import scipy.stats
 from scipy.signal import savgol_filter, detrend 
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
@@ -288,7 +288,7 @@ def analyse_frequencies(amplitudes, freqs):
     intensity   = [(pixel_freqs[idx]) for pixel_freqs, idx in zip(amplitudes, max_indices)]
 
     # Take frequency that is most often the max
-    max_freq = statistics.mode(highest_freqs)
+    max_freq = scipy.stats.mode(highest_freqs).mode[0]
 
     ### LOOK AT HARMONICS OF HIGHEST FREQUENCY
 

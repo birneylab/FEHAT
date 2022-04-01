@@ -25,8 +25,11 @@ import src.setup as setup
 import src.segment_heart as segment_heart
 
 import configparser
+curr_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(curr_dir, 'config.ini')
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(config_path)
 
 LOGGER = logging.getLogger(__name__)
 ################################## ALGORITHM ##################################
@@ -55,7 +58,7 @@ def analyse(args, channels, loops, wells=None):
             
             try:
                 bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
-                LOGGER.info(f"Reported BPM: {str(bpm)}")
+                LOGGER.info(f"Reported BPM: {str(bpm)}\n")
 
             except Exception as e:
                 LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
@@ -85,7 +88,7 @@ def analyse(args, channels, loops, wells=None):
 
 # Run algorithm on a single well
 def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
-    LOGGER.info("\nAnalysing video - "
+    LOGGER.info("Analysing video - "
                 + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
                 + " Well: " + str(video_metadata['well_id'])

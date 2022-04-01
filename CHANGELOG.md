@@ -57,3 +57,10 @@ Region detection as well as frequency and detection was reworked
 - Accuracy improved by ~2% to 97-99%. Classification rate improved by about 10-20%.
 - Videos are now read and processed as greyscale images. This and simplified algorithm structure reduced memory consumption drastically.
 - Version info is now present in the name of the output directory and the resultsfile.
+
+Date: April 01, 2022 (v1.3.1)
+Hotfix patch. 
+
+    - Fixed an exception with mode calculation in some videos.
+    - Fixed an issue where config file loading depended on current workign directory when running the program.
+    - Modified log formatting
