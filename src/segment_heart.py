@@ -523,7 +523,7 @@ def hroi_from_blobs(regions_of_interest, most_changing_pixels_mask, min_area=300
             candidate_contours.append(contour)
 
     if len(candidate_contours) < 1:
-        raise ValueError("Couldn't find a suitable heart region")
+        return None
 
     hroi_mask = np.zeros_like(regions_of_interest)
     max_pixel_ratio = 0
@@ -572,7 +572,6 @@ def HROI2(frame2frame_changes, min_area=300):
 
     return hroi_mask, all_roi, total_changes, top_changing_mask
 
-
 # FGet largest region
 def hroi_from_blobs2(regions_of_interest, min_area=300):
     ### Find contours, filter by size
@@ -589,7 +588,7 @@ def hroi_from_blobs2(regions_of_interest, min_area=300):
             candidate_areas.append(area)
 
     if len(candidate_contours) < 1:
-        raise ValueError("Couldn't find a suitable heart region")
+        return None
 
     largest_region_idx = np.argmax(candidate_areas)
     heart_contour = candidate_contours[largest_region_idx]
@@ -609,16 +608,16 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
 
     indices = np.where(change_mask)
 
-    change_pixels = np.array([frame[indices] for frame in video[:int(fps*5)]])
+    change_pixels = np.array([frame[indices] for frame in video])
     pixel_amplitudes, _ = fourier_transform(change_pixels, timestamps)
     
     max_indices = [np.argmax(pix_amps)              for pix_amps in pixel_amplitudes]
     SNR         = [(pix_amps[idx]/sum(pix_amps))    for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
-    intensity   = [(pix_amps[idx])                  for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
+    #intensity   = [(pix_amps[idx])                  for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
     
     SNR         = np.array(SNR)
-    intensity   = np.array(intensity)
-    candidates  = np.where((SNR > 0.3) & (intensity > 30000))
+    #intensity   = np.array(intensity)
+    candidates  = np.where((SNR > 0.3))# & (intensity > 30000))
 
     candidates = (indices[0][candidates], indices[1][candidates])
     
@@ -626,7 +625,7 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     all_roi[candidates] = 1
 
     # Fill holes in blobs
-    #all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
 
     hroi_mask = hroi_from_blobs2(all_roi)
 
@@ -713,23 +712,27 @@ def assert_8bit(video):
 
     return video
 
-def video_with_roi(normed_video, frame2frame_changes, hroi_mask):
+def video_with_roi(normed_video, frame2frame_changes, hroi_mask=None):
     normed_video        = assert_8bit(normed_video)
     frame2frame_changes = assert_8bit(frame2frame_changes)
 
     changes_video       = normVideo(frame2frame_changes)
     
     roi_video           = np.array([cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB) for frame in normed_video])
+
+    # Increase brightness to contrast changes
+    roi_video           = cv2.add(roi_video, 120)
     
     # Color in changes
-    roi_video[:-1,:,:,1] = np.array([cv2.add(frame[:,:,2], change_mask)
+    roi_video[:-1,:,:,1] = np.array([cv2.subtract(frame[:,:,1], change_mask)
                             for frame, change_mask in zip(roi_video[:-1], changes_video)])
     
     # Draw outline of Heart ROI
-    contours, _ = cv2.findContours(hroi_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    if hroi_mask is not None:
+        contours, _ = cv2.findContours(hroi_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
-    roi_video = np.array([cv2.drawContours(frame, contours, -1, 255, thickness=2)
-                            for frame in roi_video])
+        roi_video = np.array([cv2.drawContours(frame, contours, -1, 255, thickness=1)
+                                for frame in roi_video])
 
     return roi_video
 
@@ -801,11 +804,13 @@ def run(video, args, video_metadata):
     frame2frame_changes         = frame2frame_changes[:stop_frame]
     frame2frame_changes_thresh  = frame2frame_changes_thresh[:stop_frame]
 
-    try:
-        #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
-        hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps, fps)
+    #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
+    hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps, fps)
+    
+    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
+    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
-    except ValueError as e: #TODO: create a cutom exception to avoid catching any system errors.
+    if hroi_mask is None:
         LOGGER.info("Couldn't detect a suitable heart region")
         return None, fps, qc_attributes
 
@@ -821,10 +826,6 @@ def run(video, args, video_metadata):
                         hroi_mask*255, 
                         all_roi*255, 
                         out_dir)
-    
-
-    roi_qc_video = video_with_roi(video8, frame2frame_changes_thresh, hroi_mask)
-    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     ################################ Keep only pixels in HROI
     # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
