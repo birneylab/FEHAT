@@ -386,19 +386,19 @@ def analyse_frequencies(amplitudes, freqs):
 
     qc_data['Intensity/Harmonic Intensity (top 5 %)'] = top_i / harmonic_intensity
  
-    #### Decisions from empirical analysis:
-    if signal_prominence < 0.33:
-        LOGGER.info("Failed frequency analysis: Common top frequency in less then 33% of pixels")
-        bpm = None
-    if (top_i/harmonic_intensity) < 4.8:
-        LOGGER.info("Failed frequency analysis: Intense Harmonics present.")
-        bpm = None
-    if top_snr < 0.3:
-        LOGGER.info("Failed frequency analysis: Noisy Frequency spectrum")
-        bpm = None
-    if top_i < 30000:
-        LOGGER.info("Failed frequency analysis: Signal not strong enough.")
-        bpm = None
+    # #### Decisions from empirical analysis:
+    # if signal_prominence < 0.33:
+    #     LOGGER.info("Failed frequency analysis: Common top frequency in less then 33% of pixels")
+    #     bpm = None
+    # if (top_i/harmonic_intensity) < 4.8:
+    #     LOGGER.info("Failed frequency analysis: Intense Harmonics present.")
+    #     bpm = None
+    # if top_snr < 0.3:
+    #     LOGGER.info("Failed frequency analysis: Noisy Frequency spectrum")
+    #     bpm = None
+    # if top_i < 30000:
+    #     LOGGER.info("Failed frequency analysis: Signal not strong enough.")
+    #     bpm = None
     
     return bpm, qc_data
 
