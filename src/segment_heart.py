@@ -477,11 +477,21 @@ def interpolate_timestamps(video, timestamps):
     # Calculate equaly spaced sample points
     equal_space_times = np.linspace(start=timestamps[0], stop=timestamps[-1], num=len(video), endpoint=True)
     
-    # Interpolate pixel values of the video
-    interpolated_video = scipy.interpolate.interp1d(timestamps, video, axis=0, kind="cubic")(equal_space_times)
-    interpolated_video = np.clip(interpolated_video, 0, np.iinfo(video.dtype).max)
-    interpolated_video = np.asarray(interpolated_video, dtype=video.dtype)
 
+
+    # Interpolate pixel values of the video
+    # Quite ressource intensive for full resolution images. (~16GB for 130*2048*2048).
+    # Splitting into 10 subparts to mitigate this.
+    interpolated_video = []
+    for sub_arr in np.array_split(video, 10, axis=1):
+
+        interpolated_arr = scipy.interpolate.interp1d(timestamps, sub_arr, axis=0, kind="cubic")(equal_space_times)
+        interpolated_arr = np.clip(interpolated_arr, 0, np.iinfo(video.dtype).max)
+        interpolated_arr = np.asarray(interpolated_arr, dtype=video.dtype)
+
+        interpolated_video.append(interpolated_arr)
+
+    interpolated_video = np.concatenate(interpolated_video, axis=1)
     LOGGER.info("Interpolation done")
 
     return interpolated_video, equal_space_times
