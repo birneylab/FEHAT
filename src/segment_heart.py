@@ -479,7 +479,8 @@ def interpolate_timestamps(video, timestamps):
     
     # Interpolate pixel values of the video
     interpolated_video = scipy.interpolate.interp1d(timestamps, video, axis=0, kind="cubic")(equal_space_times)
-    interpolated_video = np.asarray(interpolated_video, dtype=np.uint8)
+    interpolated_video = np.clip(interpolated_video, 0, np.iinfo(video.dtype).max)
+    interpolated_video = np.asarray(interpolated_video, dtype=video.dtype)
 
     LOGGER.info("Interpolation done")
 
