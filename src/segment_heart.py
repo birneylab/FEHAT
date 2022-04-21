@@ -34,6 +34,7 @@ from skimage import color
 
 import scipy.stats
 from scipy.signal import savgol_filter, detrend 
+import scipy.interpolate
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
 
@@ -437,6 +438,8 @@ def sort_frames(video, timestamps):
     timestamps_sorted, idcs = np.unique(timestamps, return_index=True)
     video_sorted            = video[idcs]
 
+    timestamps_sorted = np.asarray(timestamps_sorted, dtype=np.uint64)
+
     return video_sorted, timestamps_sorted
 
 # Calculate fps from first and last timestamp or use predefined value
@@ -469,6 +472,24 @@ def equally_spaced_timestamps(nr_of_frames, fps):
 
     return equal_space_times
 
+def interpolate_timestamps(video, timestamps):
+    LOGGER.info("Interpolating timestamps")
+    # Calculate equaly spaced sample points
+    equal_space_times = np.linspace(start=timestamps[0], stop=timestamps[-1], num=len(video), endpoint=True)
+    
+    # Interpolate pixel values of the video
+    interpolated_video = scipy.interpolate.interp1d(timestamps, video, axis=0, kind="cubic")(equal_space_times)
+    interpolated_video = np.asarray(interpolated_video, dtype=np.uint8)
+
+    LOGGER.info("Interpolation done")
+
+    return interpolated_video, equal_space_times
+
+def timestamps_in_seconds(timestamps):
+    timestamps = np.asarray((timestamps - timestamps[0]) / 1000, dtype=np.float16)
+    
+    return timestamps
+
 def absdiff_between_frames(video):
     # Last frame has no differencs
     frame2frame_changes = np.zeros_like(video[:-1])
@@ -479,7 +500,6 @@ def absdiff_between_frames(video):
     frame2frame_changes = np.array([cv2.absdiff(frame, blurred_video[i+1]) for i, frame in enumerate(blurred_video[:-1])])
 
     return frame2frame_changes
-
 
 def threshold_changes(frame2frame_difference, min_area=300):
     # thresholds = np.array([threshold_triangle(diff_frame) for diff_frame in frame2frame_difference], dtype=np.uint8)
@@ -754,12 +774,10 @@ def run(video, args, video_metadata):
 
     # Ensures np array not lists.
     video = np.asarray(video)
-    timestamps = np.asarray(video_metadata['timestamps'])
+    timestamps = np.asarray(video_metadata['timestamps'], dtype=np.uint64)
 
     video, timestamps = sort_frames(video, video_metadata['timestamps'])
     fps = determine_fps(timestamps, args['fps'])
-
-    timestamps = equally_spaced_timestamps(len(timestamps), fps)
 
     ################################# Normalize Frames
     LOGGER.info("Normalizing frames")
@@ -769,6 +787,11 @@ def run(video, args, video_metadata):
     normed_video = normVideo(video)
     del video
 
+    ################################# Interpolate pixel values (experimental - assume timestamps of filenames valid)
+    normed_video, timestamps = interpolate_timestamps(normed_video, timestamps)
+    timestamps = timestamps_in_seconds(timestamps)
+
+    #timestamps = equally_spaced_timestamps(len(timestamps), fps)
     LOGGER.info("Writing video")
     save_video(normed_video, fps, out_dir, "embryo.mp4")
 
