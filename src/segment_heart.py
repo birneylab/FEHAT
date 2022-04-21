@@ -640,7 +640,11 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     indices = np.where(change_mask)
 
     change_pixels = np.array([frame[indices] for frame in video])
-    pixel_amplitudes, _ = fourier_transform(change_pixels, timestamps)
+    pixel_amplitudes, freqs = fourier_transform(change_pixels, timestamps)
+
+    # Limit to frequencies within defined borders
+    heart_freqs_indices = np.where(np.logical_and(freqs >= (20/60), freqs <= (310/60)))[0]
+    pixel_amplitudes  = np.array([pixel_freqs[heart_freqs_indices] for pixel_freqs in pixel_amplitudes])
     
     max_indices = [np.argmax(pix_amps)              for pix_amps in pixel_amplitudes]
     SNR         = [(pix_amps[idx]/sum(pix_amps))    for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
