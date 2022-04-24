@@ -265,6 +265,9 @@ def fourier_transform(hroi_pixels, times):
         # Fast fourier transform
         fourier = np.fft.rfft(pixel_signal)
 
+        # Normalize
+        fourier = fourier / N
+
         # Power Spectral Density
         psd = np.abs(fourier) ** 2
 
@@ -666,11 +669,11 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     
     max_indices = [np.argmax(pix_amps)              for pix_amps in pixel_amplitudes]
     SNR         = [(pix_amps[idx]/sum(pix_amps))    for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
-    #intensity   = [(pix_amps[idx])                  for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
+    intensity   = [(pix_amps[idx])                  for pix_amps, idx in zip(pixel_amplitudes, max_indices)]
     
     SNR         = np.array(SNR)
-    #intensity   = np.array(intensity)
-    candidates  = np.where((SNR > 0.3))# & (intensity > 30000))
+    intensity   = np.array(intensity)
+    candidates  = np.where((SNR > 0.3) & (intensity > 20))
 
     candidates = (indices[0][candidates], indices[1][candidates])
     
