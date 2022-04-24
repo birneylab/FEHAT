@@ -413,6 +413,7 @@ def bpm_from_heartregion(hroi_pixels, times, out_dir):
 
     # Limit to frequencies within defined borders
     heart_freqs_indices = np.where(np.logical_and(freqs >= (minBPM/60), freqs <= (maxBPM/60)))[0]
+    
     freqs       = freqs[heart_freqs_indices]
     amplitudes  = np.array([pixel_freqs[heart_freqs_indices] for pixel_freqs in amplitudes])
 
@@ -527,19 +528,36 @@ def threshold_changes(frame2frame_difference, min_area=300):
 
     return thresholded_differences
 
+# Detects movement based on absolute frame change threshold. Threshold found empirically.
+# Returns start and stop frame with maximal uninterrupted video length
+# warning: stop_frame is a slice index. When used as array index may yield out of bounds error.
 def detect_movement(frame2frame_changes):
-    stop_frame = len(frame2frame_changes)
     max_change = 0
+    movement_frames = []
+
     for i, frame in enumerate(frame2frame_changes):
         change = np.sum(frame)
         if change > max_change:
             max_change = change
             
         if change > 50000:
-            stop_frame = i
-            break
+            movement_frames.append(i)
     
-    return (stop_frame + 1), max_change
+    # Pick longest sequence, in case of movement
+    start_frame = 0
+    if movement_frames:
+        stop_frame = 0
+        max_length = 0
+        movement_frames.append(len(frame2frame_changes))
+
+        for movement_idx in movement_frames:
+            if (movement_idx - start_frame) > max_length:
+                start_frame = stop_frame
+                stop_frame  = movement_idx
+    else:
+        stop_frame = len(frame2frame_changes)
+    
+    return start_frame, stop_frame, max_change
 
 # Filter regions of interest by size and select region with most overlap
 def hroi_from_blobs(regions_of_interest, most_changing_pixels_mask, min_area=300):
@@ -827,20 +845,21 @@ def run(video, args, video_metadata):
     # save_video(weighted_changes, fps, out_dir, "weighted_changes.mp4")
 
     # Detect movement and stop analysis early
-    stop_frame, max_change = detect_movement(frame2frame_changes_thresh)
-    qc_attributes["Stop frame"] = str(stop_frame)
+    start_frame, stop_frame, max_change = detect_movement(frame2frame_changes_thresh)
     qc_attributes["Movement detection max"] = max_change
+    qc_attributes["Start frame(movement)"] = str(start_frame)
+    qc_attributes["Stop frame(movement)"] = str(stop_frame)
 
     # Break condition
-    if stop_frame < 3*fps:
-        LOGGER.info("Movement before 3 seconds. Stopping analysis")
+    if (stop_frame - start_frame) < 5*fps:
+        LOGGER.info("Can't find 5 second clip without movement. Stopping analysis")
         return None, fps, qc_attributes
 
     # Shorten videos
-    normed_video                = normed_video[:stop_frame]
-    video8                      = video8[:stop_frame]
-    frame2frame_changes         = frame2frame_changes[:stop_frame]
-    frame2frame_changes_thresh  = frame2frame_changes_thresh[:stop_frame]
+    normed_video                = normed_video[start_frame:stop_frame]
+    video8                      = video8[start_frame:stop_frame]
+    frame2frame_changes         = frame2frame_changes[start_frame:stop_frame]
+    frame2frame_changes_thresh  = frame2frame_changes_thresh[start_frame:stop_frame]
 
     #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
     hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps, fps)
