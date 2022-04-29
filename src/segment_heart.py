@@ -547,17 +547,20 @@ def detect_movement(frame2frame_changes):
             movement_frames.append(i)
     
     # Pick longest sequence, in case of movement
-    start_frame = 0
     if movement_frames:
-        stop_frame = 0
-        max_length = 0
+        # add first and last frame to tart/stop frame candidates
+        movement_frames.insert(0,0)
         movement_frames.append(len(frame2frame_changes))
+        max_length = 0
 
-        for movement_idx in movement_frames:
-            if (movement_idx - start_frame) > max_length:
-                start_frame = stop_frame
-                stop_frame  = movement_idx
+        for i in range(len(movement_frames)-1):
+            length = movement_frames[i+1] - movement_frames[i]
+            if length > max_length:
+                start_frame = movement_frames[i]
+                stop_frame  = movement_frames[i+1]
+                max_length = length
     else:
+        start_frame = 0
         stop_frame = len(frame2frame_changes)
     
     return start_frame, stop_frame, max_change
