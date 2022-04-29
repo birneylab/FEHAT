@@ -253,25 +253,31 @@ def fourier_transform(hroi_pixels, times):
     timestep = np.mean(np.diff(times))
     freqs = np.fft.rfftfreq(N, d=timestep)
 
-    for pixel_signal in pixel_signals:
+    clean_signal = savgol_filter(pixel_signals, axis=1, window_length=5, polyorder=3)
+    clean_signal = detrend(clean_signal, axis=1)
+    fft_return = np.fft.rfftn(clean_signal, axes=(1,))
+    fft_return = fft_return / N
+    amplitudes = np.square(np.abs(fft_return))
 
-        # smoothe signal
-        pixel_signal = savgol_filter(pixel_signal, window_length=5, polyorder=3)
+    # for pixel_signal in pixel_signals:
 
-        # Subtract any linear trends
-        # Increases classification rate (depending on data, 1-12%)
-        pixel_signal = detrend(pixel_signal)
+    #     # smoothe signal
+    #     pixel_signal = savgol_filter(pixel_signal, window_length=5, polyorder=3)
 
-        # Fast fourier transform
-        fourier = np.fft.rfft(pixel_signal)
+    #     # Subtract any linear trends
+    #     # Increases classification rate (depending on data, 1-12%)
+    #     pixel_signal = detrend(pixel_signal)
 
-        # Normalize
-        fourier = fourier / N
+    #     # Fast fourier transform
+    #     fourier = np.fft.rfft(pixel_signal)    
 
-        # Power Spectral Density
-        psd = np.abs(fourier) ** 2
+    #     # Normalize
+    #     fourier = fourier / N
 
-        amplitudes.append(psd)
+    #     # Power Spectral Density
+    #     psd = np.square(np.abs(fourier))
+
+    #     amplitudes.append(psd)
 
     return amplitudes, freqs
 
