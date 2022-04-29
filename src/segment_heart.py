@@ -478,11 +478,10 @@ def equally_spaced_timestamps(nr_of_frames, fps):
 
 def interpolate_timestamps(video, timestamps):
     LOGGER.info("Interpolating timestamps")
+
     # Calculate equaly spaced sample points
     equal_space_times = np.linspace(start=timestamps[0], stop=timestamps[-1], num=len(video), endpoint=True)
     
-
-
     # Interpolate pixel values of the video
     # Quite ressource intensive for full resolution images. (~16GB for 130*2048*2048).
     # Splitting into 10 subparts to mitigate this.
@@ -496,7 +495,6 @@ def interpolate_timestamps(video, timestamps):
         interpolated_video.append(interpolated_arr)
 
     interpolated_video = np.concatenate(interpolated_video, axis=1)
-    LOGGER.info("Interpolation done")
 
     return interpolated_video, equal_space_times
 
@@ -655,7 +653,7 @@ def hroi_from_blobs2(regions_of_interest, min_area=300):
     return hroi_mask
 
 # hroi... heart region of interest
-def HROI3(video, frame2frame_changes, timestamps, fps):
+def HROI3(video, frame2frame_changes, timestamps):
     # Create mask of all pixels that exhibited change
     change_mask = np.zeros_like(video[0])
     for frame in frame2frame_changes:
@@ -676,7 +674,8 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     
     SNR         = np.array(SNR)
     intensity   = np.array(intensity)
-    candidates  = np.where((SNR > 0.3) & (intensity > 20))
+
+    candidates  = np.where((SNR > 0.3) & (intensity > 1.0))
 
     candidates = (indices[0][candidates], indices[1][candidates])
     
@@ -684,7 +683,7 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
     all_roi[candidates] = 1
 
     # Fill holes in blobs
-    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL, iterations=3)
 
     hroi_mask = hroi_from_blobs2(all_roi)
 
@@ -734,7 +733,6 @@ def draw_heart_qc_plot2(single_frame, abs_changes, all_roi, hroi_mask, out_dir):
 
     # Save Figure
     plt.savefig(out_fig, bbox_inches='tight')
-    plt.show()
     plt.close()
 
 def draw_heart_qc_plot(single_frame, abs_changes, all_roi, hroi_mask, top_changing_pixels, out_dir):
@@ -873,8 +871,8 @@ def run(video, args, video_metadata):
     qc_attributes["Stop frame(movement)"] = str(stop_frame)
 
     # Break condition
-    if (stop_frame - start_frame) < 5*fps:
-        LOGGER.info("Can't find 5 second clip without movement. Stopping analysis")
+    if (stop_frame - start_frame) < 4*fps:
+        LOGGER.info("Can't find 4 second long clip without movement. Stopping analysis")
         return None, fps, qc_attributes
 
     # Shorten videos
@@ -882,16 +880,18 @@ def run(video, args, video_metadata):
     video8                      = video8[start_frame:stop_frame]
     frame2frame_changes         = frame2frame_changes[start_frame:stop_frame]
     frame2frame_changes_thresh  = frame2frame_changes_thresh[start_frame:stop_frame]
+    timestamps                  = timestamps[start_frame:stop_frame]
 
     #hroi_mask, all_roi, total_changes, top_changing_pixels = HROI2(frame2frame_changes_thresh)
-    hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps, fps)
-    
-    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
-    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
+    hroi_mask, all_roi, total_changes = HROI3(normed_video, frame2frame_changes_thresh, timestamps)
 
     if hroi_mask is None:
         LOGGER.info("Couldn't detect a suitable heart region")
+        save_image(all_roi*255, "ROI_pixels", out_dir)
         return None, fps, qc_attributes
+
+    roi_qc_video = video_with_roi(video8, frame2frame_changes, hroi_mask)
+    save_video(roi_qc_video, fps, out_dir, "embryo_changes.mp4")
 
     # draw_heart_qc_plot( video8[0],
     #                     total_changes,
@@ -908,7 +908,7 @@ def run(video, args, video_metadata):
 
     ################################ Keep only pixels in HROI
     # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
-    masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
+    #masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
     
     # delete pixels outside of mask (=HROI)
     # flattens frames to 1D arrays (following pixelwise analysis doesn't need to preserve shape of individual images)
