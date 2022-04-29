@@ -690,6 +690,22 @@ def HROI3(video, frame2frame_changes, timestamps, fps):
 
     return hroi_mask, all_roi, change_mask
 
+def save_image(image, name, outdir):
+
+    # Prepare outfigure
+    out_fig = os.path.join(outdir, name + ".png")
+
+    fig, ax = plt.subplots()
+
+    # First frame
+    ax.imshow(image)
+    ax.set_title(name, fontsize=10)
+
+    # Save Figure
+    plt.savefig(out_fig, bbox_inches='tight')
+    plt.close()
+
+
 def draw_heart_qc_plot2(single_frame, abs_changes, all_roi, hroi_mask, out_dir):
 
     # Prepare outfigure
