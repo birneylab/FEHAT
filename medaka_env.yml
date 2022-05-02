@@ -86,9 +86,7 @@ dependencies:
   - libclang=9.0.0
   - libcroco=0.6.13
   - libffi=3.2.1
-  - libgcc-ng=9.1.0
   - libgd=2.2.5
-  - libgfortran-ng=7.3.0
   - libiconv=1.15
   - liblapack=3.8.0
   - libllvm9=9.0.0
@@ -96,13 +94,11 @@ dependencies:
   - libpng=1.6.37
   - librsvg=2.46.3
   - libsodium=1.0.18
-  - libstdcxx-ng=9.1.0
   - libtiff=4.1.0
   - libtool=2.4.6
   - libuuid=2.32.1
   - libwebp=1.0.2
   - libxcb=1.13
-  - libxkbcommon=0.9.1
   - libxml2=2.9.10
   - lz4-c=1.8.3
   - markupsafe=1.1.1
@@ -116,13 +112,11 @@ dependencies:
   - nest-asyncio=1.4.3
   - nettle=3.4.1
   - notebook=6.2.0
-  - nspr=4.23
   - nss=3.47
   - openexr=2.5.2
   - openh264=1.8.0
   - openjpeg=2.3.1
   - openssl=1.1.1k
-  - p7zip=15.09
   - packaging=20.9
   - pandoc=2.11.4
   - pandocfilters=1.4.2
@@ -235,4 +229,10 @@ dependencies:
     - tqdm==4.46.1
     - urllib3==1.25.8
     - xlrd==1.2.0
-prefix: /homes/marcio/conda_dir/miniconda3/envs/medaka_env
+    # Dependancies below were first part of Conda (conda could not find them in the    provided channels).
+    # - p7zip==21.07
+    # - libgcc-ng==9.1.0
+    # - nspr==4.23
+    # - libxkbcommon==0.9.1
+    # - libstdcxx-ng==9.1.0
+    # - libgfortran-ng==7.3.0
