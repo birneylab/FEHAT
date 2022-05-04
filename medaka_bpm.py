@@ -24,7 +24,7 @@ import src.io_operations as io_operations
 import src.setup as setup
 import src.segment_heart as segment_heart
 
-curr_dir = os.getcwd()
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 import configparser
 config_path = os.path.join(curr_dir, 'config.ini')
@@ -38,7 +38,7 @@ from decision_tree.src import analysis
 LOGGER = logging.getLogger(__name__)
 
 ################################## GLOBAL VARIABLES ###########################
-TREE_SAVE_PATH = os.path.abspath("../models")
+TREE_SAVE_PATH = os.path.abspath("data")
 
 
 ################################## ALGORITHM ##################################
