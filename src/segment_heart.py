@@ -385,24 +385,34 @@ def analyse_frequencies(amplitudes, freqs):
     qc_data['Signal regional prominence'] = signal_prominence
 
     qc_data['Intensity/Harmonic Intensity (top 5 %)'] = top_i / harmonic_intensity
- 
+    
+    qc_data['flags'] = []
+    
     #### Decisions from empirical analysis:
     if signal_prominence < 0.33:
         LOGGER.info("Failed frequency analysis: Common top frequency in less then 33% of pixels")
         qc_data['qc_error'] = "Signal prominence < 33%"
+        qc_data['flags'].append('1')
         #bpm = None
     if (top_i/harmonic_intensity) < 4.8:
         LOGGER.info("Failed frequency analysis: Intense Harmonics present.")
         qc_data['qc_error'] = "Intense harmonics"
         #bpm = None
+        qc_data['flags'].append('2')
     if top_snr < 0.3:
         LOGGER.info("Failed frequency analysis: Noisy Frequency spectrum")
         qc_data['qc_error'] = "Noisy frequency spectrum"
         #bpm = None
+        qc_data['flags'].append('3')
     if top_i < 30000:
         LOGGER.info("Failed frequency analysis: Signal not strong enough.")
         qc_data['qc_error'] = "Signal intensity low"
         #bpm = None
+        qc_data['flags'].append('4')
+    if max_freq < 1.25:
+        LOGGER.info("Failed frequency analysis: Max frequency lower than 1.25. Improbably to happens except in bradicardic animals. Please consider the experiment.")
+        #bpm = None
+        qc_data['flags'].append('8')
     
     return bpm, qc_data
 
@@ -551,30 +561,61 @@ def hroi_from_blobs(regions_of_interest, most_changing_pixels_mask, min_area=300
 
 # hroi... heart region of interest
 def HROI2(frame2frame_changes, min_area=300):
-    # TODO: a lot of resolution is lost with the conversion. to uint16
-    total_changes = np.sum(frame2frame_changes, axis=0, dtype=np.uint32)
-    #total_changes = (total_changes/65535).astype(np.uint16)
+    aft_frame2frame_changes = []
+    pixels_freq = []   
+    frame2frame_changes_filtering = assert_8bit(frame2frame_changes)
+    changes_video_filtering = normVideo(frame2frame_changes_filtering)
+    
+    for idx, dis_points in enumerate(changes_video_filtering):
+        contours_f, _ = cv2.findContours(dis_points, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+        biggest_cnt = []
+        for cnt in contours_f:
+            area_cnt = cv2.contourArea(cnt)
+            biggest_cnt.append(area_cnt)
+          
+            max_value = max(biggest_cnt)
+            max_index = biggest_cnt.index(max_value)
+            zero_mask = np.zeros_like(dis_points)
+            zero_maks_3ch = cv2.cvtColor(zero_mask,cv2.COLOR_GRAY2RGB)           
 
+        area_cnt_final = cv2.contourArea(contours_f[max_index])
+        area_cnt_final = int(area_cnt_final/1000*255)   #Put the big numbers resulting from arrays sum into a reasonable number betwen 0 and 255
+        if area_cnt_final > 255:
+            area_cnt_final = 0
+                    
+        cv2.drawContours(zero_maks_3ch, [contours_f[max_index]], -1, (area_cnt_final, area_cnt_final, area_cnt_final), -1)        
+      
+        mask_count = cv2.cvtColor(zero_maks_3ch,cv2.COLOR_RGB2GRAY)
+        
+        mask_count[mask_count > 0] = 1       
+        pixels_freq.append(mask_count) 
+                
+        zero_maks_1ch = cv2.cvtColor(zero_maks_3ch,cv2.COLOR_RGB2GRAY)
+        aft_frame2frame_changes.append(zero_maks_1ch)    
+    
+    total_changes = np.sum(aft_frame2frame_changes, axis=0, dtype=np.uint32) # will be used to identify the ROI based on a formula of frequency and intensity of the pixel
+            
     ### Create mask with most changing pixels
     nr_of_pixels_considered = 250
-    top_changing_indices = np.unravel_index(np.argsort(total_changes.ravel())[-nr_of_pixels_considered:], 
-                                            total_changes.shape)
+    top_changing_indices = np.unravel_index(np.argsort(total_changes.ravel())[-nr_of_pixels_considered:], total_changes.shape)
     
     top_changing_mask = np.zeros((total_changes.shape), dtype=bool)
 
-    # Label pixels based on based on the top changeable pixels
+    # Label pixels based on the top changeable pixels
     top_changing_mask[top_changing_indices] = 1
 
     ### Threshold heart RoI to find regions
-    all_roi = total_changes > threshold_yen(total_changes)
-    all_roi = all_roi.astype(np.uint8)
+    all_roi = total_changes > threshold_triangle(total_changes)
+    all_roi = all_roi.astype(np.uint8)  
 
     # Fill holes in blobs
-    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL)
+    KERNEL = np.ones((9, 9), np.uint8)
 
-    hroi_mask = hroi_from_blobs(all_roi, top_changing_mask)
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL) 
 
-    return hroi_mask, all_roi, total_changes, top_changing_mask
+    hroi_mask = hroi_from_blobs(all_roi, top_changing_mask)   
+    
+    return hroi_mask, all_roi, total_changes, top_changing_mask   
 
 
 # FGet largest region
@@ -793,11 +834,13 @@ def run(video, args, video_metadata):
     stop_frame, max_change = detect_movement(frame2frame_changes_thresh)
     qc_attributes["Stop frame"] = str(stop_frame)
     qc_attributes["Movement detection max"] = max_change
+    qc_attributes['flags'] = []
 
     # Break condition
     if stop_frame < 3*fps:
-        LOGGER.info("Movement before 3 seconds. Stopping analysis")
-        return None, fps, qc_attributes
+        LOGGER.info("Embryo Movement, flagging this well...")
+        #return None, fps, qc_attributes
+        qc_attributes['flags'].append('5')
 
     # Shorten videos
     normed_video                = normed_video[:stop_frame]
@@ -811,6 +854,9 @@ def run(video, args, video_metadata):
 
     except ValueError as e: #TODO: create a cutom exception to avoid catching any system errors.
         LOGGER.info("Couldn't detect a suitable heart region")
+        qc_attributes['flags'].append('6')
+        str_1ist = ''.join(qc_attributes['flags'])    
+        qc_attributes['flags'] = str_1ist
         return None, fps, qc_attributes
 
     # draw_heart_qc_plot( video8[0],
@@ -852,9 +898,15 @@ def run(video, args, video_metadata):
     LOGGER.info("Fourier frequency evaluation")
     
     # Run normally, Fourier in segemented area
-    if not args['slowmode']:
-        bpm, qc_data = bpm_from_heartregion(hroi_pixels, timestamps, out_dir)
-
+    
+    bpm, qc_data = bpm_from_heartregion(hroi_pixels, timestamps, out_dir)
+    
+    temp_list = qc_attributes['flags'] + qc_data['flags']
+    if len(temp_list) == 0:
+        temp_list = ['0']    
+    str_1ist = ''.join(temp_list)    
+    qc_data['flags'] = str_1ist    
+    
     qc_attributes.update(qc_data)
 
     if not bpm:

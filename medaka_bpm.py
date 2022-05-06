@@ -66,6 +66,7 @@ def analyse(args, channels, loops, wells=None):
                                     str(video_metadata['loop'])
                                     + " with channel " + str(video_metadata['channel']))
                 well_result['error'] = "Error during processing. Check log files"
+                qc_attributes['flags'] = '7'
 
             finally:
                 well_result['well_id']  = video_metadata['well_id']
@@ -74,6 +75,7 @@ def analyse(args, channels, loops, wells=None):
                 well_result['bpm']      = bpm
                 well_result['fps']      = fps
                 well_result['version']  = config['DEFAULT']['VERSION']
+                well_result['flags']    = qc_attributes['flags']
                 
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
