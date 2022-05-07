@@ -703,7 +703,7 @@ def save_image(image, name, outdir):
     fig, ax = plt.subplots()
 
     # First frame
-    ax.imshow(image)
+    ax.imshow(image, interpolation='none')
     ax.set_title(name, fontsize=10)
 
     # Save Figure
@@ -723,17 +723,17 @@ def draw_heart_qc_plot2(single_frame, abs_changes, all_roi, hroi_mask, out_dir):
     ax[0, 0].axis('off')
 
     # Summed Absolute Difference between sequential frames
-    ax[0, 1].imshow(abs_changes)
+    ax[0, 1].imshow(abs_changes, interpolation='none')
     ax[0, 1].set_title('Pixels emitting change', fontsize=10)
     ax[0, 1].axis('off')
 
     # Thresholded Differences
-    ax[1, 0].imshow(hroi_mask)
+    ax[1, 0].imshow(hroi_mask, interpolation='none')
     ax[1, 0].set_title('Emitting clear periodic change', fontsize=10)
     ax[1, 0].axis('off')
 
     # Overlap between filtered RoI mask and pixel maxima
-    ax[1, 1].imshow(all_roi)
+    ax[1, 1].imshow(all_roi, interpolation='none')
     ax[1, 1].set_title('Largest of these regions', fontsize=10)
     ax[1, 1].axis('off')
 
@@ -763,17 +763,17 @@ def draw_heart_qc_plot(single_frame, abs_changes, all_roi, hroi_mask, top_changi
     ax[0, 0].axis('off')
 
     # Summed Absolute Difference between sequential frames
-    ax[0, 1].imshow(abs_changes)
+    ax[0, 1].imshow(abs_changes, interpolation='none')
     ax[0, 1].set_title('Summed Absolute\nDifferences', fontsize=10)
     ax[0, 1].axis('off')
 
     # Thresholded Differences
-    ax[1, 0].imshow(hroi_mask)
+    ax[1, 0].imshow(hroi_mask, interpolation='none')
     ax[1, 0].set_title('Thresholded Absolute\nDifferences', fontsize=10)
     ax[1, 0].axis('off')
 
     # Overlap between filtered RoI mask and pixel maxima
-    ax[1, 1].imshow(all_roi)
+    ax[1, 1].imshow(all_roi, interpolation='none')
     ax[1, 1].set_title('RoI overlap with maxima', fontsize=10)
     ax[1, 1].axis('off')
 
