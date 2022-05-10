@@ -18,6 +18,7 @@ import sys
 import time
 
 import glob2
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import src.io_operations    as io_operations
 import src.setup            as setup
