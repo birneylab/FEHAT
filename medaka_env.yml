@@ -229,7 +229,7 @@ dependencies:
     - tqdm==4.46.1
     - urllib3==1.25.8
     - xlrd==1.2.0
-    # Dependancies below were first part of Conda (conda could not find them in the    provided channels).
+    # Dependancies below were first part of Conda (conda could not find them in the provided channels).
     # - p7zip==21.07
     # - libgcc-ng==9.1.0
     # - nspr==4.23
