@@ -32,13 +32,12 @@ config = configparser.ConfigParser()
 config.read(config_path)
 
 # QC Analysis modules.
-sys.path.append(os.path.join(curr_dir, "qc_analysis"))
+sys.path.append(os.path.join(curr_dir, 'qc_analysis'))
 from decision_tree.src import analysis
 
-LOGGER = logging.getLogger(__name__)
-
 ################################## GLOBAL VARIABLES ###########################
-TREE_SAVE_PATH = os.path.abspath("data")
+LOGGER = logging.getLogger(__name__)
+TREE_SAVE_DIR = os.path.abspath(os.path.join('qc_analysis', 'data'))
 
 
 ################################## ALGORITHM ##################################
@@ -88,7 +87,27 @@ def analyse(args, channels, loops, wells=None):
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
                     well_result.update(qc_attributes)
-
+                    tree_dir = os.path.join(TREE_SAVE_DIR, "trained_tree.sav")
+                    
+                    # Get trained model, if present. 
+                    if not os.path.exists(tree_dir):
+                        LOGGER.error("Trained model for qc analysis not found. Please train model first.")
+                        # TODO: Exit the qc_analysis if the trained tree is not saved.
+                    else:
+                        LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
+                        trained_tree = joblib.load(tree_dir)
+                    
+                        # Process data.
+                        # Important to rearrange the qc params in the same order used during training.
+                        # Easiest way to do that is to convert the qc_attributes to a dataframe and reorder the columns.
+                        # 'Stop frame' is not used during training.
+                        data = {k: v for k, v in qc_attributes.items() if k not in ["Stop frame"]}
+                        data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[analysis.QC_FEATURES]
+                        
+                        # Get the qc parameter results evaluated by the decision tree as a dictionary.
+                        qc_analysis_results = analysis.evaluate(trained_tree, data)
+                        well_result.update(qc_analysis_results)
+                        
                 results = results.append(well_result, ignore_index=True)
 
                 gc.collect()
@@ -341,20 +360,20 @@ def main(args):
 
         io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
         
-        # Check if debug mode is on for qc parameters.
-        if args.debug:
-            # Process data.
-            data, _ = analysis.process_data(results, threshold = 20)
-            # Get trained model, if present. 
-            if not os.path.exists(os.path.join(TREE_SAVE_PATH, "trained_tree.sav")):
-                LOGGER.error("Trained model for qc analysis not found. Please train model first.")
-            else:
-                LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
-                trained_tree = joblib.load(os.path.join(TREE_SAVE_PATH, "trained_tree.sav"))
+        # # Check if debug mode is on for qc parameters.
+        # if args.debug:
+        #     # Process data.
+        #     data, _ = analysis.process_data(results, threshold = 20)
+        #     # Get trained model, if present. 
+        #     if not os.path.exists(os.path.join(TREE_SAVE_PATH, "trained_tree.sav")):
+        #         LOGGER.error("Trained model for qc analysis not found. Please train model first.")
+        #     else:
+        #         LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
+        #         trained_tree = joblib.load(os.path.join(TREE_SAVE_PATH, "trained_tree.sav"))
             
-            # Get the qc parameter results evaluated by the decision tree as a pd.DataFrame.
-            qc_analysis_results = analysis.evaluate(trained_tree, data)
-            # When is this written to output?
+        #     # Get the qc parameter results evaluated by the decision tree as a pd.DataFrame.
+        #     qc_analysis_results = analysis.evaluate(trained_tree, data)
+        #     # When is this written to output?
         
     else:
         LOGGER.info("Only cropping, script will not run BPM analyses")
