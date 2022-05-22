@@ -15,10 +15,8 @@
 #   calculating bpm frequency from pixel color fluctuation in said videos
 ###
 ############################################################################################################
-import warnings
 import math
 from matplotlib import pyplot as plt
-import statistics
 import os
 import logging
 
@@ -270,7 +268,7 @@ def fourier_transform(hroi_pixels, times):
 
     #     # Fast fourier transform
     #     fourier = np.fft.rfft(pixel_signal)    
-
+        
     #     # Normalize
     #     fourier = fourier / N
 
@@ -472,8 +470,7 @@ def determine_fps(timestamps, fps_console_parameter):
     fps = round(fps, 2)
     return fps
 
-# TODO: Fourier Transform expects equally spaced samples. Do cubicspline over timestamps and intepolate over missing values
-# timestamp spacing can vary by a few ms. Provides equally spaced timestamps
+# timestamp spacing can vary by a few ms. Provides artificial, equally spaced timestamps
 def equally_spaced_timestamps(nr_of_frames, fps):
     frame2frame = 1/fps
         
@@ -482,6 +479,7 @@ def equally_spaced_timestamps(nr_of_frames, fps):
 
     return equal_space_times
 
+# timestamp spacing can vary by a few ms. Provides interpolated timestamps
 def interpolate_timestamps(video, timestamps):
     LOGGER.info("Interpolating timestamps")
 
@@ -666,8 +664,8 @@ def HROI3(video, frame2frame_changes, timestamps):
         change_mask = cv2.bitwise_or(frame, change_mask)
 
     indices = np.where(change_mask)
-
     change_pixels = np.array([frame[indices] for frame in video])
+
     pixel_amplitudes, freqs = fourier_transform(change_pixels, timestamps)
 
     # Limit to frequencies within defined borders
@@ -681,7 +679,8 @@ def HROI3(video, frame2frame_changes, timestamps):
     SNR         = np.array(SNR)
     intensity   = np.array(intensity)
 
-    candidates  = np.where((SNR > 0.3) & (intensity > 1.0))
+    # It would make sense to also filter by intensity, however even  very low value of 1.0 worsened results
+    candidates  = np.where((SNR > 0.3)) # & (intensity > 1.0))
 
     candidates = (indices[0][candidates], indices[1][candidates])
     
@@ -689,7 +688,7 @@ def HROI3(video, frame2frame_changes, timestamps):
     all_roi[candidates] = 1
 
     # Fill holes in blobs
-    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL, iterations=3)
+    all_roi = cv2.morphologyEx(all_roi, cv2.MORPH_CLOSE, KERNEL, iterations=1)
 
     hroi_mask = hroi_from_blobs2(all_roi)
 
@@ -816,7 +815,6 @@ def video_with_roi(normed_video, frame2frame_changes, hroi_mask=None):
     return roi_video
 
 # run the algorithm on a well video
-# TODO: Move data consistency check like duplicate frames, empty frames somewhere else before maybe.
 def run(video, args, video_metadata):
     LOGGER.info("Starting algorithmic analysis")
 
@@ -846,7 +844,7 @@ def run(video, args, video_metadata):
     normed_video = normVideo(video)
     del video
 
-    ################################# Interpolate pixel values (experimental - assume timestamps of filenames valid)
+    ################################# Interpolate pixel values (assume timestamps of filenames valid)
     normed_video, timestamps = interpolate_timestamps(normed_video, timestamps)
     timestamps = timestamps_in_seconds(timestamps)
 
@@ -911,7 +909,7 @@ def run(video, args, video_metadata):
                         hroi_mask*255, 
                         all_roi*255, 
                         out_dir)
-
+                        
     ################################ Keep only pixels in HROI
     # Blur the image before frequency analysis - reduces number of false positives (BPM assigned where no heart present)
     #masked_greys = [cv2.GaussianBlur(frame, (9, 9), 20) for frame in normed_video]
