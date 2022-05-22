@@ -107,8 +107,6 @@ try:
 except Exception as e:
     LOGGER.exception("Couldn't consolidate results from cluster analysis")
     
-#TODO: Dangerous as it removes all conents of directory. Assert that in fact, only log and txt files are inside
-#TODO: and that folder is named tmp/
 # Clean up and remove tmp directory
 #shutil.rmtree(indir)
 

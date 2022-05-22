@@ -39,7 +39,6 @@ from decision_tree.src import analysis
 LOGGER = logging.getLogger(__name__)
 TREE_SAVE_DIR = os.path.abspath(os.path.join('qc_analysis', 'data'))
 
-
 ################################## ALGORITHM ##################################
 
 # Analyse a range of wells
@@ -206,7 +205,7 @@ def run_multifolder(args, dirs):
             subprocess.run(cmd, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
     else:
-        max_subprocesses = int(config['DEFAULT']['MaxParallelDirs'])
+        max_subprocesses = int(config['DEFAULT']['MAXPARALLELDIRS'])
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
