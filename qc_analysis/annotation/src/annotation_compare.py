@@ -11,7 +11,7 @@
 ###
 ############################################################################################################
 import os
-import argparse
+import sys
 import warnings
 import glob2
 import logging
@@ -34,7 +34,7 @@ from statistics import mean
 
 import numpy as np
 
-sys.path.append("src")
+sys.path.append(os.path.join(os.path.abspath("".join([__file__, 4 * "/.."])), "src"))
 
 import io_operations
 import segment_heart
@@ -225,7 +225,7 @@ def get_roi(frames_dir: str, annotation_file: str, outdir: str):
 
         # Break condition
         if stop_frame < 3 * fps:
-            LOGGER.info("Movement before 3 seconds. Stopping analysis")
+            # LOGGER.info("Movement before 3 seconds. Stopping analysis")
             return None, fps, qc_attributes
 
         # Shorten videos
@@ -333,34 +333,3 @@ def write_results(annotation: List[List],
         f.write(f"% Area Difference: {perc_diff * 100:.4f}\n")
         f.write(f"% of ROI Inside the Annotation: {count * 100:.4f}\n")
         f.write(f"Centre of Mass Difference: {com_difference:.4f}")
-    
-def process_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input_frames", type = str, required = True, help = "Path to the input video.")
-    parser.add_argument("-af", "--annotation_file", help = "Path to the annotation file", type = str, required = True)
-    parser.add_argument("-o", "--out_dir",  help = "Directory to write analysis results", type = str, required = True)
-    return parser.parse_args()
-        
-def main():
-    args = process_args()
-    frames = args.input_frames
-    # frames = "/Users/anirudh/Documents/HiWi-22/MEDAKA/experiments/images/24FPS_F2_testsets/F2_24FPS_210719155352_OlE_HR_IPF2_2x_BQ_21C/Video-73"
-    # annotation_file = "/Users/anirudh/Documents/HiWi-22/MEDAKA/experiments/images/24FPS_F2_testsets/F2_24FPS_210719155352_OlE_HR_IPF2_2x_BQ_21C/Annotations/Video-73.json"
-    annotation_file = args.annotation_file
-    # out = "/Users/anirudh/Documents/HiWi-22/MEDAKA/medaka_bpm/tmp"
-    out = args.out_dir
-    roi_mask = get_roi(frames_dir = frames, annotation_file = annotation_file, outdir = out)
-    roi_positions = extract_roi_positions(roi_mask)
-    annotation = AnnotationJSON(annotation_file).read()
-    # draw(np.array(annotation), roi_mask, save_name = "annotation_roi_plot", out_dir = out)
-    # # print(f"roi_positions: {roi_positions}")
-    # # print(f"polygon: {annotation}")
-    # print(f"ROI accuracy: {compare(annotation, roi_positions, annotation_metrics.count_metric)}")
-    # print(f"ROI com difference: {compare(np.array(annotation), np.array(roi_positions), annotation_metrics.com_metric)}")
-    write_results(annotation, roi_positions, roi_mask, annotation_file, out)
-    
-if __name__ == "__main__":
-    main()
-        
-        
-        

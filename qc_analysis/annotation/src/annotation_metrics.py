@@ -1,11 +1,23 @@
-import numpy as np
+#!/usr/bin/env python
+# coding: utf-8
+############################################################################################################
+# Authors:
+#   Anirudh Bhashyam, Uni Heidelberg, anirudh.bhashyam@stud.uni-heidelberg.de   (Current Maintainer)
+# Date: 04/2022
+# License: Contact authors
+###
+# Algorithms for:
+#   comparing predicted heart regions and annotated heart regions.
+###
+############################################################################################################
 
 from typing import List, Tuple, Iterable
+
+import numpy as np
 
 import matplotlib.pyplot as plt
 
 from shapely import geometry
-
 
 def point_inside_polygon_q(polygon: List[List[float]], point: Iterable[float]) -> bool:
     """

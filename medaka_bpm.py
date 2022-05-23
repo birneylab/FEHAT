@@ -87,15 +87,15 @@ def analyse(args, channels, loops, wells=None):
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
                     well_result.update(qc_attributes)
-                    tree_dir = os.path.join(TREE_SAVE_DIR, "trained_tree.sav")
+                    tree_path = os.path.join(TREE_SAVE_DIR, "trained_tree.sav")
                     
                     # Get trained model, if present. 
-                    if not os.path.exists(tree_dir):
+                    if not os.path.exists(tree_path):
                         LOGGER.error("Trained model for qc analysis not found. Please train model first.")
                         # TODO: Exit the qc_analysis if the trained tree is not saved.
                     else:
                         LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
-                        trained_tree = joblib.load(tree_dir)
+                        trained_tree = joblib.load(tree_path)
                     
                         # Process data.
                         # Important to rearrange the qc params in the same order used during training.
