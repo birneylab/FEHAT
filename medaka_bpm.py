@@ -54,7 +54,7 @@ def analyse(args, channels, loops, wells=None):
         resulting_dict_from_crop = {}
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
             
-            well_nr = int(video_metadata['well_id'][-2:])
+            well_nr = int(video_metadata['well_id'][-3:])
             if wells is not None and well_nr not in wells:
                 continue
 
