@@ -8,7 +8,6 @@
 # Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
 ###
 ############################################################################################################
-from wsgiref.simple_server import software_version
 import glob2
 import logging
 import os

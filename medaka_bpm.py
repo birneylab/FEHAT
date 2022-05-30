@@ -11,6 +11,7 @@
 ############################################################################################################
 import gc
 
+import joblib
 import logging
 import os
 import subprocess
@@ -33,8 +34,7 @@ config = configparser.ConfigParser()
 config.read(config_path)
 
 # QC Analysis modules.
-sys.path.append(os.path.join(curr_dir, 'qc_analysis'))
-from decision_tree.src import analysis
+from qc_analysis.decision_tree.src import analysis as qc_analysis
 
 ################################## GLOBAL VARIABLES ###########################
 LOGGER = logging.getLogger(__name__)
@@ -102,10 +102,10 @@ def analyse(args, channels, loops, wells=None):
                         # Easiest way to do that is to convert the qc_attributes to a dataframe and reorder the columns.
                         # 'Stop frame' is not used during training.
                         data = {k: v for k, v in qc_attributes.items() if k not in ["Stop frame"]}
-                        data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[analysis.QC_FEATURES]
+                        data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[qc_analysis.QC_FEATURES]
                         
                         # Get the qc parameter results evaluated by the decision tree as a dictionary.
-                        qc_analysis_results = analysis.evaluate(trained_tree, data)
+                        qc_analysis_results = qc_analysis.evaluate(trained_tree, data)
                         well_result.update(qc_analysis_results)
                         
                 results = results.append(well_result, ignore_index=True)
