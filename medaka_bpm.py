@@ -23,6 +23,7 @@ import pandas as pd
 import src.io_operations as io_operations
 import src.setup as setup
 import src.segment_heart as segment_heart
+import src.cropping as cropping
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -126,12 +127,10 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
 
     # TODO: I/O is very slow, 1 video ~500mb ~20s locally. Buffer video loading for single machine?
     # Load video
-    video_metadata['timestamps'] = io_operations.extract_timestamps(
-        well_frame_paths)
+    video_metadata['timestamps'] = io_operations.extract_timestamps(well_frame_paths)
 
     # TODO: Move the cropping out of here. 
     # This does not overlap with analysis and should therefore be in it's own function
-
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
         LOGGER.info("Cropping images to analyze them, but NOT saving cropped images")
@@ -139,10 +138,10 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
         video8 = io_operations.load_video(well_frame_paths, imread_flag=1)
 
         # now calculate position based on first 5 frames 8 bits
-        embryo_coordinates = segment_heart.embryo_detection(video8[0:5])  # get the first 5 frames
+        embryo_coordinates = cropping.embryo_detection(video8[0:5])  # get the first 5 frames
 
         # crop and do not save, just return 8 bits cropped video
-        video, resulting_dict_from_crop = segment_heart.crop_2(
+        video, resulting_dict_from_crop = cropping.crop_2(
             video8, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
 
         video = [cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in video]
@@ -157,8 +156,8 @@ def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_cr
 
         # we need every image as 16 bits to crop based on video8 coordinates
         video16 = io_operations.load_video(well_frame_paths, imread_flag=-1)
-        embryo_coordinates = segment_heart.embryo_detection(video8)
-        video_cropped, resulting_dict_from_crop = segment_heart.crop_2(
+        embryo_coordinates = cropping.embryo_detection(video8)
+        video_cropped, resulting_dict_from_crop = cropping.crop_2(
             video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)  
 
         # save cropped images
@@ -227,14 +226,12 @@ def run_multifolder(args, dirs):
             proc.wait()
         print("\nFinished all subfolders")
 
-
 def main(args):
     ################################## STARTUP SETUP ##################################
     experiment_id, args = setup.process_arguments(args)
     setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
 
-    LOGGER.info("Program started with the following arguments: " +
-                str(sys.argv[1:]))
+    LOGGER.info("Program started with the following arguments: " + str(sys.argv[1:]))
 
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
@@ -258,10 +255,54 @@ def main(args):
 
     ################################## ANALYSIS ##################################
     if args.cluster:
+        LOGGER.info("Running on cluster")
+        dispatch_cluster(channels, loops)
+
+    elif args.only_crop == False:
+        LOGGER.info("Running on a single machine")
+
+        results = analyse(args, channels, loops)
+
+        ################################## OUTPUT ##################################
+        LOGGER.info("#######################")
+        LOGGER.info("Finished analysis")
+        nr_of_results = len(results)
+        if (nr_of_videos != nr_of_results):
+            LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
+                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+
+        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
+        
+    else:
+        LOGGER.info("Only cropping, script will not run BPM analyses")
+
+        resulting_dict_from_crop = {}
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+
+            LOGGER.info("Looking at video - "
+                        + "Channel: " + str(video_metadata['channel'])
+                        + " Loop: " + str(video_metadata['loop'])
+                        + " Well: " + str(video_metadata['well_id'])
+                        )
+
+            # we only need the first 5 frames to get position averages
+            video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
+            
+            # we need every image as 16 bits to crop based on video8 coordinates
+            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
+            embryo_coordinates = cropping.embryo_detection(video8)
+
+            cropped_video, resulting_dict_from_crop = cropping.crop_2(video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
+            # save cropped images
+            io_operations.save_cropped(cropped_video, args, well_frame_paths)
+            # save panel for crop checking
+            io_operations.save_panel(resulting_dict_from_crop, args)
+            # here finish the script as we only need is save the cropped images
+
+def dispatch_cluster(channels, loops):
         # Run cluster analysis
         main_directory = os.path.dirname(os.path.abspath(__file__))
 
-        LOGGER.info("Running on cluster")
         try:
             job_ids = []
             for channel in channels:
@@ -272,13 +313,16 @@ def main(args):
                     args.channels = channel
                     args.loops = loop
 
-                    arguments_variable = [
-                        ['--' + key, str(value)] for key, value in vars(args).items() if value and value is not True]
-                    arguments_bool = ['--' + key for key,
-                                      value in vars(args).items() if value is True]
+                    arguments_variable = [['--' + key, str(value)] for key, value in vars(args).items() 
+                                            if value and value is not True]
+
+                    arguments_bool = ['--' + key for key, value in vars(args).items() 
+                                            if value is True]
+
                     arguments = sum(arguments_variable, arguments_bool)
 
                     exe_path = os.path.join(main_directory, 'cluster.py')
+
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
                     python_cmd = ['python3', exe_path] + arguments + ['-x', '\$LSB_JOBINDEX']
 
@@ -343,67 +387,6 @@ def main(args):
 
         except Exception as e:
             LOGGER.exception("During dispatching of jobs onto the cluster")
-
-    elif args.only_crop == False:
-        LOGGER.info("Running on a single machine")
-
-        results = analyse(args, channels, loops)
-
-        ################################## OUTPUT ##################################
-        LOGGER.info("#######################")
-        LOGGER.info("Finished analysis")
-        nr_of_results = len(results)
-        if (nr_of_videos != nr_of_results):
-            LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
-                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
-
-        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
-        
-        # # Check if debug mode is on for qc parameters.
-        # if args.debug:
-        #     # Process data.
-        #     data, _ = analysis.process_data(results, threshold = 20)
-        #     # Get trained model, if present. 
-        #     if not os.path.exists(os.path.join(TREE_SAVE_PATH, "trained_tree.sav")):
-        #         LOGGER.error("Trained model for qc analysis not found. Please train model first.")
-        #     else:
-        #         LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
-        #         trained_tree = joblib.load(os.path.join(TREE_SAVE_PATH, "trained_tree.sav"))
-            
-        #     # Get the qc parameter results evaluated by the decision tree as a pd.DataFrame.
-        #     qc_analysis_results = analysis.evaluate(trained_tree, data)
-        #     # When is this written to output?
-        
-    else:
-        LOGGER.info("Only cropping, script will not run BPM analyses")
-
-        resulting_dict_from_crop = {}
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-
-            LOGGER.info("Looking at video - "
-                        + "Channel: " + str(video_metadata['channel'])
-                        + " Loop: " + str(video_metadata['loop'])
-                        + " Well: " + str(video_metadata['well_id'])
-                        )
-
-            # we only need the first 5 frames to get position averages
-            video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
-            
-            # we need every image as 16 bits to crop based on video8 coordinates
-            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
-            embryo_coordinates = segment_heart.embryo_detection(video8)
-
-            # print("embryo")
-            # print(embryo_coordinates)
-
-            cropped_video, resulting_dict_from_crop = segment_heart.crop_2(
-                video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
-            # save cropped images
-            io_operations.save_cropped(cropped_video, args, well_frame_paths)
-            # save panel for crop checking
-            io_operations.save_panel(resulting_dict_from_crop, args)
-            # here finish the script as we only need is save the cropped images
-
 
 # TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
 if __name__ == '__main__':

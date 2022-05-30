@@ -22,6 +22,13 @@ import logging
 import os
 import sys
 
+# Imports from base dir of repository
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(parent_dir)
+
+import src.setup as setup
+
+
 LOGGER = logging.getLogger(__name__)
 
 def draw_classification_rate(dataframe, axes):
@@ -211,7 +218,7 @@ def main(indir, outdir, path_ground_truths):
 
 # For cluster mode, runable as toplevel script
 if __name__ == '__main__':
-    import setup
+
     # Parse input arguments.
     parser = argparse.ArgumentParser(description='Combine ground truths with analysis output and calculate accuracy statistics')
     parser.add_argument('-o', '--outdir', action="store", dest='outdir', help='Where store the assessment report data',         default=False, required = True)
@@ -222,7 +229,3 @@ if __name__ == '__main__':
     setup.config_logger(args.outdir, ("assessment" + ".log"))
 
     main(args.indir, args.outdir, args.ground_truth_csv)
-
-# This is a workaround to ensure relative import works when using this file as both a toplevel script and module.
-else:
-    from . import setup

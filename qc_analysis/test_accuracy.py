@@ -18,11 +18,15 @@ import sys
 import time
 
 import glob2
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import qc_statistics
+
+# Imports from base dir of repository
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(parent_dir)
 
 import src.io_operations    as io_operations
 import src.setup            as setup
-import src.qc_statistics    as qc_statistics
 from medaka_bpm             import run_multifolder
 
 LOGGER = logging.getLogger(__name__)
@@ -40,7 +44,6 @@ LOGGER.info("Writing results into: " + args.outdir)
 
 # run algorithm from test datasets into assessment folder
 dir_list = io_operations.detect_experiment_directories(args.indir)
-
 
 # Semi-automated analysis for benchmarking is done with fixed fps.
 # To be as comparable as possible, the fps is set explicitly.
