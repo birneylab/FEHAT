@@ -14,8 +14,7 @@ import os
 import sys
 import argparse
 
-sys.path.append(os.path.abspath(os.path.join("annotation", "src")))
-import annotation_compare as annot
+import annotation.src.annotation_compare as annot
 
 def process_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()

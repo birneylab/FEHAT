@@ -72,7 +72,7 @@ for fps, dirs in dirs_by_fps.items():
     run_multifolder(args_copy, dirs)
 
 # copy algorithm file
-repo_path = os.path.dirname(os.path.abspath(__file__))
+repo_path = parent_dir
 algorithm_file = os.path.join(repo_path, "src/", "segment_heart.py")
 shutil.copy(algorithm_file, args.outdir)
 

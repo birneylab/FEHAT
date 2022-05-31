@@ -14,9 +14,7 @@ import os
 import sys
 import argparse
 
-sys.path.append(os.path.abspath(os.path.join("decision_tree", "src")))
-
-import analysis as analyse
+import decision_tree.src.analysis as analyse
 
 def process_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
