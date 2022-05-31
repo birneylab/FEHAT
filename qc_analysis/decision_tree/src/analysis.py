@@ -195,4 +195,4 @@ def write_results(raw_data: pd.DataFrame,
     joblib.dump(classifier, os.path.join(tree_dir, "decision_tree.sav"))
 
 def evaluate(trained_tree: sklearn.tree.DecisionTreeClassifier, data: pd.DataFrame):
-    return {"qc_param_decision": trained_tree.predict(data)}
+    return trained_tree.predict(data)

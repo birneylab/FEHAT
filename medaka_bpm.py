@@ -10,6 +10,7 @@
 ###
 ############################################################################################################
 import gc
+from locale import currency
 
 import joblib
 import logging
@@ -26,6 +27,9 @@ import src.setup as setup
 import src.segment_heart as segment_heart
 import src.cropping as cropping
 
+# QC Analysis modules.
+from qc_analysis.decision_tree.src import analysis as qc_analysis
+
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 import configparser
@@ -33,12 +37,8 @@ config_path = os.path.join(curr_dir, 'config.ini')
 config = configparser.ConfigParser()
 config.read(config_path)
 
-# QC Analysis modules.
-from qc_analysis.decision_tree.src import analysis as qc_analysis
-
 ################################## GLOBAL VARIABLES ###########################
 LOGGER = logging.getLogger(__name__)
-TREE_SAVE_DIR = os.path.abspath(os.path.join('qc_analysis', 'data'))
 
 ################################## ALGORITHM ##################################
 
@@ -87,7 +87,7 @@ def analyse_directory(args, channels, loops, wells=None):
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
                 if args.debug:
                     well_result.update(qc_attributes)
-                    tree_path = os.path.join(TREE_SAVE_DIR, "trained_tree.sav")
+                    tree_path = os.path.join(curr_dir, config['DEFAULT']['DECISION_TREE_PATH'])
                     
                     # Get trained model, if present. 
                     if not os.path.exists(tree_path):
@@ -106,7 +106,7 @@ def analyse_directory(args, channels, loops, wells=None):
                         
                         # Get the qc parameter results evaluated by the decision tree as a dictionary.
                         qc_analysis_results = qc_analysis.evaluate(trained_tree, data)
-                        well_result.update(qc_analysis_results)
+                        well_result["qc_param_decision"] = qc_analysis_results[0]
                         
                 results = results.append(well_result, ignore_index=True)
 
