@@ -43,7 +43,7 @@ TREE_SAVE_DIR = os.path.abspath(os.path.join('qc_analysis', 'data'))
 ################################## ALGORITHM ##################################
 
 # Analyse a range of wells
-def analyse(args, channels, loops, wells=None):
+def analyse_directory(args, channels, loops, wells=None):
     LOGGER.info("##### Analysis #####")
     LOGGER.info("The analysis for each well can take one to several minutes")
     LOGGER.info("Running....please wait...\n")
@@ -65,7 +65,7 @@ def analyse(args, channels, loops, wells=None):
             qc_attributes = {}
             
             try:
-                bpm, fps, qc_attributes = run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                bpm, fps, qc_attributes = analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                 LOGGER.info(f"Reported BPM: {str(bpm)}\n")
 
             except Exception as e:
@@ -118,7 +118,7 @@ def analyse(args, channels, loops, wells=None):
     return results
 
 # Run algorithm on a single well
-def run_algorithm(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
+def analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
     LOGGER.info("Analysing video - "
                 + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
@@ -204,7 +204,7 @@ def run_multifolder(args, dirs):
             subprocess.run(cmd, stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
     else:
-        max_subprocesses = int(config['DEFAULT']['MAXPARALLELDIRS'])
+        max_subprocesses = int(config['DEFAULT']['MAX_PARALLEL_DIRS'])
         print("Processing subfolders " + str(max_subprocesses) + " at a time.")
         i = max_subprocesses
         for cmd in cmd_list:
@@ -225,79 +225,6 @@ def run_multifolder(args, dirs):
         for proc in procs_list:
             proc.wait()
         print("\nFinished all subfolders")
-
-def main(args):
-    ################################## STARTUP SETUP ##################################
-    experiment_id, args = setup.process_arguments(args)
-    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
-
-    LOGGER.info("Program started with the following arguments: " + str(sys.argv[1:]))
-
-    ################################## MAIN PROGRAM START ##################################
-    LOGGER.info("##### MedakaBPM #####")
-
-    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
-    if args.channels:
-        channels = list(args.channels.intersection(channels))
-        channels.sort()
-    if args.loops:
-        loops = list(args.loops.intersection(loops))
-        loops.sort()
-
-    if not loops or not channels:
-        LOGGER.error("No loops or channels were found!")
-        sys.exit()
-
-    # Extract Video metadata
-    LOGGER.info("Deduced number of videos: " + str(nr_of_videos))
-    LOGGER.info("Deduced Channels: " + ', '.join(channels))
-    LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
-
-    ################################## ANALYSIS ##################################
-    if args.cluster:
-        LOGGER.info("Running on cluster")
-        dispatch_cluster(channels, loops)
-
-    elif args.only_crop == False:
-        LOGGER.info("Running on a single machine")
-
-        results = analyse(args, channels, loops)
-
-        ################################## OUTPUT ##################################
-        LOGGER.info("#######################")
-        LOGGER.info("Finished analysis")
-        nr_of_results = len(results)
-        if (nr_of_videos != nr_of_results):
-            LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
-                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
-
-        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
-        
-    else:
-        LOGGER.info("Only cropping, script will not run BPM analyses")
-
-        resulting_dict_from_crop = {}
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
-
-            LOGGER.info("Looking at video - "
-                        + "Channel: " + str(video_metadata['channel'])
-                        + " Loop: " + str(video_metadata['loop'])
-                        + " Well: " + str(video_metadata['well_id'])
-                        )
-
-            # we only need the first 5 frames to get position averages
-            video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
-            
-            # we need every image as 16 bits to crop based on video8 coordinates
-            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
-            embryo_coordinates = cropping.embryo_detection(video8)
-
-            cropped_video, resulting_dict_from_crop = cropping.crop_2(video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
-            # save cropped images
-            io_operations.save_cropped(cropped_video, args, well_frame_paths)
-            # save panel for crop checking
-            io_operations.save_panel(resulting_dict_from_crop, args)
-            # here finish the script as we only need is save the cropped images
 
 def dispatch_cluster(channels, loops):
         # Run cluster analysis
@@ -387,6 +314,79 @@ def dispatch_cluster(channels, loops):
 
         except Exception as e:
             LOGGER.exception("During dispatching of jobs onto the cluster")
+
+def main(args):
+    ################################## STARTUP SETUP ##################################
+    experiment_id, args = setup.process_arguments(args)
+    setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"), args.debug)
+
+    LOGGER.info("Program started with the following arguments: " + str(sys.argv[1:]))
+
+    ################################## MAIN PROGRAM START ##################################
+    LOGGER.info("##### MedakaBPM #####")
+
+    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
+    if args.channels:
+        channels = list(args.channels.intersection(channels))
+        channels.sort()
+    if args.loops:
+        loops = list(args.loops.intersection(loops))
+        loops.sort()
+
+    if not loops or not channels:
+        LOGGER.error("No loops or channels were found!")
+        sys.exit()
+
+    # Extract Video metadata
+    LOGGER.info("Deduced number of videos: " + str(nr_of_videos))
+    LOGGER.info("Deduced Channels: " + ', '.join(channels))
+    LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
+
+    ################################## ANALYSIS ##################################
+    if args.cluster:
+        LOGGER.info("Running on cluster")
+        dispatch_cluster(channels, loops)
+
+    elif args.only_crop == False:
+        LOGGER.info("Running on a single machine")
+
+        results = analyse_directory(args, channels, loops)
+
+        ################################## OUTPUT ##################################
+        LOGGER.info("#######################")
+        LOGGER.info("Finished analysis")
+        nr_of_results = len(results)
+        if (nr_of_videos != nr_of_results):
+            LOGGER.warning("Logic fault. Number of results (" + str(nr_of_results) +
+                           ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
+
+        io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
+        
+    else:
+        LOGGER.info("Only cropping, script will not run BPM analyses")
+
+        resulting_dict_from_crop = {}
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+
+            LOGGER.info("Looking at video - "
+                        + "Channel: " + str(video_metadata['channel'])
+                        + " Loop: " + str(video_metadata['loop'])
+                        + " Well: " + str(video_metadata['well_id'])
+                        )
+
+            # we only need the first 5 frames to get position averages
+            video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
+            
+            # we need every image as 16 bits to crop based on video8 coordinates
+            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
+            embryo_coordinates = cropping.embryo_detection(video8)
+
+            cropped_video, resulting_dict_from_crop = cropping.crop_2(video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
+            # save cropped images
+            io_operations.save_cropped(cropped_video, args, well_frame_paths)
+            # save panel for crop checking
+            io_operations.save_panel(resulting_dict_from_crop, args)
+            # here finish the script as we only need is save the cropped images
 
 # TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
 if __name__ == '__main__':

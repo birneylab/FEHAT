@@ -281,8 +281,8 @@ def frequency_qc_attributes(max_freq, freqs, amplitudes, max_indices, highest_fr
     return qc_data
 
 def bpm_from_heartregion(hroi_pixels, times, out_dir):
-    minBPM = config['ANALYSIS'].getint('MINBPM')
-    maxBPM = config['ANALYSIS'].getint('MAXBPM')
+    minBPM = config['ANALYSIS'].getint('MIN_BPM')
+    maxBPM = config['ANALYSIS'].getint('MAX_BPM')
 
     # Get Frequency Spectrum for each pixel.
     amplitudes, freqs = fourier_transform(hroi_pixels, times)
@@ -476,8 +476,8 @@ def HROI(video, frame2frame_changes, timestamps):
         Analyse frame2frame changes for heart region (also returns candidate pixels from intermediate steps)
     """
 
-    minBPM = config['ANALYSIS'].getint('MINBPM')
-    maxBPM = config['ANALYSIS'].getint('MAXBPM')
+    minBPM = config['ANALYSIS'].getint('MIN_BPM')
+    maxBPM = config['ANALYSIS'].getint('MAX_BPM')
 
     # Create mask of all pixels that exhibited change
     change_mask = np.zeros_like(video[0])

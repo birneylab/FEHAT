@@ -19,7 +19,7 @@ import src.setup as setup
 from numpy import isnan as isnan
 import pandas as pd
 
-from medaka_bpm import analyse
+from medaka_bpm import analyse_directory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
         # Run analysisp
         well_nr = int(well_id[-3:])
-        results = analyse(args, channels, loops, wells=[well_nr])
+        results = analyse_directory(args, channels, loops, wells=[well_nr])
 
         # write bpm in tmp directory
         out_string = ""
