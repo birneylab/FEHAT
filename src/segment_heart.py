@@ -139,7 +139,7 @@ def plot_frequencies_2d(amplitudes, bins, outdir):
     # 2D heatmap (adapted from Erasmus Cedernaes, stackoverflow)
     fig, ax = plt.subplots()
 
-    c = ax.pcolormesh(X, Y, amplitudes, cmap='hot', vmin=0, vmax=np.max(amplitudes))
+    c = ax.pcolormesh(X, Y, amplitudes, cmap='hot', shading='auto', vmin=0, vmax=np.max(amplitudes))
 
     # set the limits of the plot to the limits of the data
     ax.axis([X.min(), X.max(), Y.min(), Y.max()])
