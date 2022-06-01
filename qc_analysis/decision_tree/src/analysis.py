@@ -34,7 +34,7 @@ TREE_SAVE_DIR = "data"
 
 LABELS = "error"
 
-QC_FEATURES = ["HROI Change Intensity", "Harmonic Intensity", "Heart size", "Movement detection max", "SNR", "Signal intensity", "Signal regional prominence", "Intensity/Harmonic Intensity (top 5 %)", "SNR Top 5%", "Signal Intensity Top 5%"]
+QC_FEATURES = ["HROI Change Intensity", "Harmonic Intensity", "Heart size", "SNR", "Signal intensity", "Signal regional prominence", "Intensity/Harmonic Intensity (top 5 %)", "SNR Top 5%", "Signal Intensity Top 5%"]
 #################### -- GLOBALS -- ####################
 
 def plot_qc_params(data: pd.DataFrame,
@@ -77,11 +77,11 @@ def convert_error_cat(actual: Iterable, desired: Iterable, threshold: float) -> 
 
 def process_data(raw_data: pd.DataFrame, threshold: float) -> Tuple[pd.DataFrame, np.array]:
     # Columns to drop will also drop prexisting error columns.
-    columns_to_drop = ["DATASET", "Index", "WellID", "Well Name", "Loop", "Channel", "fps", "version", "Stop frame", "empty frames", LABELS]
+    columns_to_drop = ["DATASET", "Index", "WellID", "Well Name", "Loop", "Channel", "fps", "version", "Movement detection max", "Start frame(movement)", "Stop frame(movement)", "empty frames", LABELS]
     data = raw_data.drop(columns = columns_to_drop, errors = "ignore")
     
     actual = "Heartrate (BPM)"
-    desired = "ground truth"  
+    desired = "ground truth"
     data[LABELS] = convert_error_cat(data[actual], data[desired], threshold)
     
     data = data.drop(columns = [actual, desired])
