@@ -10,9 +10,7 @@
 ###
 ############################################################################################################
 import gc
-from locale import currency
 
-import joblib
 import logging
 import os
 import subprocess
@@ -41,14 +39,18 @@ config.read(config_path)
 LOGGER = logging.getLogger(__name__)
 
 ################################## ALGORITHM ##################################
-
+    
 # Analyse a range of wells
 def analyse_directory(args, channels, loops, wells=None):
     LOGGER.info("##### Analysis #####")
     LOGGER.info("The analysis for each well can take one to several minutes")
     LOGGER.info("Running....please wait...\n")
+
     # Results for all wells
     results = pd.DataFrame()
+
+    # Get trained model, if present. 
+    trained_tree = io_operations.load_decision_tree()
 
     try:
         resulting_dict_from_crop = {}
@@ -67,6 +69,22 @@ def analyse_directory(args, channels, loops, wells=None):
             try:
                 bpm, fps, qc_attributes = analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
                 LOGGER.info(f"Reported BPM: {str(bpm)}\n")
+                
+                # Process data.
+                # Important to rearrange the qc params in the same order used during training.
+                # Easiest way to do that is to convert the qc_attributes to a dataframe and reorder the columns.
+                # 'Stop frame' is not used during training.
+                if trained_tree:
+                    data = {k: v for k, v in qc_attributes.items() if k not in ["Stop frame"]}
+                    data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[qc_analysis.QC_FEATURES]
+                    
+                    # Get the qc parameter results evaluated by the decision tree as a dictionary.
+                    qc_analysis_results = qc_analysis.evaluate(trained_tree, data)
+                    well_result["qc_param_decision"] = qc_analysis_results[0]
+
+                # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
+                if args.debug:
+                    well_result.update(qc_attributes)
 
             except Exception as e:
                 LOGGER.exception("Couldn't acquier BPM for well " + str(video_metadata['well_id'])
@@ -82,31 +100,6 @@ def analyse_directory(args, channels, loops, wells=None):
                 well_result['bpm']      = bpm
                 well_result['fps']      = fps
                 well_result['version']  = config['DEFAULT']['VERSION']
-                
-                # Add well result.
-                # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
-                if args.debug:
-                    well_result.update(qc_attributes)
-                    tree_path = os.path.join(curr_dir, config['DEFAULT']['DECISION_TREE_PATH'])
-                    
-                    # Get trained model, if present. 
-                    if not os.path.exists(tree_path):
-                        LOGGER.error("Trained model for qc analysis not found. Please train model first.")
-                        # TODO: Exit the qc_analysis if the trained tree is not saved.
-                    else:
-                        LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
-                        trained_tree = joblib.load(tree_path)
-                    
-                        # Process data.
-                        # Important to rearrange the qc params in the same order used during training.
-                        # Easiest way to do that is to convert the qc_attributes to a dataframe and reorder the columns.
-                        # 'Stop frame' is not used during training.
-                        data = {k: v for k, v in qc_attributes.items() if k not in ["Stop frame"]}
-                        data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[qc_analysis.QC_FEATURES]
-                        
-                        # Get the qc parameter results evaluated by the decision tree as a dictionary.
-                        qc_analysis_results = qc_analysis.evaluate(trained_tree, data)
-                        well_result["qc_param_decision"] = qc_analysis_results[0]
                         
                 results = results.append(well_result, ignore_index=True)
 
