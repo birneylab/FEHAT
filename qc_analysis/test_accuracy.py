@@ -93,7 +93,7 @@ if args.cluster:
         else:
             bsub_cmd += ['-o', '/dev/null']
 
-    exe_path = os.path.join(repo_path, 'src/', 'qc_statistics.py')
+    exe_path = os.path.join(repo_path, 'qc_analysis/', 'qc_statistics.py')
     python_cmd = ['python3', exe_path, '-i', indir, '-o', outdir, '-g', path_ground_truths]
 
     bsub_cmd += ['source', 'activate', 'medaka_env', '&&']
