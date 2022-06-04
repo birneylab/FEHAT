@@ -74,7 +74,7 @@ def analyse_directory(args, channels, loops, wells=None):
                 # Important to rearrange the qc params in the same order used during training.
                 # Easiest way to do that is to convert the qc_attributes to a dataframe and reorder the columns.
                 # 'Stop frame' is not used during training.
-                if trained_tree:
+                if trained_tree and bpm:
                     data = {k: v for k, v in qc_attributes.items() if k not in ["Stop frame"]}
                     data = pd.DataFrame.from_dict(qc_attributes, orient = "index").transpose()[qc_analysis.QC_FEATURES]
                     
