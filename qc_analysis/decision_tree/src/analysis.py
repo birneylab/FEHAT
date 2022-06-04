@@ -30,11 +30,11 @@ TEST_SET_SIZE = 0.3
 
 PLOT_SAVE_DIR = os.path.relpath("figs")
 DATA_SAVE_DIR = os.path.relpath("thresholds")
-TREE_SAVE_DIR = "data"
+TREE_SAVE_DIR = os.path.relpath("data")
 
 LABELS = "error"
 
-QC_FEATURES = ["HROI Change Intensity", "Harmonic Intensity", "Heart size", "SNR", "Signal intensity", "Signal regional prominence", "Intensity/Harmonic Intensity (top 5 %)", "SNR Top 5%", "Signal Intensity Top 5%"]
+QC_FEATURES = ["HROI Change Intensity", "Harmonic Intensity", "SNR", "Signal intensity", "Signal regional prominence", "Intensity/Harmonic Intensity (top 5 %)", "SNR Top 5%", "Signal Intensity Top 5%"]
 #################### -- GLOBALS -- ####################
 
 def plot_qc_params(data: pd.DataFrame,
@@ -77,8 +77,7 @@ def convert_error_cat(actual: Iterable, desired: Iterable, threshold: float) -> 
 
 def process_data(raw_data: pd.DataFrame, threshold: float) -> Tuple[pd.DataFrame, np.array]:
     # Columns to drop will also drop prexisting error columns.
-    columns_to_drop = ["DATASET", "Index", "WellID", "Well Name", "Loop", "Channel", "fps", "version", "Movement detection max", "Start frame(movement)", "Stop frame(movement)", "empty frames", LABELS]
-    data = raw_data.drop(columns = columns_to_drop, errors = "ignore")
+    data = raw_data[(QC_FEATURES + ["Heartrate (BPM)", "ground truth"])]
     
     actual = "Heartrate (BPM)"
     desired = "ground truth"
@@ -171,7 +170,7 @@ def write_results(raw_data: pd.DataFrame,
     
     plots_dir = os.path.join(results_dir, PLOT_SAVE_DIR)
     data_dir = os.path.join(results_dir, DATA_SAVE_DIR)
-    tree_dir = os.path.join(os.path.abspath("".join([__file__, 3 * "/.."])), TREE_SAVE_DIR)
+    tree_dir = os.path.join(results_dir, TREE_SAVE_DIR)
     # print(tree_dir)
     
     if not os.path.exists(data_dir):
