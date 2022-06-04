@@ -96,7 +96,6 @@ if args.cluster:
     exe_path = os.path.join(repo_path, 'qc_analysis/', 'qc_statistics.py')
     python_cmd = ['python3', exe_path, '-i', indir, '-o', outdir, '-g', path_ground_truths]
 
-    bsub_cmd += ['source', 'activate', 'medaka_env', '&&']
     bsub_cmd += python_cmd
 
     LOGGER.debug(bsub_cmd)
