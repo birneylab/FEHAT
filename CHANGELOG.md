@@ -57,3 +57,17 @@ Region detection as well as frequency and detection was reworked
 - Accuracy improved by ~2% to 97-99%. Classification rate improved by about 10-20%.
 - Videos are now read and processed as greyscale images. This and simplified algorithm structure reduced memory consumption drastically.
 - Version info is now present in the name of the output directory and the resultsfile.
+
+Date: June 08, 2022 (v1.4)
+Region detection now also employs FFT to detect regions exhibiting periodic changes
+
+- Accuracy is now at 95-98%. Classification rate averages at 92%.
+- Highly increased performance by vectorizing FFT.
+- Added a config.ini.
+- Added framework for decision tree to filter wrong values based on qc-parameters. Needs refinement and rigorous testing.
+- Added framework for assessment of region detection method. Can compare results against a region ground truth now.
+- Enhanced movement detection to pick the longest window without movement.
+- Added option to interpolate timestamps instead of generating artificial ones.
+- Errors occuring during execution are now noted in the resulting csv.
+- Improved expressiveness of output graphs, videos and pictures
+- debug flags are always printed
