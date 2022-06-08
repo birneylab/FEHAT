@@ -94,7 +94,7 @@ def process_data(raw_data: pd.DataFrame, threshold: float) -> Tuple[pd.DataFrame
 def decision_tree(data: pd.DataFrame) -> Tuple[sklearn.tree.DecisionTreeClassifier, dict]:
     Y = data.pop(LABELS)
     X_train, X_test, Y_train, Y_test = train_test_split(data, Y, test_size = TEST_SET_SIZE, random_state = 104729)
-    classifier = DecisionTreeClassifier(random_state = 224737, min_samples_split = 2)
+    classifier = DecisionTreeClassifier(random_state = 224737, min_samples_split = 5, max_depth = 4, min_samples_leaf = 5)
     classifier.fit(X_train, Y_train)
     classifier_results = {"Train Size" : X_train.shape[0], 
                           "Test Size": X_test.shape[0], 
