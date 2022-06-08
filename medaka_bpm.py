@@ -83,7 +83,7 @@ def analyse_directory(args, channels, loops, wells=None):
                     well_result["qc_param_decision"] = qc_analysis_results[0]
 
                 # qc_attributes may help in dev to improve the algorithm, but are unwanted in production.
-                if args.debug:
+                if True: #args.debug:
                     well_result.update(qc_attributes)
 
             except Exception as e:
