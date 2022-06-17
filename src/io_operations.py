@@ -8,11 +8,11 @@
 # Handles all I/O interactions. Reading images, creating result csv, analysisng input directory structures
 ###
 ############################################################################################################
-from wsgiref.simple_server import software_version
 import glob2
 import logging
 import os
 import pathlib
+import joblib
 
 import cv2
 import numpy as np
@@ -88,6 +88,18 @@ def detect_experiment_directories(indir):
         subdirs.add(indir)
 
     return subdirs
+
+def load_decision_tree():
+    tree_path = os.path.join(parent_dir, config['DEFAULT']['DECISION_TREE_PATH'])
+                
+    if not os.path.exists(tree_path):
+        LOGGER.Warning("Trained model for qc analysis not found. Please train model first.")
+        return None
+        # TODO: Exit the qc_analysis if the trained tree is not saved.
+    else:
+        LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
+        trained_tree = joblib.load(tree_path)
+        return trained_tree
 
 # imread_flag:
 #   -1  - as is (greyscale 16bit)
@@ -173,7 +185,7 @@ def write_to_spreadsheet(outdir, results, experiment_id):
 
     version = 2
     while os.path.isfile(outpath):
-        outpath = os.path.join(outdir, f"results_v{version}.csv")
+        outpath = os.path.join(outdir, f"results_{experiment_id}_{software_version}_{version}.csv")
         version += 1
 
     #header = ['Index', 'WellID', 'Well Name', 'Loop', 'Channel', 'Heartrate (BPM)', 'fps', 'version']

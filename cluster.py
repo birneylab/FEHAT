@@ -19,58 +19,59 @@ import src.setup as setup
 from numpy import isnan as isnan
 import pandas as pd
 
-from medaka_bpm import analyse
+from medaka_bpm import analyse_directory
 
 LOGGER = logging.getLogger(__name__)
 
 ################################## STARTUP SETUP ##################################
-try:
-    # Parse input arguments
-    args = setup.parse_arguments()
+if __name__ == '__main__':
+    try:
+        # Parse input arguments
+        args = setup.parse_arguments()
 
-    experiment_id, args = setup.process_arguments(args, is_cluster_node=True)
+        experiment_id, args = setup.process_arguments(args, is_cluster_node=True)
 
-    # Should receive only a single channel/loop/wellID, it's a cluster node with 1 job.
-    # Needed as list though
-    channels = list(args.channels)
-    loops = list(args.loops)
+        # Should receive only a single channel/loop/wellID, it's a cluster node with 1 job.
+        # Needed as list though
+        channels = list(args.channels)
+        loops = list(args.loops)
 
-    tmp_dir = os.path.join(args.outdir, 'tmp')
+        tmp_dir = os.path.join(args.outdir, 'tmp')
 
-    if args.lsf_index[0] == '\\':
-        # this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here.
-        args.lsf_index = args.lsf_index[1:]
+        if args.lsf_index[0] == '\\':
+            # this is for fixing a weird behaviour: the lsf_index comes with a "\" as the first character. The "\" is usefull to pass the parameter, but need to be deleted here.
+            args.lsf_index = args.lsf_index[1:]
 
-    well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
-    analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
+        well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
+        analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
 
-    # Check if video for well id exists before producting data.
-    if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
-        sys.exit()
+        # Check if video for well id exists before producting data.
+        if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
+            sys.exit()
 
-    setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
+        setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
 
-    # Run analysisp
-    well_nr = int(well_id[-2:])
-    results = analyse(args, channels, loops, wells=[well_nr])
+        # Run analysisp
+        well_nr = int(well_id[-3:])
+        results = analyse_directory(args, channels, loops, wells=[well_nr])
 
-    # write bpm in tmp directory
-    out_string = ""
-    for col in results.columns:
-        value = results[col][0]
+        # write bpm in tmp directory
+        out_string = ""
+        for col in results.columns:
+            value = results[col][0]
 
-        if not pd.isnull(value):
-            value = str(value)
-        else:
-            value = 'NA'
+            if not pd.isnull(value):
+                value = str(value)
+            else:
+                value = 'NA'
 
-        out_string += f"{col}:{value};"
+            out_string += f"{col}:{value};"
 
-    out_string = out_string[:-1]
+        out_string = out_string[:-1]
 
-    out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
-    with open(out_file, 'w') as output:
-        output.write(out_string)
+        out_file = os.path.join(tmp_dir, (analysis_id + '.txt'))
+        with open(out_file, 'w') as output:
+            output.write(out_string)
 
-except Exception as e:
-    LOGGER.exception("In analysis dispatched to a cluster node")
+    except Exception as e:
+        LOGGER.exception("In analysis dispatched to a cluster node")

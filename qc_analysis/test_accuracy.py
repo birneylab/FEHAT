@@ -19,9 +19,14 @@ import time
 
 import glob2
 
+import qc_statistics
+
+# Imports from base dir of repository
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(parent_dir)
+
 import src.io_operations    as io_operations
 import src.setup            as setup
-import src.qc_statistics    as qc_statistics
 from medaka_bpm             import run_multifolder
 
 LOGGER = logging.getLogger(__name__)
@@ -39,7 +44,6 @@ LOGGER.info("Writing results into: " + args.outdir)
 
 # run algorithm from test datasets into assessment folder
 dir_list = io_operations.detect_experiment_directories(args.indir)
-
 
 # Semi-automated analysis for benchmarking is done with fixed fps.
 # To be as comparable as possible, the fps is set explicitly.
@@ -68,7 +72,7 @@ for fps, dirs in dirs_by_fps.items():
     run_multifolder(args_copy, dirs)
 
 # copy algorithm file
-repo_path = os.path.dirname(os.path.abspath(__file__))
+repo_path = parent_dir
 algorithm_file = os.path.join(repo_path, "src/", "segment_heart.py")
 shutil.copy(algorithm_file, args.outdir)
 
@@ -89,10 +93,9 @@ if args.cluster:
         else:
             bsub_cmd += ['-o', '/dev/null']
 
-    exe_path = os.path.join(repo_path, 'src/', 'qc_statistics.py')
+    exe_path = os.path.join(repo_path, 'qc_analysis/', 'qc_statistics.py')
     python_cmd = ['python3', exe_path, '-i', indir, '-o', outdir, '-g', path_ground_truths]
 
-    bsub_cmd += ['source', 'activate', 'medaka_env', '&&']
     bsub_cmd += python_cmd
 
     LOGGER.debug(bsub_cmd)
