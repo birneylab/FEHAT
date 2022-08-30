@@ -245,6 +245,8 @@ def main(args):
 
     ################################## ANALYSIS ##################################
     if args.cluster:
+        if args.wells == None:
+            args.wells = [1-96]
         # Run cluster analysis
         main_directory = os.path.dirname(os.path.abspath(__file__))
 
