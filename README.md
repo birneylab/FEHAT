@@ -43,7 +43,7 @@ For example, ``-l LO001.LO002.LO003``
 -c, --channels
 
 Restriction on the channels to read. They need to be dot-separated and with no spaces, like the loops argument. 
-For example, ``-l CO6.CO4.CO1``
+For example, ``-c CO6.CO4.CO1``
 
 -w, --wells
 
