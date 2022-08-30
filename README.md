@@ -56,29 +56,10 @@ If insering overlapping values, it will throw an error.
 If not provided, framerate is automatically calculated from image timestamps.
 Alternatively, set the framerate through this argument.
 
--a, --average
-
-After a first screening of the data, you can optionally rerun the script and insert the expected average of your data. 
-It is useful as the script sometimes detects more than one fourier peak in a few cases, especially if the two heart chambers were segmented.
-The script can't identify which peak is correct without any reference, and sometimes the wrong peak is chosen, resulting in outliers.
-Then, if you know the distribution of your data, you can use this argument to decrease the outliers in your results, as it helps the algorithm identify the correct peak.
-
--p, --threads
-
-Number of threads to use. Only takes effect for slowmode
-The slow mode runs automatically when the standard script fails.
-It takes action to try to detect the heart rate, but it can take a long time if running in just one or a few processors PC.
-Ideally, the number of processes to open should be the same number of virtual processors in your PC. 
-When you run the script, it can count and inform you whether you are using the ideal number of processors or not.
-
 -m, --maxjobs
 
 For cluster mode, defines the maximum number of jobs to run at the same time. 
 It is helpful on busy servers if you don't want to bother others users. E.g.: ``-m 30``
-
---slowmode
-
-Run analysis for all wells with the slowmode.
 
 --email
 
@@ -102,16 +83,6 @@ The script will crop images (apart of running bpm script), and save them. This i
 
 Only useful when cropping images. It is the size of the expected radius of the embryo, and this value will be used for cropping based on embryo's center of mass. The default value is 300 px. If you don´t know how much to use, we suggest test first using the option only_crop for some wells, then stop the script and check the offset.
 
-
-# What happens after a job is submitted?
-
-Two sets of report files (JPEG and CSV files) will be created, one inside each loop folder for that specific loop and another (inside the main folder) for all loops merged in the same file.
-
-  
-# Final report
-The final report will be generated automatically. 
-
-![final_graph](https://user-images.githubusercontent.com/6963691/119535040-97b4a400-bd55-11eb-95f0-947dacc85e73.jpg)
 
 # Notes on usage in a farm of servers (cluster, LSF):
 
@@ -138,12 +109,6 @@ One job with a different Id will be created, and it will be Pending status until
 
 To see the jobs running and job status, use ``bjobs``
 
-After some time, if any sub-job is stuck running in a busy host, you can reschedule the job to another host using the command ``breschedule Job_Id``.
-
-It will reschedule all running jobs with the specified ID to another available host (remember that all jobs have the same ID, but different loops have different jobs_ID). 
-It only works for stuck running jobs. 
-If the subjob is pending status, you should wait, as any host with the requirements is not available yet, and the job is on the queue. 
-
 For any reason, you can kill all sub-jobs at the same time with the command ``bkill Job_Id``.
 
 For example: ``bkill -J heartRate``
@@ -159,7 +124,7 @@ Reading a whole 96-well plate can take a few of hours.
 Loading the images into memory is a major bottleneck at the moment.
 
 # Benchmarking algorithm performance:
-To assess accuracy and classification rate of the algorithm, test_accuracy.py can be used.
+To assess accuracy and classification rate of the a specific version of the algorithm, test_accuracy.py can be used.
 
 It takes the same arguments as an input. The input directory should contain several folders with data to test upon. 
 In addition, next to the folders, a ground truth file called "ground_truths.csv" hast to be placed.
