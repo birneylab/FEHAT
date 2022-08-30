@@ -8,17 +8,17 @@ The software can be run on a single machine or on an lsf cluster. When running i
 
 # Usage examples in a single server:
 
-## example 1 (running everything in the input directoy):
+## example 1 (running everything in the input directoy in single machine):
 
 	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/
 
 ## example 2 (running everything in the input directory on the cluster):
 
-	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ --cluster --email -m 96
+	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ --cluster 
 
-## example 3 (running a range of wells in specified loops, channels and well):
+## example 3 (running specified loops, channels and well):
 
-	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ -l LO002.LO001 -c CO3.CO6 -w [1,2,10-21] 
+	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ -l LO002.LO001 -c CO3.CO6 -w WE00001.WE00002
 
 ## Explanation of the arguments:
 
@@ -47,9 +47,8 @@ For example, ``-c CO6.CO4.CO1``
 
 -w, --wells
 
-Restriction on the wells to read. It can be sequence o numbers, comma-separated, and/or a range of numbers hyphen-separated.
-Do not use spaces. E.g.: ``[1,3,4,10-20]``. 
-If insering overlapping values, it will throw an error.
+Restriction on the wells to read. They need to be dot-separated and with no spaces, like the loops argument. Works only in single machine mode (does not work on cluster).
+For example, ``-w WE00001.WE00002``
 
 -f, --fps
 
@@ -84,6 +83,11 @@ The script will crop images (apart of running bpm script), and save them. This i
 Only useful when cropping images. It is the size of the expected radius of the embryo, and this value will be used for cropping based on embryo's center of mass. The default value is 300 px. If you don´t know how much to use, we suggest test first using the option only_crop for some wells, then stop the script and check the offset.
 
 
+# What happens after a job is submitted?
+
+Two sets of report files (JPEG and CSV files) will be created, one inside each loop folder for that specific loop and another (inside the main folder) for all loops merged in the same file.
+
+  
 # Notes on usage in a farm of servers (cluster, LSF):
 
 In this mode, it is possible to run all the weels and loops simultaneously, depending on the cluster availability. 
@@ -109,6 +113,12 @@ One job with a different Id will be created, and it will be Pending status until
 
 To see the jobs running and job status, use ``bjobs``
 
+After some time, if any sub-job is stuck running in a busy host, you can reschedule the job to another host using the command ``breschedule Job_Id``.
+
+It will reschedule all running jobs with the specified ID to another available host (remember that all jobs have the same ID, but different loops have different jobs_ID). 
+It only works for stuck running jobs. 
+If the subjob is pending status, you should wait, as any host with the requirements is not available yet, and the job is on the queue. 
+
 For any reason, you can kill all sub-jobs at the same time with the command ``bkill Job_Id``.
 
 For example: ``bkill -J heartRate``
@@ -124,7 +134,7 @@ Reading a whole 96-well plate can take a few of hours.
 Loading the images into memory is a major bottleneck at the moment.
 
 # Benchmarking algorithm performance:
-To assess accuracy and classification rate of the a specific version of the algorithm, test_accuracy.py can be used.
+To assess accuracy and classification rate of a specific version of the algorithm, test_accuracy.py can be used.
 
 It takes the same arguments as an input. The input directory should contain several folders with data to test upon. 
 In addition, next to the folders, a ground truth file called "ground_truths.csv" hast to be placed.
