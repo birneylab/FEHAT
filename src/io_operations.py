@@ -137,7 +137,12 @@ def extract_data(indir):
     loops = {'LO' + tiff.split('-LO')[-1][0:3] for tiff in tiffs}
     loops = sorted(list(loops))
 
-    return nr_of_videos, channels, loops
+    # Extract different wells
+    # using a set, gives only unique values
+    wells = {'WE' + tiff.split('-WE')[-1][0:5] for tiff in tiffs}
+    wells = sorted(list(wells))
+    
+    return nr_of_videos, channels, loops, wells
 
 # From Tim-script
 def frameIdx(path):

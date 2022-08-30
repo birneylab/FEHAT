@@ -48,7 +48,7 @@ def parse_arguments():
     parser.add_argument('-o', '--outdir',    action="store",         dest='outdir',
                         help='Output directory. Default=indir',                 default=False,      required=False)
     parser.add_argument('-w', '--wells',     action="store",         dest='wells',
-                        help='Restrict analysis to wells',                      default='[1-96]',   required=False)
+                        help='Restrict analysis to wells',                      default=None,       required=False)
     parser.add_argument('-l', '--loops',     action="store",         dest='loops',
                         help='Restrict analysis to loop',                       default=None,       required=False)
     parser.add_argument('-c', '--channels',  action="store",         dest='channels',
@@ -92,7 +92,7 @@ def parse_arguments():
 
 # Processing, done after the logger in the main file has been set up
 def process_arguments(args, is_cluster_node=False):
-    will_crop = (args.only_crop or args.crop_and_save or args.crop)
+    #will_crop = (args.only_crop or args.crop_and_save or args.crop)
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
     if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
@@ -130,7 +130,11 @@ def process_arguments(args, is_cluster_node=False):
 
     if args.channels:
         args.channels = {c for c in args.channels.split('.')}
+        
     if args.loops:
         args.loops = {l for l in args.loops.split('.')}
+    
+    if args.wells:
+        args.wells = {w for w in args.wells.split('.')}
 
     return experiment_id, args

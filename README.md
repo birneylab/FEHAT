@@ -43,13 +43,12 @@ For example, ``-l LO001.LO002.LO003``
 -c, --channels
 
 Restriction on the channels to read. They need to be dot-separated and with no spaces, like the loops argument. 
-For example, ``-l CO6.CO4.CO1``
+For example, ``-c CO6.CO4.CO1``
 
 -w, --wells
 
-Restriction on the wells to read. It can be sequence o numbers, comma-separated, and/or a range of numbers hyphen-separated.
-Do not use spaces. E.g.: ``[1,3,4,10-20]``. 
-If insering overlapping values, it will throw an error.
+Restriction on the wells to read. They need to be dot-separated and with no spaces, like the loops argument. 
+For example, ``-w WE00001.WE00002``
 
 -f, --fps
 
@@ -108,11 +107,6 @@ Only useful when cropping images. It is the size of the expected radius of the e
 Two sets of report files (JPEG and CSV files) will be created, one inside each loop folder for that specific loop and another (inside the main folder) for all loops merged in the same file.
 
   
-# Final report
-The final report will be generated automatically. 
-
-![final_graph](https://user-images.githubusercontent.com/6963691/119535040-97b4a400-bd55-11eb-95f0-947dacc85e73.jpg)
-
 # Notes on usage in a farm of servers (cluster, LSF):
 
 In this mode, it is possible to run all the weels and loops simultaneously, depending on the cluster availability. 
@@ -159,7 +153,7 @@ Reading a whole 96-well plate can take a few of hours.
 Loading the images into memory is a major bottleneck at the moment.
 
 # Benchmarking algorithm performance:
-To assess accuracy and classification rate of the algorithm, test_accuracy.py can be used.
+To assess accuracy and classification rate of a specific version of the algorithm, test_accuracy.py can be used.
 
 It takes the same arguments as an input. The input directory should contain several folders with data to test upon. 
 In addition, next to the folders, a ground truth file called "ground_truths.csv" hast to be placed.

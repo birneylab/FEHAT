@@ -44,7 +44,7 @@ def analyse(args, channels, loops, wells=None):
 
     try:
         resulting_dict_from_crop = {}
-        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
+        for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops, wells):
             
             well_nr = int(video_metadata['well_id'][-2:])
             if wells is not None and well_nr not in wells:
@@ -213,22 +213,35 @@ def main(args):
     ################################## MAIN PROGRAM START ##################################
     LOGGER.info("##### MedakaBPM #####")
 
-    nr_of_videos, channels, loops = io_operations.extract_data(args.indir)
+    nr_of_videos, channels, loops, wells = io_operations.extract_data(args.indir)
     if args.channels:
         channels = list(args.channels.intersection(channels))
         channels.sort()
     if args.loops:
         loops = list(args.loops.intersection(loops))
         loops.sort()
+        
+    if args.wells:
+        wells = list(args.wells.intersection(wells))
+        wells.sort()
 
-    if not loops or not channels:
-        LOGGER.error("No loops or channels were found!")
+    if not loops:
+        LOGGER.error("No loops were found!")
         sys.exit()
-
+        
+    if not channels:
+        LOGGER.error("No channels were found!")
+        sys.exit()
+            
+    if not wells:
+        LOGGER.error("No wells were found!")
+        sys.exit()
+    
     # Extract Video metadata
     LOGGER.info("Deduced number of videos: " + str(nr_of_videos))
     LOGGER.info("Deduced Channels: " + ', '.join(channels))
-    LOGGER.info("Deduced number of Loops: " + str(len(loops)) + "\n")
+    LOGGER.info("Deduced number of Loops: " + str(len(loops)))
+    LOGGER.info("Deduced number of Wells: " + str(len(wells)) + "\n")
 
     ################################## ANALYSIS ##################################
     if args.cluster:
@@ -321,7 +334,7 @@ def main(args):
     elif args.only_crop == False:
         LOGGER.info("Running on a single machine")
 
-        results = analyse(args, channels, loops)
+        results = analyse(args, channels, loops, wells)
 
         ################################## OUTPUT ##################################
         LOGGER.info("#######################")
