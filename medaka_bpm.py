@@ -341,7 +341,7 @@ def main(args):
         LOGGER.info("Finished analysis")
         nr_of_results = len(results)
         if (nr_of_videos != nr_of_results):
-            LOGGER.info("Logic alert. Number of results (" + str(nr_of_results) +
+            LOGGER.info("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
 
         io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)

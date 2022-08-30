@@ -43,11 +43,15 @@ try:
 
     well_id = 'WE00' + '{:03d}'.format(int(args.lsf_index))
     analysis_id = channels[0] + '-' + loops[0] + '-' + well_id
+    
+    # Check if script is supposed to read all videos or some were selected
+    if args.wells is not None and well_id not in args.wells:
+        sys.exit()
 
     # Check if video for well id exists before producting data.
     if not io_operations.well_video_exists(args.indir, channels[0], loops[0], well_id):
         sys.exit()
-
+    
     setup.config_logger(tmp_dir, (analysis_id + ".log"), args.debug)
 
     # Run analysisp

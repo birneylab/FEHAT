@@ -8,17 +8,17 @@ The software can be run on a single machine or on an lsf cluster. When running i
 
 # Usage examples in a single server:
 
-## example 1 (running everything in the input directoy):
+## example 1 (running everything in the input directoy in single machine):
 
 	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/
 
 ## example 2 (running everything in the input directory on the cluster):
 
-	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ --cluster --email -m 96
+	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ --cluster 
 
-## example 3 (running a range of wells in specified loops, channels and well):
+## example 3 (running specified loops, channels and well):
 
-	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ -l LO002.LO001 -c CO3.CO6 -w [1,2,10-21] 
+	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ -l LO002.LO001 -c CO3.CO6 -w WE00001.WE00002
 
 ## Explanation of the arguments:
 
@@ -47,7 +47,7 @@ For example, ``-c CO6.CO4.CO1``
 
 -w, --wells
 
-Restriction on the wells to read. They need to be dot-separated and with no spaces, like the loops argument. 
+Restriction on the wells to read. They need to be dot-separated and with no spaces, like the loops argument. Works only in single machine mode (does not work on cluster).
 For example, ``-w WE00001.WE00002``
 
 -f, --fps
@@ -55,29 +55,10 @@ For example, ``-w WE00001.WE00002``
 If not provided, framerate is automatically calculated from image timestamps.
 Alternatively, set the framerate through this argument.
 
--a, --average
-
-After a first screening of the data, you can optionally rerun the script and insert the expected average of your data. 
-It is useful as the script sometimes detects more than one fourier peak in a few cases, especially if the two heart chambers were segmented.
-The script can't identify which peak is correct without any reference, and sometimes the wrong peak is chosen, resulting in outliers.
-Then, if you know the distribution of your data, you can use this argument to decrease the outliers in your results, as it helps the algorithm identify the correct peak.
-
--p, --threads
-
-Number of threads to use. Only takes effect for slowmode
-The slow mode runs automatically when the standard script fails.
-It takes action to try to detect the heart rate, but it can take a long time if running in just one or a few processors PC.
-Ideally, the number of processes to open should be the same number of virtual processors in your PC. 
-When you run the script, it can count and inform you whether you are using the ideal number of processors or not.
-
 -m, --maxjobs
 
 For cluster mode, defines the maximum number of jobs to run at the same time. 
 It is helpful on busy servers if you don't want to bother others users. E.g.: ``-m 30``
-
---slowmode
-
-Run analysis for all wells with the slowmode.
 
 --email
 
