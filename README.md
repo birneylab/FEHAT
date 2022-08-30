@@ -6,8 +6,6 @@ Use the yml file to create a conda env with all necessary pkgs.
 
 The software can be run on a single machine or on an lsf cluster. When running in cluster mode, busb is used to create jobs and distribute data.
 
-# Usage examples in a single server:
-
 ## example 1 (running everything in the input directoy in single machine):
 
 	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/
@@ -16,7 +14,7 @@ The software can be run on a single machine or on an lsf cluster. When running i
 
 	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ --cluster 
 
-## example 3 (running specified loops, channels and well):
+## example 3 (running specified loops, channels and well): Specify the well only works as single server
 
 	(medaka_bpm)$ python medaka_bpm.py -i /absolute_path/200706142144_OlE_HR_IPF0_21C/ -o /any_absolute_path/reports/ -l LO002.LO001 -c CO3.CO6 -w WE00001.WE00002
 
