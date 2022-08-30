@@ -46,7 +46,7 @@ def analyse(args, channels, loops, wells=None):
         resulting_dict_from_crop = {}
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops, wells):
             
-            well_nr = ['well_id']
+            well_nr = video_metadata['well_id']
             if wells is not None and well_nr not in wells:
                 continue
 
@@ -345,7 +345,9 @@ def main(args):
         if (nr_of_videos != nr_of_results):
             LOGGER.info("Logic fault. Number of results (" + str(nr_of_results) +
                            ") doesn't match number of videos detected (" + str(nr_of_videos) + ")")
-
+        if nr_of_results == 0:
+            sys.exit()
+            
         io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
 
     else:
