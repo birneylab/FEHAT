@@ -128,15 +128,19 @@ def analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_cro
     # Crop and analyse
     if args.crop == True and args.crop_and_save == False:
         LOGGER.info("Cropping images to analyze them, but NOT saving cropped images")
+
+        embryo_size = int(config["CROPPING"]["EMBRYO_SIZE"])
+        border_ratio = float(config["CROPPING"]["border_ratio"])
+
         # We only need 8 bits video as no images will be saved
         video8 = io_operations.load_video(well_frame_paths, imread_flag=1)
 
         # now calculate position based on first 5 frames 8 bits
-        embryo_coordinates = cropping.embryo_detection(video8[0:5])  # get the first 5 frames
-
+        embryo_coordinates = cropping.embryo_detection(video8[0:5], embryo_size, border_ratio)  # get the first 5 frames
+        
         # crop and do not save, just return 8 bits cropped video
         video, resulting_dict_from_crop = cropping.crop_2(
-            video8, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
+            video8, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata)
 
         video = [cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in video]
 
@@ -145,14 +149,17 @@ def analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_cro
 
     elif args.crop_and_save == True:
         LOGGER.info("Cropping images and saving them...")
+        embryo_size = int(config["CROPPING"]["EMBRYO_SIZE"])
+        border_ratio = float(config["CROPPING"]["BORDER_RATIO"])
+
         # first 5 frames to calculate embryo coordinates
         video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
 
         # we need every image as 16 bits to crop based on video8 coordinates
         video16 = io_operations.load_video(well_frame_paths, imread_flag=-1)
-        embryo_coordinates = cropping.embryo_detection(video8)
+        embryo_coordinates = cropping.embryo_detection(video8, embryo_size, border_ratio)
         video_cropped, resulting_dict_from_crop = cropping.crop_2(
-            video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)  
+            video16, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata)  
 
         # save cropped images
         io_operations.save_cropped(video_cropped, args, well_frame_paths)
@@ -368,14 +375,17 @@ def main(args):
                         + " Well: " + str(video_metadata['well_id'])
                         )
 
+            embryo_size = int(config["CROPPING"]["EMBRYO_SIZE"])
+            border_ratio = float(config["CROPPING"]["BORDER_RATIO"])
+
             # we only need the first 5 frames to get position averages
             video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
+            embryo_coordinates = cropping.embryo_detection(video8, embryo_size, border_ratio)
             
             # we need every image as 16 bits to crop based on video8 coordinates
-            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1, max_frames=5)
-            embryo_coordinates = cropping.embryo_detection(video8)
+            video16 = io_operations.load_video(well_frame_paths, imread_flag=-1)
 
-            cropped_video, resulting_dict_from_crop = cropping.crop_2(video16, args, embryo_coordinates, resulting_dict_from_crop, video_metadata)
+            cropped_video, resulting_dict_from_crop = cropping.crop_2(video16, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata)
             # save cropped images
             io_operations.save_cropped(cropped_video, args, well_frame_paths)
             # save panel for crop checking

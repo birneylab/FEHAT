@@ -16,56 +16,93 @@ from statistics import mean
 
 import numpy as np
 import cv2
+from scipy.ndimage import gaussian_filter
 
 # import skimage
-from skimage.filters import threshold_yen
+from skimage.filters import threshold_triangle
 
 LOGGER = logging.getLogger(__name__)
 
+def crop_border(img, ratio=0.15):
+    height, width = img.shape[:2]
+
+    # Calculate the cropping margins
+    top = int(height * ratio)
+    left = int(width * ratio)
+    bottom = height - top
+    right = width - left
+
+    cropped_image = img[top:bottom, left:right]
+    return cropped_image
+
+def get_most_central_blobs(binary_img):
+
+    inverted_img = cv2.bitwise_not(binary_img) - 254
+
+    # Find all connected components
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(inverted_img)
+
+    # Define the center of the image
+    image_center = np.array(inverted_img.shape) // 2
+
+    # Initialize variables to keep track of the most central blob
+    min_distance = float('inf')
+    central_blob_label = None
+
+    # Loop through all connected components (ignore label 0 which is the background)
+    for i in range(1, num_labels):
+        if stats[i][0] == 0 or stats[i][1] == 0:
+            # Quick pre-filter. Do not consider blobs, that touch the top or left side border of the image.
+            continue
+
+        # Compute the distance of the blob's centroid to the image center
+        distance = np.linalg.norm(centroids[i] - image_center)
+        
+        # Update the most central blob if this one is closer
+        if distance < min_distance:
+            min_distance = distance
+            central_blob_label = i
+
+    # Create an output image with only the most central blob
+    output_image = np.zeros_like(binary_img)
+    if central_blob_label is not None:
+        output_image[labels != central_blob_label] = 1
+    return output_image, centroids[central_blob_label]
+
 ### Cropping Feature
 # final_dist_graph(bpm_fourier)    ## debug
-def embryo_detection(video):
+def embryo_detection(video, embryo_size=450, border_ratio=0.15):
     center_of_embryo_list = []
     for img, i in zip(video, range(5)):
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # initial crop (due to imageJ macro file)
+        img_gray = crop_border(img_gray, border_ratio)
 
         # norming
-        max_of_img = np.max(img)
+        cv2.normalize(img_gray, img_gray, 0, 255, cv2.NORM_MINMAX)
 
-        img = np.uint8(img / max_of_img * 255)
+        img_blurred = gaussian_filter(img_gray, sigma=200)
+        img_cleaned = (img_gray.astype(np.float32) / (img_blurred + 1e-6)) * 8000  # Avoid division by zero
+        
+        img_cleaned_blurred = gaussian_filter(img_cleaned, sigma=10)
+        cv2.normalize(img_cleaned_blurred, img_cleaned_blurred, 0, 255, cv2.NORM_MINMAX)
 
-        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        threshold = threshold_triangle(img_cleaned_blurred)
+        thresh_img = (img_cleaned_blurred > threshold).astype(np.uint8)
 
-        blurred_img = cv2.GaussianBlur(gray_img, (501, 501), 200.0)
+        # fill in any holes
+        thresh_img = cv2.morphologyEx(thresh_img, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
 
-        # Divide: i2 = (i1/i2) x k1 + k2] k1=8000 k2=0" NOTE: 120 worked here, not sure why imagej script uses 8000. Might be because of following z-projection, which is applied to the image stack.
-        img = np.divide(gray_img, blurred_img) * 120
+        # Filter out any remaining blobs on the border of the image.
+        # Use blob center as result
+        filtered_img, centroid = get_most_central_blobs(thresh_img)
 
-        # thresholding
-        thresh_img = cv2.GaussianBlur(img, (25, 25), 10)
-        thresh = threshold_yen(thresh_img)
-        thresh_img = thresh_img > thresh
-        thresh_img_final = thresh_img*255
+        x_center, y_center = centroid
 
-        # clear 10% of the image' borders as some dark areas may exists
-        thresh_img_final[0:int(thresh_img_final.shape[1]*0.1),
-                         0:thresh_img_final.shape[0]] = 255
-        thresh_img_final[int(thresh_img_final.shape[1]*0.9):thresh_img_final.shape[1], 0:thresh_img_final.shape[0]] = 255
-
-        thresh_img_final[0:thresh_img_final.shape[1],
-                         0:int(thresh_img_final.shape[0]*0.1)] = 255
-        thresh_img_final[0:thresh_img_final.shape[1], int(
-            thresh_img_final.shape[0]*0.9):thresh_img_final.shape[0]] = 255
-
-        # Transform 0/255 image to 0/1 image
-        thresh_img_final[thresh_img_final > 0] = 1
-
-        # invert image
-        image_inverted = np.logical_not(thresh_img_final).astype(int)
-
-        # calculate the center of mass of inverted image
-        count = (image_inverted == 1).sum()
-        x_center, y_center = np.argwhere(
-            image_inverted == 1).sum(0)/count
+        height, width = img_gray.shape[:2]
+        x_center += width * border_ratio
+        y_center += height * border_ratio
 
         center_of_embryo_list.append((x_center, y_center))
 
@@ -74,11 +111,10 @@ def embryo_detection(video):
 
     return XY_average
 
-def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_metadata):
+def crop_2(video, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata):
     # avoid window size lower than 50 or higher than the minimum dimension of images
     # window size is the size of the window that the script will crop starting from centre os mass,
     # and can be passed as argument in command line (100 is default)
-    embryo_size = args.embryo_size
     # get the minimum size of the first frame
     maximum_dimension = min(video[0].shape[0:1])
     if embryo_size < 50:
@@ -93,8 +129,10 @@ def crop_2(video, args, embryo_coordinates, resulting_dict_from_crop, video_meta
 
     for index, img in enumerate(video):
         try:
-            cut_image = img[int(embryo_coordinates[0])-embryo_size: int(embryo_coordinates[0]) +
-                            embryo_size, int(embryo_coordinates[1])-embryo_size: int(embryo_coordinates[1])+embryo_size]
+            x_lim = [int(embryo_coordinates[0])-embryo_size, int(embryo_coordinates[0])+embryo_size]
+            y_lim = [int(embryo_coordinates[1])-embryo_size, int(embryo_coordinates[1])+embryo_size]
+            cut_image = img[y_lim[0]: y_lim[1], x_lim[0]: x_lim[1]]
+           
         except Exception as e:
             cut_image = img
             LOGGER.info(

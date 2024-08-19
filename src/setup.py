@@ -57,8 +57,6 @@ def parse_arguments():
                         help='Frames per second',                               default=0.0,        required=False,   type=float)
 
     # Cropping Arguments
-    parser.add_argument('-s', '--embryo_size', action="store",         dest='embryo_size',
-                        help='radius of embryo in pixels',                  default=300,        required=False, type=int)
     parser.add_argument('--crop',           action="store_true",    dest='crop',
                         help='Should crop images and analyse',                                  required=False)
     parser.add_argument('--crop_and_save',  action="store_true",    dest='crop_and_save',

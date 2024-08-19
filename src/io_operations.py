@@ -250,8 +250,6 @@ def save_panel(resulting_dict_from_crop, args):
                     plt.xticks([], [])
                     plt.yticks([], [])
                     plt.tight_layout()
-                    # will not plot image but save figure anyway
-                    plt.imshow(np.zeros((0, 0)))
                     outfile_path = os.path.join(
                         args.outdir, item[0] + "_panel.png")
                     counter += 1
@@ -281,8 +279,6 @@ def save_panel(resulting_dict_from_crop, args):
                 plt.xticks([], [])
                 plt.yticks([], [])
                 plt.tight_layout()
-                # will not plot image but save figure anyway
-                plt.imshow(np.zeros((0, 0)))
                 outfile_path = os.path.join(
                     args.outdir, item[0] + "_panel.png")
                 counter += 1
