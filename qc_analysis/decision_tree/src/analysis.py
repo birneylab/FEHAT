@@ -11,7 +11,7 @@
 ###
 ############################################################################################################
 import os
-import joblib
+import pickle
 from typing import Iterable, Union, Tuple, List
 
 import numpy as np
@@ -77,11 +77,11 @@ def convert_error_cat(actual: Iterable, desired: Iterable, threshold: float) -> 
 
 def process_data(raw_data: pd.DataFrame, threshold: float) -> Tuple[pd.DataFrame, np.array]:
     # Columns to drop will also drop prexisting error columns.
-    data = raw_data[(QC_FEATURES + ["Heartrate (BPM)", "ground truth"])]
+    data = raw_data[(QC_FEATURES + ["Heartrate (BPM)", "ground truth"])].copy()
     
     actual = "Heartrate (BPM)"
     desired = "ground truth"
-    data[LABELS] = convert_error_cat(data[actual], data[desired], threshold)
+    data.loc[:, LABELS] = convert_error_cat(data[actual], data[desired], threshold)
     
     data = data.drop(columns = [actual, desired])
     
@@ -191,7 +191,9 @@ def write_results(raw_data: pd.DataFrame,
     pd.DataFrame(classifier_results).to_csv(os.path.join(data_dir, "classifier_results.csv"))
     
     # Write the tree to a sav file. This file needs to be accessed by medaka_bpm.
-    joblib.dump(classifier, os.path.join(tree_dir, "decision_tree.sav"))
+    classifier_filepath = os.path.join(tree_dir, "decision_tree.pkl")
+    with open(classifier_filepath, 'wb') as f:
+        pickle.dump(classifier, f)
 
 def evaluate(trained_tree: sklearn.tree.DecisionTreeClassifier, data: pd.DataFrame):
     return trained_tree.predict(data)

@@ -100,8 +100,9 @@ def analyse_directory(args, channels, loops, wells=None):
                 well_result['bpm']      = bpm
                 well_result['fps']      = fps
                 well_result['version']  = config['DEFAULT']['VERSION']
-                        
-                results = results.append(well_result, ignore_index=True)
+                
+                well_result = pd.DataFrame(well_result, index=[0])
+                results = pd.concat([results, well_result], ignore_index=True)
 
                 gc.collect()
 

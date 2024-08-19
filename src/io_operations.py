@@ -12,7 +12,7 @@ import glob2
 import logging
 import os
 import pathlib
-import joblib
+import pickle
 
 import cv2
 import numpy as np
@@ -91,15 +91,17 @@ def detect_experiment_directories(indir):
 
 def load_decision_tree():
     tree_path = os.path.join(parent_dir, config['DEFAULT']['DECISION_TREE_PATH'])
+    trained_tree = None
                 
     if not os.path.exists(tree_path):
         LOGGER.Warning("Trained model for qc analysis not found. Please train model first.")
-        return None
         # TODO: Exit the qc_analysis if the trained tree is not saved.
     else:
         LOGGER.info("Trained model for qc analysis found. Proceeding with qc analysis.")
-        trained_tree = joblib.load(tree_path)
-        return trained_tree
+        with open(tree_path, 'rb') as f:
+            trained_tree = pickle.load(f)
+
+    return trained_tree
 
 # imread_flag:
 #   -1  - as is (greyscale 16bit)

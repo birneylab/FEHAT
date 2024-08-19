@@ -187,7 +187,7 @@ def analyse_frequencies(amplitudes, freqs):
     highest_freqs = [freqs[idx] for idx in max_indices]
     
     # Take frequency that is most often the max
-    max_freq = scipy.stats.mode(highest_freqs).mode[0]
+    max_freq = scipy.stats.mode(highest_freqs).mode
 
     #pick highest frequency
     bpm = round(max_freq * 60)
