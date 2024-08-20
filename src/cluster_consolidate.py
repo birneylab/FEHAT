@@ -4,7 +4,7 @@
 #   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
 #   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
 # Date: 08/2021
-# License: Contact authors
+# License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 # For cluster mode.
 # Each node creates it's own results file in outdir/tmp.

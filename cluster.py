@@ -3,7 +3,7 @@
 #   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
 #   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
 # Date: 08/2021
-# License: Contact authors
+# License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 # Algorithm routine that is exectued when the cluster option is specified. 
 # Deviates slightly from the main file to accomodate the structure of bsub lsf dispatching.

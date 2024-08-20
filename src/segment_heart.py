@@ -7,7 +7,7 @@
 #   Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk                            (Current Maintainer)
 #   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de   (Current Maintainer)
 # Date: 08/2021
-# License: Contact authors
+# License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 # Algorithms for:
 #   cropping medaka embryo videos from the Acquifier Imaging machine

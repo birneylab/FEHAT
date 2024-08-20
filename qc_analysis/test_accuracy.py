@@ -2,7 +2,7 @@
 # Authors: 
 #   Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
 # Date: 08/2021
-# License: Contact authors
+# License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 # Performs an accuracy test on the current version of the algorithm.
 # Run with the same arguments as you would run the normal routine.

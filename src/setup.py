@@ -2,7 +2,7 @@
 ### Author: Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
 ###         Marcio Ferreira,    EMBL-EBI,       marcio@ebi.ac.uk
 ### Date: 08/2021
-### License: Contact author
+### License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 ### Configures logger and handles command line arguments.
 ### 

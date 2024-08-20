@@ -4,7 +4,7 @@
 # Authors:
 #   Anirudh Bhashyam, Uni Heidelberg, anirudh.bhashyam@stud.uni-heidelberg.de   (Current Maintainer)
 # Date: 04/2022
-# License: Contact authors
+# License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 # Algorithms for:
 #   Decision tree evaluation by medaka_bpm.

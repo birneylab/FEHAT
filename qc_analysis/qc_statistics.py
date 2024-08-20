@@ -2,7 +2,7 @@
 ############################################################################################################
 ### Author: Sebastian Stricker, Uni Heidelberg, sebastian.stricker@stud.uni-heidelberg.de
 ### Date: 08/2021
-### License: Contact author
+### License: GNU GENERAL PUBLIC LICENSE Version 3
 ###
 ### Creates analysis data to assess algorithm accuracy, performance and outputs further measurements for refinement.
 ### 
