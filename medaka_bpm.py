@@ -252,7 +252,7 @@ def dispatch_cluster(channels, loops):
                     exe_path = os.path.join(main_directory, 'cluster.py')
 
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
-                    python_cmd = ['python3', exe_path] + arguments + ['-x', '\$LSB_JOBINDEX']
+                    python_cmd = ['python3', str(exe_path)] + arguments + ['-x', r'\$LSB_JOBINDEX']
 
                     jobname = 'heartRate' + args.wells + str(args.maxjobs)
 
