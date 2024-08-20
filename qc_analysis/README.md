@@ -1,17 +1,17 @@
-```Still in development.```
+Various functionalities for quality control. Experimental stage. 
+At testing time, the decision tree was overfitting on training data and had poor performance when transferred to new unseen data.
 
 # Decision Tree
 Analyse the results of quality control parameters of the heart region detection from medaka. Used to train the decision tree.
 
 ## Usage
-Training the decision tree saves the resulting model in 
-`qc_analysis/data` and can be done as follows.
+Training the decision tree can be done as follows:
 
 ```
-$ git clone --recursive https://github.com/birneylab/medaka_bpm
-$ cd medaka_bpm/qc_analysis
-$ python medaka_qc_analysis.py -i <input_results_file_csv> -o <output_results_directory>
+$ python train_decision_tree.py -i <input_results_file_csv> -o <output_results_directory>
 ```
+
+Example files can be found in ```decision_tree/data/```. The serialized pre-trained tree used ```train_set_F0.csv```.
 
 The results file needs to have the following QC parameters as features:
 
@@ -26,4 +26,5 @@ The results file needs to have the following QC parameters as features:
 	9. SNR Top 5%
 	10. Signal Intensity Top 5%
 
-The output results directory (specified) will contain training metrics and qc parameter plots. The **decision tree evaluation** happens **automatically** via `medaka_bpm.analyse` if the tree has been trained as above.
+The output results directory (specified) will contain training metrics and qc parameter plots. The **decision tree evaluation** happens **automatically** via `medaka_bpm.analyse` if the tree has been trained as above. 
+Currently, it adds a flag in the results-file, specifying if the tree assumes the result to be an error (flag=1) or not an error (flag=0).

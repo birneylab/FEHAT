@@ -165,3 +165,17 @@ Matching is performed over all fields.
 	| Experiment-folder 2   | 1        		| WE0001		| LO001			| CO6			| NA				|
 	| Experiment-folder 2   | 2        		| WE0002		| LO001			| CO6			| 110				|
 	| ...					| ...			| ...			| ...			|  ...			| ...				|
+
+# Contributing to this repository
+We welcome any reports on bug, usage experience and contributions in the form of bug patches and new features!
+Feel free to open a thread in the issue tracker or contact any of the maintainers (Marcio Ferreira, Tomas Fitzgerald, Sebastian Stricker) directly.
+
+## Did you find a bug?
+Please open a thread in the github issue tracker.
+
+## Did you write a patch that fixes a bug? Or a new feature? Or made any general improvements?
+Great! We really appreciate any contributions.
+- Please open a new GitHub pull request on the ```dev``` branch. 
+- Make sure to commit about a single clearly defined issue/feature
+- Please write a meaningful commit messages.
+- Feel free to add yourself as a Contributor in the header of the file that you modified. If you add a new file, make sure to give it a header that is consistent with the rest of the repository.
