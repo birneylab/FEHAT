@@ -113,7 +113,6 @@ def plot_frequencies_2d(amplitudes, bins, outdir):
         Plots amplitudes for each frequency on x axis, pixels on y axis.
         2D plot of frequencies detected in the region.
     """
-
     # Ensures parameters are numpy arrays - meshgrid function works
     amplitudes = np.array(amplitudes)
     bins = np.array(bins)

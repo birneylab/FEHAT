@@ -112,19 +112,6 @@ def embryo_detection(video, embryo_size=450, border_ratio=0.15):
     return XY_average
 
 def crop_2(video, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata):
-    # avoid window size lower than 50 or higher than the minimum dimension of images
-    # window size is the size of the window that the script will crop starting from centre os mass,
-    # and can be passed as argument in command line (100 is default)
-    # get the minimum size of the first frame
-    maximum_dimension = min(video[0].shape[0:1])
-    if embryo_size < 50:
-        embryo_size = 50
-    if embryo_size > int((maximum_dimension/3)):
-        embryo_size = int((maximum_dimension/3))
-        LOGGER.info(
-            "-s paramter has excedded the allowed by image dimensions. Used " + str(embryo_size) + " instead.")
-    #embryo_size += 100
-
     video_cropped = []
 
     for index, img in enumerate(video):
@@ -135,8 +122,7 @@ def crop_2(video, embryo_size, embryo_coordinates, resulting_dict_from_crop, vid
            
         except Exception as e:
             cut_image = img
-            LOGGER.info(
-                "Problems cropping image (image dimensions in -s paramter)")
+            LOGGER.info("Problems cropping image (EMBRYO_SIZE badly set in config?)")
 
         video_cropped.append(cut_image)
 

@@ -392,7 +392,6 @@ def main(args):
             io_operations.save_panel(resulting_dict_from_crop, args)
             # here finish the script as we only need is save the cropped images
 
-# TODO: Workaround to import run_algorithm into cluster.py. Maybe solve more elegantly
 if __name__ == '__main__':
     # Parse input arguments.
     args = setup.parse_arguments()
