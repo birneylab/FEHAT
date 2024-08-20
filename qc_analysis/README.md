@@ -27,14 +27,3 @@ The results file needs to have the following QC parameters as features:
 	10. Signal Intensity Top 5%
 
 The output results directory (specified) will contain training metrics and qc parameter plots. The **decision tree evaluation** happens **automatically** via `medaka_bpm.analyse` if the tree has been trained as above.
-
-# Annotation
-Compares annotated videos with the region detection from medaka.
-
-## Usage
-
-```
-$ git clone --recursive https://github.com/birneylab/medaka_bpm
-$ cd medaka_bpm/qc_analysis
-$ python annotation_run.py -i <input_video (frames)> -af <annotation_file (JSON)> -o <output_results_directory>
-```
