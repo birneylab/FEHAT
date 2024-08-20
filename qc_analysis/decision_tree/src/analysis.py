@@ -12,18 +12,17 @@
 ############################################################################################################
 from pathlib import Path
 import pickle
-from typing import Iterable, Union, Tuple, List
+from typing import Iterable, Union, Tuple
 
 import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 import sklearn
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 
 #################### -- GLOBALS -- ####################
 TEST_SET_SIZE = 0.3
@@ -50,14 +49,13 @@ def plot_qc_params(data: pd.DataFrame,
                                             bottom = 0.0001, top = 0.9)) 
 
     for i, feature in enumerate(QC_FEATURES):
-        ax[i].set(ylabel = feature) 
-        sns.scatterplot(
-            data = data,
-            x = LABELS, 
-            y = feature,
-            s = 4,
-            ax = ax[i]
+        ax[i].scatter(
+            data[LABELS],
+            data[feature],
+            s=4,
         )
+        ax[i].set_ylabel(feature)
+        ax[i].set_xlabel("error (BPM)")
         if limits:
             if feature in limits:
                 # Plot the threshold line for each feature.
