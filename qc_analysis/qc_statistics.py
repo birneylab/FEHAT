@@ -8,7 +8,6 @@
 ### 
 ############################################################################################################
 # %% setup
-import glob2
 import pandas as pd
 
 from matplotlib import pyplot as plt
@@ -19,11 +18,11 @@ import scipy.stats
 
 import argparse
 import logging
-import os
+from pathlib import Path
 import sys
 
 # Imports from base dir of repository
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+parent_dir = Path(__file__).resolve().parents[1]
 sys.path.append(parent_dir)
 
 import src.setup as setup
@@ -142,15 +141,15 @@ def create_plots(dataframe, outdir, filename):
     # Line Plot - Accuracy within Error 
     ax2, ax3 = draw_accuracy(dataframe, ax2, ax3)
 
-    plt.savefig(os.path.join(outdir, filename + '.svg'))
+    plt.savefig(outdir / f"{filename}.svg")
     #plt.show()
     fig.clf()
 
 def main(indir, outdir, path_ground_truths):
     LOGGER.info("######## Quality Control: Statistical Analysis ########")
     try:
-        outdir = os.path.join(outdir, "statistics/")
-        os.makedirs(outdir, exist_ok=True)
+        outdir = outdir / "statistics/"
+        outdir.mkdir(parents=True, exist_ok=True)
 
         # Load in ground truth cvs into dataframe
         ground_truths = pd.read_csv(path_ground_truths, keep_default_na=False)
@@ -159,39 +158,42 @@ def main(indir, outdir, path_ground_truths):
         algorithm_results = []
         groups = set()
 
-        subdirs = {os.path.join(p, '') for p in glob2.glob(indir + '/*/')}
+        subdirs = indir.glob('*/')
 
         for path in subdirs:
-            if os.path.isdir(path):
-                results_files = [f for f in glob2.glob(path + '/*.csv')]
-                if not results_files:
-                    continue
-                elif len(results_files) > 1:
-                    print("Error: More than one results file found")
-                    sys.exit()
+            if not path.is_dir():
+                continue 
+            
+            results_files = list(path.glob('*.csv'))
+            if not results_files:
+                continue
+            elif len(results_files) > 1:
+                print("Error: More than one results file found")
+                sys.exit()
 
-                dataset_name = os.path.basename(os.path.normpath(path))
-                
-                idx = dataset_name.index('_medaka_bpm_out')
-                dataset_name = dataset_name[:idx]
+            dataset_name = path.name
+            
+            # Cut away suffix
+            idx = dataset_name.index('_medaka_bpm_out')
+            dataset_name = dataset_name[:idx]
 
-                LOGGER.info("Found results file for dataset " + dataset_name)
+            LOGGER.info("Found results file for dataset " + dataset_name)
 
-                # add DATASET column for merge later
-                results = pd.read_csv(results_files[0], keep_default_na=False)
-                results.insert(0,'DATASET','')
-                results["DATASET"] = dataset_name
+            # add DATASET column for merge later
+            results = pd.read_csv(results_files[0], keep_default_na=False)
+            results.insert(0,'DATASET','')
+            results["DATASET"] = dataset_name
 
-                algorithm_results.append(results)
+            algorithm_results.append(results)
 
-                # Extract group names of valid datasets
-                # Performance over datasets can vary greatly.
-                # Analysing over different groups gives info on best and worst case performance.
+            # Extract group names of valid datasets
+            # Performance over datasets can vary greatly.
+            # Analysing over different groups gives info on best and worst case performance.
 
-                # DATASETGROUP1_13FPS_170814... ---> DATASETGROUP1
-                # DATASETGROUP2_13FPS_170814... ---> DATASETGROUP2
-                dataset_group = dataset_name.split('_')[0]
-                groups.add(dataset_group)
+            # DATASETGROUP1_13FPS_170814... ---> DATASETGROUP1
+            # DATASETGROUP2_13FPS_170814... ---> DATASETGROUP2
+            dataset_group = dataset_name.split('_')[0]
+            groups.add(dataset_group)
 
         # list of dataframes to single unified dataframe
         algorithm_results = pd.concat(algorithm_results, axis=0, ignore_index=True, sort=False)
@@ -200,7 +202,7 @@ def main(indir, outdir, path_ground_truths):
         output_df = pd.merge(algorithm_results, ground_truths, how="inner")
 
         # Output combined results
-        output_df.to_csv(os.path.join(outdir, "merged.csv"), index=False)
+        output_df.to_csv(outdir / "merged.csv", index=False)
 
         # Make statistics over each group seperately
         LOGGER.info("")
@@ -208,7 +210,7 @@ def main(indir, outdir, path_ground_truths):
             group_df = output_df[output_df['DATASET'].str.startswith(group_name + '_')]
 
             LOGGER.info(f"### {group_name} ###")
-            group_df.to_csv(os.path.join(outdir, f"{group_name}.csv"), index=False)
+            group_df.to_csv(outdir / f"{group_name}.csv", index=False)
             create_plots(group_df, outdir, group_name)
 
         LOGGER.info("Done.")
@@ -226,6 +228,10 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--ground_truth', action="store", dest='ground_truth_csv', help="Path to the ground truth csv",   default=False, required=True)
 
     args = parser.parse_args()
+    args.indir = Path(args.indir)
+    args.outdir = Path(args.outdir)
+    args.ground_truth_csv = Path(args.ground_truth_csv)
+    
     setup.config_logger(args.outdir, ("assessment" + ".log"))
 
     main(args.indir, args.outdir, args.ground_truth_csv)

@@ -11,18 +11,16 @@
 ############################################################################################################
 import copy
 import logging
-import os
+from pathlib import Path
 import subprocess
 import shutil
 import sys
 import time
 
-import glob2
-
 import qc_statistics
 
 # Imports from base dir of repository
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+parent_dir = Path(__file__).resolve().parents[1]
 sys.path.append(parent_dir)
 
 import src.io_operations    as io_operations
@@ -35,8 +33,8 @@ args = setup.parse_arguments()
 # create assessment folder & timestamped output of statistics
 timestamp = time.strftime("%Y-%m-%d_%H.%M.%S")
 
-args.outdir = os.path.join(args.outdir, "accuracy_test_" + timestamp, '')
-os.makedirs(args.outdir, exist_ok=True)
+args.outdir = args.outdir / f"accuracy_test_{timestamp}"
+args.outdir.mkdir(parents=True, exist_ok=True)
 
 # Setup Logger
 setup.config_logger(args.outdir, ("assessment" + ".log"), args.debug)
@@ -53,8 +51,7 @@ for directory in dir_list:
 
     #DATASET1_13FPS_171...
     #DATASET2_24FPS_171...
-    name = os.path.basename(os.path.normpath(directory))
-    fps = [part for part in name.split('_') if 'FPS' in part]
+    fps = [part for part in directory.name.split('_') if 'FPS' in part]
 
     assert len(fps) == 1, "FPS keyword not found. Add two digit fps info with '_##FPS_' in the directory name."
     fps = fps[0][0:2] # extract integer fps
@@ -73,12 +70,14 @@ for fps, dirs in dirs_by_fps.items():
 
 # copy algorithm file
 repo_path = parent_dir
-algorithm_file = os.path.join(repo_path, "src/", "segment_heart.py")
+algorithm_file = repo_path / "src/" / "segment_heart.py"
 shutil.copy(algorithm_file, args.outdir)
 
 # run statistics on algorithm
-print(args.indir)
-path_ground_truths = [f for f in glob2.glob(args.indir + '*.csv')][0]
+print(str(args.indir))
+path_ground_truths = str(next(args.indir.glob('*.csv')))
+
+# Note: This is correctly twice args.outdir, as it is passed to qc_statistics.py. Results of it are stored in subfolder of input folder. See file for details. 
 indir = args.outdir
 outdir = args.outdir
 
@@ -88,13 +87,13 @@ if args.cluster:
 
     if args.email == False:
         if args.debug:
-            outfile = os.path.join(outdir, 'bsub_HR_Acc_Test.log')
-            bsub_cmd += ['-o', outfile]
+            outfile = outdir / 'bsub_HR_Acc_Test.log'
+            bsub_cmd += ['-o', str(outfile)]
         else:
             bsub_cmd += ['-o', '/dev/null']
 
-    exe_path = os.path.join(repo_path, 'qc_analysis/', 'qc_statistics.py')
-    python_cmd = ['python3', exe_path, '-i', indir, '-o', outdir, '-g', path_ground_truths]
+    exe_path = repo_path / 'qc_analysis/' / 'qc_statistics.py'
+    python_cmd = ['python3', str(exe_path), '-i', str(indir), '-o', str(outdir), '-g', path_ground_truths]
 
     bsub_cmd += python_cmd
 

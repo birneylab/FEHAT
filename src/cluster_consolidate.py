@@ -14,20 +14,13 @@
 ############################################################################################################
 import argparse
 import pandas as pd
-import os
-# from functools import reduce
-# import numpy as np
-# import statistics
-# import seaborn as sns
-# from matplotlib import pyplot as plt
+from pathlib import Path
 
-import glob2
 from pathlib import Path
 import logging
 
 import io_operations
 import setup
-import shutil
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,25 +30,20 @@ parser.add_argument('-i','--indir', action="store", dest='indir', help='Path to 
 
 args = parser.parse_args()
 
-# Adds a trailing slash if it is missing.
-args.indir  = os.path.join(args.indir, '')
-args.outdir = os.path.join(args.outdir, '')
-
-out_dir = args.outdir
-indir = args.indir
+args.indir  = Path(args.indir)
+args.outdir = Path(args.outdir)
 
 # Number code for logfile and outfile respectively
-experiment_name = os.path.basename(os.path.normpath(out_dir))
-experiment_id = experiment_name.split('_')[0]
+experiment_id = args.outdir.name.split('_')[0]
 
-setup.config_logger(out_dir, ("logfile_" + experiment_id + ".log"))
+setup.config_logger(args.outdir, ("logfile_" + experiment_id + ".log"))
 
 try:
     LOGGER.info("Consolidating cluster results")
 
     # path to central log file
-    logs_paths    = glob2.glob(indir + '*.log')
-    results_paths = glob2.glob(indir + '*.txt')
+    logs_paths    = args.indir.glob('*.log')
+    results_paths = args.indir.glob('*.txt')
 
     # log files and results files of one analysis should have same index in lists
     logs_paths.sort()
@@ -94,7 +82,7 @@ try:
 
     # Logs should not appear in the output csv
     results = results.drop(columns=['log'])
-    io_operations.write_to_spreadsheet(out_dir, results, experiment_id)
+    io_operations.write_to_spreadsheet(args.outdir, results, experiment_id)
 
 except Exception as e:
     LOGGER.exception("Couldn't consolidate results from cluster analysis")

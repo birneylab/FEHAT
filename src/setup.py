@@ -8,13 +8,14 @@
 ### 
 ############################################################################################################
 import argparse
-import os
+from pathlib import Path
 import logging
 
 import configparser
+
 # Read config
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(parent_dir, 'config.ini')
+parent_dir = Path(__file__).resolve().parents[1]
+config_path = parent_dir / 'config.ini'
 
 config = configparser.ConfigParser()
 config.read(config_path)
@@ -22,7 +23,11 @@ config.read(config_path)
 LOGGER = logging.getLogger(__name__)
 
 def config_logger(logfile_path, logfile_name="medaka_outdir.log", in_debug_mode=False):
-    os.makedirs(logfile_path, exist_ok=True)
+    logfile_path = Path(logfile_path).resolve()
+    try:
+        logfile_path.mkdir(parents=True, exist_ok=True)
+    except FileExistsError: # allows logfile_path to be /dev/null without error.
+        pass
 
     loglevel = logging.INFO
     if in_debug_mode:
@@ -34,8 +39,7 @@ def config_logger(logfile_path, logfile_name="medaka_outdir.log", in_debug_mode=
                         level=loglevel,
                         handlers=[
                             logging.StreamHandler(),
-                            logging.FileHandler(os.path.join(
-                                logfile_path, logfile_name))
+                            logging.FileHandler(logfile_path/ logfile_name)
                         ])
 
 # TODO write extended help messages, store as string and pass to add_argument() help parameter
@@ -82,30 +86,27 @@ def parse_arguments():
     args = parser.parse_args()
 
     # Adds a trailing slash if it is missing.
-    args.indir = os.path.join(args.indir, '')
+    args.indir = Path(args.indir)
     if args.outdir:
-        args.outdir = os.path.join(args.outdir, '')
+        args.outdir = Path(args.outdir)
 
     return args
 
 # Processing, done after the logger in the main file has been set up
 def process_arguments(args, is_cluster_node=False):
-    will_crop = (args.only_crop or args.crop_and_save or args.crop)
 
     # Move up one folder if croppedRAWTiff was given. Experiment folder is above it.
-    if os.path.basename(os.path.normpath(args.indir)) == "croppedRAWTiff":
-        args.indir = os.path.dirname(os.path.normpath(args.indir))
-
+    experiment_folder = args.indir
+    if args.indir.is_dir() and args.indir.name == "croppedRAWTiff":
+        experiment_folder = args.indir.parent
+    
     # Output into experiment folder, if no ouput was given
     if not args.outdir:
-        args.outdir = args.indir
-
-    # Get the experiment folder name.
-    experiment_name = os.path.basename(os.path.normpath(args.indir))
+        args.outdir = experiment_folder
 
     # experiment_id: Number code for logfile and outfile respectively
     # e.g.: 170814162619_Ol_SCN5A_NKX2_5_Temp_35C -> 170814162619
-    experiment_id = experiment_name.split('_')[0]
+    experiment_id = experiment_folder.name.split('_')[0]
 
     # Outdir should be named after experiment.
     # Do not do for cluster nodes, already created on dispatch
@@ -114,12 +115,8 @@ def process_arguments(args, is_cluster_node=False):
         software_version = config['DEFAULT']['VERSION']
 
         # Outdir should start with experiment name
-        args.outdir = os.path.join(args.outdir, f"{experiment_name}_medaka_bpm_out_{software_version}", '')
-        os.makedirs(args.outdir, exist_ok=True)
-
-    # croppedRAWTiff folder present? Use cropped files for analysis
-    if os.path.isdir(os.path.join(args.indir, "croppedRAWTiff")):
-        args.indir = os.path.join(args.indir, "croppedRAWTiff", '')
+        args.outdir = args.outdir / f"{experiment_folder.name}_medaka_bpm_out_{software_version}"
+        args.outdir.mkdir(parents=True, exist_ok=True)
 
     if not args.maxjobs:
         args.maxjobs = ''

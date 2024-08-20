@@ -10,7 +10,7 @@
 #   Decision tree evaluation by medaka_bpm.
 ###
 ############################################################################################################
-import os
+from pathlib import Path
 import pickle
 from typing import Iterable, Union, Tuple, List
 
@@ -28,9 +28,9 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 #################### -- GLOBALS -- ####################
 TEST_SET_SIZE = 0.3
 
-PLOT_SAVE_DIR = os.path.relpath("figs")
-DATA_SAVE_DIR = os.path.relpath("thresholds")
-TREE_SAVE_DIR = os.path.relpath("data")
+PLOT_SAVE_DIR = "figs"
+DATA_SAVE_DIR = "thresholds"
+TREE_SAVE_DIR = "data"
 
 LABELS = "error"
 
@@ -39,7 +39,7 @@ QC_FEATURES = ["HROI Change Intensity", "Harmonic Intensity", "SNR", "Signal int
 
 def plot_qc_params(data: pd.DataFrame,
                    save_name: str, 
-                   out_dir: str,
+                   out_dir: Path,
                    limits: Union[dict, None] = None,
                    figsize: tuple = (10, 30), 
                    save_q: bool = True) -> None:
@@ -66,7 +66,7 @@ def plot_qc_params(data: pd.DataFrame,
                     ax[i].legend()
                     
     if save_q:
-        fig.savefig(os.path.join(out_dir, ".".join([save_name, "png"])), 
+        fig.savefig(out_dir / f"{save_name}.png", 
                     dpi = 80,
                     bbox_inches = "tight")
         
@@ -106,7 +106,7 @@ def decision_tree(data: pd.DataFrame) -> Tuple[sklearn.tree.DecisionTreeClassifi
     
 def plot_decision_tree(tree: sklearn.tree.DecisionTreeClassifier,
                        save_name: str,
-                       out_dir: str,
+                       out_dir: Path,
                        feature_names: Iterable[str],
                        class_names: Iterable[str] = ["no_error", "error"],
                        figsize: tuple = (40, 30),
@@ -120,7 +120,7 @@ def plot_decision_tree(tree: sklearn.tree.DecisionTreeClassifier,
                            filled = True)
     
     if save_q:
-        fig.savefig(os.path.join(out_dir, ".".join(["decision_tree", "png"])), dpi = 80, bbox_inches = "tight")
+        fig.savefig(out_dir / "decision_tree.png", dpi = 80, bbox_inches = "tight")
         
     
 def get_thresholds(unscaled_data: pd.DataFrame,
@@ -159,39 +159,32 @@ def write_results(raw_data: pd.DataFrame,
                   classifier: sklearn.tree.DecisionTreeClassifier, 
                   classifier_results: dict, 
                   limits: dict, 
-                  out_dir: str) -> None:
+                  out_dir: Path) -> None:
     
-    results_dir = os.path.join(out_dir, "-".join(["qc_analysis_results_training", raw_data["DATASET"][0]]))
+    results_dir = out_dir / f"qc_analysis_results_training-{raw_data["DATASET"][0]}"
     
-    if os.path.exists(results_dir):
+    if results_dir.exists():
          print("Results directory already exists. Overwriting.")
+    results_dir.mkdir(parents=True, exist_ok=True)
     
-    os.makedirs(results_dir, exist_ok = True)
-    
-    plots_dir = os.path.join(results_dir, PLOT_SAVE_DIR)
-    data_dir = os.path.join(results_dir, DATA_SAVE_DIR)
-    tree_dir = os.path.join(results_dir, TREE_SAVE_DIR)
-    # print(tree_dir)
-    
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-        
-    if not os.path.exists(plots_dir):
-        os.makedirs(plots_dir)
-        
-    if not os.path.exists(tree_dir):
-        os.makedirs(tree_dir)
+    plots_dir   = results_dir / PLOT_SAVE_DIR
+    data_dir    = results_dir / DATA_SAVE_DIR
+    tree_dir    = results_dir / TREE_SAVE_DIR
+
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    tree_dir.mkdir(parents=True, exist_ok=True)
         
     plot_qc_params(data = raw_data, limits = limits, save_name = "qc_params_thresholds", figsize = (10, 40), out_dir = plots_dir)
     plot_decision_tree(tree = classifier, feature_names =  data.columns, save_name = "decision_tree", out_dir = plots_dir)
     
     threshold_data = process_limits(limits)
-    threshold_data.to_csv(os.path.join(data_dir, "qc_thresholds.csv"))
+    threshold_data.to_csv(data_dir / "qc_thresholds.csv")
     
-    pd.DataFrame(classifier_results).to_csv(os.path.join(data_dir, "classifier_results.csv"))
+    pd.DataFrame(classifier_results).to_csv(data_dir / "classifier_results.csv")
     
     # Write the tree to a sav file. This file needs to be accessed by medaka_bpm.
-    classifier_filepath = os.path.join(tree_dir, "decision_tree.pkl")
+    classifier_filepath = tree_dir / "decision_tree.pkl"
     with open(classifier_filepath, 'wb') as f:
         pickle.dump(classifier, f)
 

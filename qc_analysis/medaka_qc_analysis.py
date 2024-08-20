@@ -10,17 +10,19 @@
 #   Decision tree evaluation by medaka_bpm.
 ###
 ############################################################################################################
-import os
-import sys
 import argparse
-
+from pathlib import Path
 import decision_tree.src.analysis as analyse
 
 def process_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input_file", help = "Results from medaka_bpm", type = str, required = True)
     parser.add_argument("-o", "--out_dir",  help = "Directory to write analysis results", type = str, required = True)
-    return parser.parse_args()
+
+    args = parser.parse_args()
+    args.input_file = Path(args.input_file)
+    args.out_dir = Path(args.out_dir)
+    return args
 
 def main():
     args = process_args()

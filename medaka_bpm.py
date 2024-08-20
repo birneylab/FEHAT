@@ -12,7 +12,7 @@
 import gc
 
 import logging
-import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -28,10 +28,10 @@ import src.cropping as cropping
 # QC Analysis modules.
 from qc_analysis.decision_tree.src import analysis as qc_analysis
 
-curr_dir = os.path.dirname(os.path.abspath(__file__))
-
+# Load config
 import configparser
-config_path = os.path.join(curr_dir, 'config.ini')
+curr_dir = Path(__file__).resolve().parent
+config_path = curr_dir / 'config.ini'
 config = configparser.ConfigParser()
 config.read(config_path)
 
@@ -184,7 +184,7 @@ def run_multifolder(args, dirs):
     print("### Directories to be analysed: ")
     # loop throw the folders
     for idx, path in enumerate(dirs):
-        print(str(idx) + ": " + path)
+        print(str(idx) + ": " + str(path))
         # get the indir and outdir arguments on the fly
         args.indir = path
 
@@ -196,7 +196,7 @@ def run_multifolder(args, dirs):
         arguments = sum(arguments_variable, arguments_bool)
 
         # absolute filepath and sys.executeable for windows compatibility
-        filename = os.path.abspath(__file__)
+        filename = str(Path(__file__))
         python_cmd = [sys.executable, filename] + arguments
         cmd_list.append(python_cmd)
 
@@ -212,8 +212,7 @@ def run_multifolder(args, dirs):
             p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             procs_list.append(p)
 
-            experiment_name = cmd[cmd.index("--indir")+1]
-            experiment_name = os.path.basename(os.path.normpath(experiment_name))
+            experiment_name = Path(cmd[cmd.index("--indir")+1]).name
             print("Starting " + experiment_name)
             i -= 1
 
@@ -229,7 +228,7 @@ def run_multifolder(args, dirs):
 
 def dispatch_cluster(channels, loops):
         # Run cluster analysis
-        main_directory = os.path.dirname(os.path.abspath(__file__))
+        main_directory = Path(__file__).parent
 
         try:
             job_ids = []
@@ -249,7 +248,7 @@ def dispatch_cluster(channels, loops):
 
                     arguments = sum(arguments_variable, arguments_bool)
 
-                    exe_path = os.path.join(main_directory, 'cluster.py')
+                    exe_path = main_directory / 'cluster.py'
 
                     # pass arguments down. Add Jobindex to assign cluster instances to specific wells.
                     python_cmd = ['python3', str(exe_path)] + arguments + ['-x', r'\$LSB_JOBINDEX']
@@ -260,11 +259,9 @@ def dispatch_cluster(channels, loops):
 
                     if args.email == False:
                         if args.debug:
-                            outfile = os.path.join(
-                                args.outdir, 'bsub_out/', r'%J_%I-outfile.log')
-                            os.makedirs(os.path.join(
-                                args.outdir, 'bsub_out/'), exist_ok=True)
-                            bsub_cmd += ['-o', outfile]
+                            outfile = args.outdir / 'bsub_out/' / r'%J_%I-outfile.log'
+                            outfile.parent.mkdir(parents=True, exist_ok=True)
+                            bsub_cmd += ['-o', str(outfile)]
                         else:
                             bsub_cmd += ['-o', '/dev/null']
 
@@ -295,17 +292,16 @@ def dispatch_cluster(channels, loops):
 
             if args.email == False:
                 if args.debug:
-                    outfile = os.path.join(
-                        args.outdir, 'bsub_out/', r'%J_consolidate.log')
-                    os.makedirs(os.path.join(
-                        args.outdir, 'bsub_out/'), exist_ok=True)
+                    outfile = args.outdir / 'bsub_out/' / r'%J_consolidate.log'
+                    outfile.parent.mkdir(parents=True, exist_ok=True)
+                    bsub_cmd += ['-o', str(outfile)]
                     consolidate_cmd += ['-o', outfile]
                 else:
                     consolidate_cmd += ['-o', '/dev/null']
 
-            tmp_dir = os.path.join(args.outdir, 'tmp')
-            exe_path = os.path.join(main_directory, 'src/', 'cluster_consolidate.py')
-            python_cmd = ['python3', exe_path, '-i', tmp_dir, '-o', args.outdir]
+            tmp_dir = args.outdir / 'tmp'
+            exe_path = main_directory / 'src/' / 'cluster_consolidate.py'
+            python_cmd = ['python3', str(exe_path), '-i', str(tmp_dir), '-o', str(args.outdir)]
 
             # consolidate_cmd += ['source', 'activate', 'medaka_env', '&&']  # calling source medaka_env here was throwing a error
             consolidate_cmd += python_cmd

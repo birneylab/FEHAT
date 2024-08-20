@@ -9,7 +9,6 @@
 # Work in progress.
 ###
 ############################################################################################################
-import os
 import logging
 
 from statistics import mean
