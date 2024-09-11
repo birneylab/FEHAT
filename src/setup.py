@@ -62,12 +62,8 @@ def parse_arguments():
 
     # Cropping Arguments
     parser.add_argument('--crop',           action="store_true",    dest='crop',
-                        help='Should crop images and analyse',                                  required=False)
-    parser.add_argument('--crop_and_save',  action="store_true",    dest='crop_and_save',
-                        help='Should crop crop images and save, and run bpm in cropped images', required=False)
-    parser.add_argument('--only_crop',      action="store_true",    dest='only_crop',
-                        help='Should only crop images, not run bpm script',                     required=False)
-
+                        help='Crops images, does not analyze BPM',              required=False)
+    
     # Cluster arguments. Index is hidden argument that is set through bash script to assign wells to cluster instances.
     parser.add_argument('--cluster',        action="store_true",    dest='cluster',
                         help='Run analysis on a cluster',                       required=False)
@@ -81,8 +77,8 @@ def parse_arguments():
     # Debug flag
     parser.add_argument('--debug',          action="store_true",    dest='debug',
                         help='Additional debug output',                          required=False)
-    parser.set_defaults(crop=False, only_crop=False, crop_and_save=False,
-                        slowmode=False, cluster=False, email=False, debug=False)
+    parser.set_defaults(crop=False, cluster=False, email=False, debug=False)
+    
     args = parser.parse_args()
 
     # Adds a trailing slash if it is missing.

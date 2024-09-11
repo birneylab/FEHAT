@@ -53,7 +53,6 @@ def analyse_directory(args, channels, loops, wells=None):
     trained_tree = io_operations.load_decision_tree()
 
     try:
-        resulting_dict_from_crop = {}
         for well_frame_paths, video_metadata in io_operations.well_video_generator(args.indir, channels, loops):
             
             well_nr = int(video_metadata['well_id'][-3:])
@@ -67,7 +66,7 @@ def analyse_directory(args, channels, loops, wells=None):
             qc_attributes = {}
             
             try:
-                bpm, fps, qc_attributes = analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_crop)
+                bpm, fps, qc_attributes = analyse_well(well_frame_paths, video_metadata, args)
                 LOGGER.info(f"Reported BPM: {str(bpm)}\n")
                 
                 # Process data.
@@ -112,7 +111,7 @@ def analyse_directory(args, channels, loops, wells=None):
     return results
 
 # Run algorithm on a single well
-def analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_crop):
+def analyse_well(well_frame_paths, video_metadata, args):
     LOGGER.info("Analysing video - "
                 + "Channel: " + str(video_metadata['channel'])
                 + " Loop: " + str(video_metadata['loop'])
@@ -123,54 +122,7 @@ def analyse_well(well_frame_paths, video_metadata, args, resulting_dict_from_cro
     # Load video
     video_metadata['timestamps'] = io_operations.extract_timestamps(well_frame_paths)
 
-    # TODO: Move the cropping out of here. 
-    # This does not overlap with analysis and should therefore be in it's own function
-    # Crop and analyse
-    if args.crop == True and args.crop_and_save == False:
-        LOGGER.info("Cropping images to analyze them, but NOT saving cropped images")
-
-        embryo_size = int(config["CROPPING"]["EMBRYO_SIZE"])
-        border_ratio = float(config["CROPPING"]["border_ratio"])
-
-        # We only need 8 bits video as no images will be saved
-        video8 = io_operations.load_video(well_frame_paths, imread_flag=1)
-
-        # now calculate position based on first 5 frames 8 bits
-        embryo_coordinates = cropping.embryo_detection(video8[0:5], embryo_size, border_ratio)  # get the first 5 frames
-        
-        # crop and do not save, just return 8 bits cropped video
-        video, resulting_dict_from_crop = cropping.crop_2(
-            video8, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata)
-
-        video = [cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) for frame in video]
-
-        # save panel for crop checking
-        io_operations.save_panel(resulting_dict_from_crop, args)
-
-    elif args.crop_and_save == True:
-        LOGGER.info("Cropping images and saving them...")
-        embryo_size = int(config["CROPPING"]["EMBRYO_SIZE"])
-        border_ratio = float(config["CROPPING"]["BORDER_RATIO"])
-
-        # first 5 frames to calculate embryo coordinates
-        video8 = io_operations.load_video(well_frame_paths, imread_flag=1, max_frames=5)
-
-        # we need every image as 16 bits to crop based on video8 coordinates
-        video16 = io_operations.load_video(well_frame_paths, imread_flag=-1)
-        embryo_coordinates = cropping.embryo_detection(video8, embryo_size, border_ratio)
-        video_cropped, resulting_dict_from_crop = cropping.crop_2(
-            video16, embryo_size, embryo_coordinates, resulting_dict_from_crop, video_metadata)  
-
-        # save cropped images
-        io_operations.save_cropped(video_cropped, args, well_frame_paths)
-
-        # save panel for crop checking
-        io_operations.save_panel(resulting_dict_from_crop, args)
-
-        # now we need every frame in 8bits to run bpm
-        video = io_operations.load_video(well_frame_paths, imread_flag=0)
-    else:
-        video = io_operations.load_video(well_frame_paths, imread_flag=0)
+    video = io_operations.load_video(well_frame_paths, imread_flag=0)
 
     bpm, fps, qc_attributes = segment_heart.run(video, vars(args), video_metadata)
 
@@ -344,7 +296,7 @@ def main(args):
         LOGGER.info("Running on cluster")
         dispatch_cluster(channels, loops)
 
-    elif args.only_crop == False:
+    elif args.crop == False:
         LOGGER.info("Running on a single machine")
 
         results = analyse_directory(args, channels, loops)
@@ -386,7 +338,6 @@ def main(args):
             io_operations.save_cropped(cropped_video, args, well_frame_paths)
             # save panel for crop checking
             io_operations.save_panel(resulting_dict_from_crop, args)
-            # here finish the script as we only need is save the cropped images
 
 if __name__ == '__main__':
     # Parse input arguments.

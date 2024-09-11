@@ -710,9 +710,8 @@ def run(video, args, video_metadata):
     ################################################################################ Fourier Frequency estimation
     LOGGER.info("Fourier frequency evaluation")
     
-    # Run normally, Fourier in segemented area
-    if not args['slowmode']:
-        bpm, qc_data = bpm_from_heartregion(hroi_pixels, timestamps, out_dir)
+    # Run Fourier in segemented area
+    bpm, qc_data = bpm_from_heartregion(hroi_pixels, timestamps, out_dir)
 
     # Add attributes from frequency analysis to dictionary
     qc_attributes.update(qc_data)
