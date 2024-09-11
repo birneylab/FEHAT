@@ -237,24 +237,29 @@ def save_panel(resulting_dict_from_crop, args):
             for cut_image, position in zip(item[1], resulting_dict_from_crop['positions_' + item[0]]):
                 position_number = position[-2:]
                 formated_counter = '{:02d}'.format(counter)
-                while (position_number > formated_counter):  # do not save image
+                while (position_number > formated_counter):  
+                    # do not save image
                     axes.append(fig.add_subplot(rows, cols, counter))
                     subplot_title = ("WE000" + str(formated_counter))
                     axes[-1].set_title(subplot_title,
                                        fontsize=11, color='blue')
                     plt.xticks([], [])
                     plt.yticks([], [])
-                    plt.tight_layout()
-                else:  # save image
-                    axes.append(fig.add_subplot(rows, cols, counter))
-                    subplot_title = (position)
-                    axes[-1].set_title(subplot_title,
-                                       fontsize=11, color='blue')
-                    plt.xticks([], [])
-                    plt.yticks([], [])
-                    plt.tight_layout()
-                    # plot in panel the last cropped image from the loop above
-                    plt.imshow(cut_image)
+                    plt.tight_layout()             
+                    outfile_path = args.outdir / f"{item[0]}_panel.png"
+                    counter += 1
+                    formated_counter = '{:02d}'.format(counter)       
+
+                # save image
+                axes.append(fig.add_subplot(rows, cols, counter))
+                subplot_title = (position)
+                axes[-1].set_title(subplot_title,
+                                    fontsize=11, color='blue')
+                plt.xticks([], [])
+                plt.yticks([], [])
+                plt.tight_layout()
+                # plot in panel the last cropped image from the loop above
+                plt.imshow(cut_image)
 
                 # save figure
                 outfile_path = args.outdir / f"{item[0]}_panel.png"
