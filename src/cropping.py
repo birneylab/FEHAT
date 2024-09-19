@@ -18,7 +18,7 @@ import cv2
 from scipy.ndimage import gaussian_filter
 
 # import skimage
-from skimage.filters import threshold_triangle
+from skimage.filters import threshold_yen
 
 LOGGER = logging.getLogger(__name__)
 
@@ -66,6 +66,8 @@ def get_most_central_blobs(binary_img):
     output_image = np.zeros_like(binary_img)
     if central_blob_label is not None:
         output_image[labels != central_blob_label] = 1
+    else:
+        return None, image_center
     return output_image, centroids[central_blob_label]
 
 ### Cropping Feature
@@ -87,7 +89,7 @@ def embryo_detection(video, embryo_size=450, border_ratio=0.15):
         img_cleaned_blurred = gaussian_filter(img_cleaned, sigma=10)
         cv2.normalize(img_cleaned_blurred, img_cleaned_blurred, 0, 255, cv2.NORM_MINMAX)
 
-        threshold = threshold_triangle(img_cleaned_blurred)
+        threshold = threshold_yen(img_cleaned_blurred)
         thresh_img = (img_cleaned_blurred > threshold).astype(np.uint8)
 
         # fill in any holes
@@ -116,7 +118,11 @@ def crop_2(video, embryo_size, embryo_coordinates, resulting_dict_from_crop, vid
     for index, img in enumerate(video):
         try:
             x_lim = [int(embryo_coordinates[0])-embryo_size, int(embryo_coordinates[0])+embryo_size]
+            x_lim = [max(0, x_lim[0]), min(img.shape[1], x_lim[1])]
+
             y_lim = [int(embryo_coordinates[1])-embryo_size, int(embryo_coordinates[1])+embryo_size]
+            y_lim = [max(0, y_lim[0]), min(img.shape[0], y_lim[1])]
+
             cut_image = img[y_lim[0]: y_lim[1], x_lim[0]: x_lim[1]]
            
         except Exception as e:
