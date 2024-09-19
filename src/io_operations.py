@@ -259,7 +259,7 @@ def save_panel(resulting_dict_from_crop, args):
                 plt.yticks([], [])
                 plt.tight_layout()
                 # plot in panel the last cropped image from the loop above
-                plt.imshow(cut_image)
+                # plt.imshow(cut_image)
 
                 # save figure
                 outfile_path = args.outdir / f"{item[0]}_panel.png"
@@ -280,6 +280,9 @@ def save_panel(resulting_dict_from_crop, args):
 
             plt.savefig(outfile_path, bbox_extra_artists=(
                         suptitle,), bbox_inches="tight")
+            
+            # ensures no memory leaks
+            plt.close('all')
 
 well_id_name_table = {  'WE00001': 'A001', 'WE00002': 'A002', 'WE00003': 'A003', 'WE00004': 'A004', 'WE00005': 'A005', 'WE00006': 'A006', 
                         'WE00007': 'A007', 'WE00008': 'A008', 'WE00009': 'A009', 'WE00010': 'A010', 'WE00011': 'A011', 'WE00012': 'A012', 
