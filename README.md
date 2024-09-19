@@ -3,7 +3,7 @@
 FEHAT extracts the heart beats per minute from fish embryo videos - fully automated!
 
 The software can be run on a single machine or on an HPC cluster running LSF. 
-When running in cluster mode, busb is used to create jobs and distribute data. For integration into your own HPC environment, tweaking may be necesarry.
+When running in cluster mode, busb is used to create jobs and distribute data. For integration into your own HPC environment, tweaking may be necessary.
 
 ## Installation
 1. Download or clone this repository:
@@ -31,7 +31,7 @@ In addition, videos and images of the software analysis are saved for manual ins
 ## Usage examples
 The software was designed to analyse either a single video, a collection of videos (referred to here as an "experiment") or a collection of experiments with a single run. Refer to the section on [input format](#input-format) for more details.
 
-#### example 1. Run everything in the input directoy in single machine:
+#### example 1. Run everything in the input directory in single machine:
 
 	python medaka_bpm.py -i <input_directory> -o <output_directory>
 
@@ -61,14 +61,14 @@ Where
 - `LO001` indicates loop 1 and can range from `LO001` to  `LO999`.
 - `CO6` indicates channel 6 and can range from `CO0` to  `CO9`.
 - `SL001` indicates the frame number, i.e. this is the first frame of the video.
-- `T0015372985` indicates the timestamp in milliseconds, at which the frame was recorded. In this case the image was aquired at timestamp 15372985ms. `T0000000000` refers to 0ms.
+- `T0015372985` indicates the timestamp in milliseconds, at which the frame was recorded. In this case, the image was acquired at timestamp 15372985ms. `T0000000000` refers to 0ms.
 
 All other fields are metadata and need not be present. Videos that share a common value for well, loop and channel are then parsed as a single video.
 
 ### Directory structures
 Input data can be organised in three different ways. A single video in a directory, an experiment directory (collection of videos) or multiple experiment directories.
 
-Experiment directories should contain a uniqe identifier as a prefix, followed by an underscore:`<expeirment_id>_<my_experiment_name>`. This will get used as the experiment id during processing and output formatting. A valid name would for example be: `20230227_my_experiment`.
+Experiment directories should contain a unique identifier as a prefix, followed by an underscore:`<experiment_id>_<my_experiment_name>`. This will get used as the experiment id during processing and output formatting. A valid name would for example be: `20230227_my_experiment`.
 
 #### Case 1. A single video:
 
@@ -133,14 +133,18 @@ For example, ``-w WE00001.WE00002``
 If not provided, framerate is automatically calculated from image timestamps.
 Alternatively, set the framerate through this argument.
 
+**--cluster**
+
+Cluster mode. Distributes evaluation on an LSF HPC.
+
 **-m**, **--maxjobs**
 
 For cluster mode, defines the maximum number of jobs to run at the same time. 
-It is helpful on busy servers if you don't want to bother others users. E.g.: ``-m 30``
+It is helpful on busy servers if you don't want to bother other users. E.g.: ``-m 30``
 
 **--email**
 
-For debugging purpose, you can set this argument to receive emails with the results of each well (subjob). 
+For debugging purposes, you can set this argument to receive emails with the results of each well (subjob). 
 The email address will be the email of the user logged on the cluster.
 
 **--crop**
@@ -171,7 +175,7 @@ For more persistent adjustments to the software, we provide a `config.ini` confi
 - **ARTIFICIAL_TIMESTAMPS**. If set to yes (default) will use equally spaced timestamps, according to given or estimated fps. If set to no, will attempt to use given timestamps of frames, but needs to interpolate pixel values and can be inaccurate.
 
 - **EMBRYO_SIZE**. For cropping, assume a minimum embryo size that should not be cut out. Given in pixels.
-- **BORDER_RATIO**. For cropping, crops at least this ratio around the edges of the images as it is assumed border for sure.
+- **BORDER_RATIO**. For cropping, when trying to find fish embryo center, assumes it is not contained in this ratio around the image border.
 
 # Notes on single machine analysis:
 If single server mode is used, the script will read one well at a time. 
