@@ -77,3 +77,12 @@ Region detection now also employs FFT to detect regions exhibiting periodic chan
 - Errors occuring during execution are now noted in the resulting csv.
 - Improved expressiveness of output graphs, videos and pictures
 - debug flags are always printed
+
+
+Date: September 19, 2024 (v1.5)
+Revised dependencies and brought up to date.
+
+- Updated to be python3.12 compatible.
+- Dropped conda dependency. Added requiremnets.txt to manage dependencies via python venv.
+- Reworked cropping routine. Should be more robust now.
+- Simplified CLI interface.
